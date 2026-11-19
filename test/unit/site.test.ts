@@ -12,8 +12,8 @@ import {
 } from "../../scripts/build-site.js";
 import { neverClaimViolations } from "../helpers/never-claim.js";
 
-// The project's page (site/) and its build (scripts/build-site.ts). The deck's button is held back until
-// DECK_URL is set: until then the page has no deck link at all, and the repository is its only call to action.
+// The project's page (site/) and its build (scripts/build-site.ts). With DECK_URL set, the page's calls to
+// action are the deck, then the repository; with it empty, the page has no deck link at all.
 const source = readFileSync(join(SITE_DIR, "index.html"), "utf8");
 
 /** The `href` of every call-to-action button, in order, with its `data-cta`. */
@@ -25,9 +25,16 @@ function ctas(html: string): { cta: string; href: string }[] {
 }
 
 describe("the deck button", () => {
-  it("is unset today, so the built page has no deck link and the repository is the only call to action", () => {
-    expect(DECK_URL).toBe("");
-    const html = renderIndex(source);
+  it("is set to the deck's address, so the built page shows the deck first, then the repository", () => {
+    expect(DECK_URL).toBe("https://css-wasteland.com/decks/a11y-genie");
+    expect(ctas(renderIndex(source))).toEqual([
+      { cta: "deck", href: "https://css-wasteland.com/decks/a11y-genie" },
+      { cta: "repository", href: "https://github.com/johnfrog76/a11y-genie" },
+    ]);
+  });
+
+  it("leaves no deck link at all when DECK_URL is emptied, and the repository is the only call to action", () => {
+    const html = renderIndex(source, "");
     expect(html).not.toContain(DECK_MARKER);
     expect(html).not.toContain(DECK_LABEL);
     expect(html).not.toContain('data-cta="deck"');
@@ -60,7 +67,7 @@ describe("the build", () => {
   const out = mkdtempSync(join(tmpdir(), "a11y-genie-site-"));
   afterAll(() => rmSync(out, { recursive: true, force: true }));
 
-  it("copies every file in site/ and writes index.html with no deck button", () => {
+  it("copies every file in site/ and writes index.html with the deck button", () => {
     buildSite(out);
     expect(readdirSync(out).sort()).toEqual(readdirSync(SITE_DIR).sort());
     expect(readFileSync(join(out, "index.html"), "utf8")).toBe(renderIndex(source));

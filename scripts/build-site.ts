@@ -2,9 +2,10 @@
  * Builds the project's page: copies `site/` into a folder for GitHub Pages, and fills in the call to watch
  * the deck, or leaves it out.
  *
- * `site/index.html` holds one marker, `<!-- deck-cta -->`, where the deck's button goes. While `DECK_URL`
- * is empty the marker is taken out and the page has no deck button at all, so there is never a link to
- * nowhere and the repository is the only call to action. Publishing the deck is the one-line change below.
+ * `site/index.html` holds one marker, `<!-- deck-cta -->`, where the deck's button goes. With `DECK_URL` set,
+ * the button to watch the deck goes there, before the repository's. Emptied, the marker is taken out and the
+ * page has no deck button at all, so there is never a link to nowhere. The page is published only once the
+ * repository is public (pages.yml), and the deck must be published at this address before then.
  *
  * Run it with `npm run site` (or `node scripts/build-site.ts [folder]`); it writes `_site/` by default.
  * test/unit/site.test.ts checks both cases.
@@ -13,8 +14,8 @@ import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-/** The product-intro deck's address. Empty until the deck is published; then set it here, and only here. */
-export const DECK_URL = "";
+/** The product-intro deck's address, set here and only here. Emptying it takes the button off the page. */
+export const DECK_URL = "https://css-wasteland.com/decks/a11y-genie";
 
 /** The marker in `site/index.html` the deck's button replaces. */
 export const DECK_MARKER = "<!-- deck-cta -->";
