@@ -112,3 +112,24 @@ refuses a second page, and the run fails with "Please use browser.newContext()".
 
 axe-core's result shape at the pinned version, and how its `target` reads for shadow roots and frames, are in
 `docs/JSON.md`.
+
+## One scan, end to end (`src/run-scan.ts`, `src/cli.ts`)
+
+`a11y-genie scan <url>` launches the browser (`withBrowser`), makes a new context, loads the page, runs
+`scanPage`, and builds the record (`src/scan-record.ts`). The CLI then makes the scan folder
+(`src/scans-folder.ts`), writes `scan.json`, and writes `report.md` from the record (`src/report.ts`). The
+report is a pure function of the record, so a stored `scan.json` can write it again later.
+
+- **Exit code.** 0 when there is no violation, 1 when there is any. The record's `exit` says the same.
+  Refusals (exit 2) and the full exit-code table are a later change.
+- **`--json`.** stdout holds the document and nothing else; every line meant for a person goes to stderr.
+  Without it, the summary goes to stdout.
+- **Never into the project.** Nothing is written in the folder the command runs from, or the scanned
+  project. Scans go to the per-user scans folder or `--out` (docs/JSON.md says where).
+- **The schema is checked without a validator dependency.** `test/helpers/json-schema.ts` is a small
+  validator for exactly the keywords `schema/scan-1.json` uses, and throws on any other, so the schema cannot
+  outgrow it. The schema test runs it over every golden and over a record the browser test has just made.
+- **Goldens.** `test/goldens/<page>/scan.json` and `report.md` for the four first fixture pages are written
+  by `test/browser/goldens.test.ts` in the real Chrome, after the port, the times and the versions of this
+  tool, axe-core and the browser are replaced by fixed values (`test/helpers/goldens.ts`). The rule count is
+  kept, so an axe-core upgrade shows in the diff. `UPDATE_GOLDENS=1 npm test` rewrites them.

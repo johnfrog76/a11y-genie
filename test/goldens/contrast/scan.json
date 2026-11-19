@@ -1,0 +1,92 @@
+{
+  "schema": "1.0",
+  "tool": {
+    "name": "a11y-genie",
+    "version": "0.0.0"
+  },
+  "command": "scan",
+  "exit": 1,
+  "engine": {
+    "axeCore": "0.0.0",
+    "browser": "chrome 0.0.0.0",
+    "fallback": false,
+    "tags": null,
+    "rulesRun": 90
+  },
+  "target": {
+    "origin": "http://127.0.0.1:0000",
+    "commit": null
+  },
+  "startedAt": "2000-01-01T00:00:00Z",
+  "finishedAt": "2000-01-01T00:00:00Z",
+  "pages": [
+    {
+      "key": "contrast.html",
+      "url": "http://127.0.0.1:0000/contrast.html",
+      "states": [
+        "default"
+      ],
+      "notScanned": []
+    }
+  ],
+  "summary": {
+    "critical": 0,
+    "serious": 1,
+    "moderate": 0,
+    "minor": 0,
+    "advice": 0,
+    "needsReview": 0,
+    "notScanned": 0
+  },
+  "findings": [
+    {
+      "id": "axe/color-contrast@contrast.html",
+      "rule": {
+        "source": "axe",
+        "id": "color-contrast",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/0.0/color-contrast?application=playwright",
+        "wcag": [
+          "1.4.3"
+        ]
+      },
+      "kind": "violation",
+      "impact": "serious",
+      "page": "contrast.html",
+      "title": "Elements must meet minimum color contrast ratio thresholds on contrast.html",
+      "plain": "Elements must meet minimum color contrast ratio thresholds",
+      "fix": "Fix any of the following: Element has insufficient color contrast of 2.81 (foreground color: #9a9a9a, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "elements": [
+        {
+          "selector": "p",
+          "target": [
+            "p"
+          ],
+          "html": "<p style=\"color: #9a9a9a; background: #ffffff\">This sentence is pale grey on white and hard to read.</p>",
+          "failure": "Fix any of the following:\n  Element has insufficient color contrast of 2.81 (foreground color: #9a9a9a, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1",
+          "states": [
+            "default"
+          ]
+        }
+      ],
+      "status": "new"
+    }
+  ],
+  "needsReview": [],
+  "ignored": [],
+  "workflows": [],
+  "checklist": null,
+  "cannotSee": [
+    "Whether focus follows the reading order when you press Tab (WCAG 2.4.3).",
+    "Whether the focus indicator is easy to see against every background it lands on (WCAG 2.4.7, 1.4.11).",
+    "Whether every image's alternative text says what the image is for (WCAG 1.1.1).",
+    "Whether headings and labels describe what follows them (WCAG 2.4.6).",
+    "Whether anything is shown by colour alone (WCAG 1.4.1).",
+    "Whether everything is still readable and usable at 200% zoom (WCAG 1.4.4).",
+    "Whether the page works at 320 px wide without scrolling sideways (WCAG 1.4.10).",
+    "Whether error messages say which field and how to fix it (WCAG 3.3.1, 3.3.3).",
+    "Whether video and audio have captions or a transcript (WCAG 1.2.2, 1.2.3).",
+    "Whether moving content pauses, and whether motion respects the reduced-motion setting (WCAG 2.2.2).",
+    "Whether a person using a real screen reader can finish the page's main task (WCAG 4.1.2)."
+  ]
+}
