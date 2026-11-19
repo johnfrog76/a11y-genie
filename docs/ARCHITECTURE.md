@@ -169,8 +169,8 @@ took about 5 seconds on a fast connection, and a scan with `--browser-channel ch
 arm64.
 
 **Decided 2026-11-19: the full Chromium, not the headless shell.** A11y Genie downloads the full Chromium
-build, not Chrome Headless Shell (about 107 MB). The full build runs the same headless mode as Chrome, so a scan
-finds the same things on either browser. That matters more than the extra download of about 90 MB, which
+build, not Chrome Headless Shell (105.7 MB on macOS arm64). The full build runs the same headless mode as Chrome, so a scan
+finds the same things on either browser. That matters more than the extra download of about 100 MB, which
 happens once.
 
 `test/unit/chromium-download.test.ts` pins Chromium build 1255 against playwright-core's `browsers.json`, so a
@@ -241,7 +241,7 @@ axe-core's result shape at the pinned version, and how its `target` reads for sh
 
 ## One scan, end to end (`src/run-scan.ts`, `src/cli.ts`)
 
-`a11y-genie scan <url>` launches the browser (`withBrowser`), makes a new context with the hostile-page rules
+`a11y-genie scan <url>` launches the browser (`withChosenBrowser`, which may fall back to Playwright's Chromium), makes a new context with the hostile-page rules
 (`src/context.ts`, below), loads the page, runs `scanPage`, and builds the record (`src/scan-record.ts`). A
 page that answers and then breaks one of those rules is not scanned: the record says why, and the run still
 writes its files and exits 1. The CLI then makes the scan folder
