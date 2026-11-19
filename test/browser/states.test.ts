@@ -22,11 +22,14 @@ const DARK = "dark: colorScheme dark";
 
 describe.skipIf(!hasChrome)("states (skipped where Chrome is not installed)", () => {
   let server: FixtureServer;
+  let far: FixtureServer;
   beforeAll(async () => {
     server = await startFixtureServer();
+    far = await startFixtureServer();
   });
   afterAll(async () => {
     await server.close();
+    await far.close();
   });
 
   /** `pageMs` is short where a step is meant to fail, so the test does not wait out the full limit. */
@@ -192,6 +195,30 @@ describe.skipIf(!hasChrome)("states (skipped where Chrome is not installed)", ()
     expect(record.pages[0]?.notScanned[0]?.reason).toBe(
       "step 1 (Tab to button 'Nothing here') failed: focus did not reach it within 200 Tab presses",
     );
+  });
+
+  it("holds every state's context to the network rule: under --offline a state still cannot reach off loopback", async () => {
+    const from = far.requests.length;
+    const target = `hostile/private-network.html?case=fetch&private=${encodeURIComponent(far.origin)}`;
+    const record = await runScan({
+      url: server.url(target),
+      pages: [{ url: server.url(target), states: [parseState("dark: colorScheme dark")] }],
+      channel: "chrome",
+      offline: true,
+      publicOrigins: [far.origin],
+      onContext: async (context) => {
+        expect(await guardContext(context, [server.origin, far.origin])).toEqual([]);
+      },
+      onLoaded: async (page) => {
+        await page.evaluate("window.privateDone");
+      },
+    });
+    expect(record.pages[0]?.states).toEqual(["default", "dark"]);
+    expect(far.requests.slice(from)).toEqual([]);
+    // one aborted request from each of the two states' contexts
+    expect(record.pages[0]?.stopped).toEqual([
+      { kind: "offline", count: 2, examples: [`${far.origin}/private/fetch`, `${far.origin}/private/fetch`] },
+    ]);
   });
 
   it("sets the viewport and reduced motion before the page loads", async () => {
