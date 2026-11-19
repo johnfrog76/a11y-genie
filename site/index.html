@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>A11y Genie: an accessibility scanner for agents and people</title>
+    <meta
+      name="description"
+      content="A11y Genie scans web pages for accessibility problems in a real browser and says what to fix first. It never tells you a site is done."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <meta property="og:title" content="A11y Genie" />
+    <meta property="og:description" content="An accessibility scanner for agents and people." />
+    <meta property="og:type" content="website" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="site.css" />
+  </head>
+  <body>
+    <a class="lp-skip" href="#main">Skip to the main content</a>
+    <div class="lp">
+      <header class="lp-banner">
+        <div class="lp-banner-words">
+          <h1 class="lp-title">
+            <img src="favicon.svg" alt="" width="64" height="64" />
+            A11y Genie
+          </h1>
+          <p class="lp-offer">
+            A11y Genie scans web pages for accessibility problems and tells you what to fix first.
+          </p>
+          <p class="lp-lede">
+            An accessibility scanner for agents and people. It finds some problems, never all of them, and
+            says so.
+          </p>
+          <ul class="lp-bullets">
+            <li>It runs axe-core in a real browser on your machine.</li>
+            <li>It puts what it finds in order, worst first, with the fix for each.</li>
+            <li>It writes JSON for an agent and Markdown for a person.</li>
+          </ul>
+          <div class="lp-cta">
+            <!-- The deck's button goes at the marker below, and only while scripts/build-site.ts sets DECK_URL. -->
+            <!-- deck-cta -->
+            <a
+              class="lp-cta-button lp-cta-button--secondary"
+              data-cta="repository"
+              href="https://github.com/johnfrog76/a11y-genie"
+              >See the repository</a
+            >
+          </div>
+        </div>
+        <div class="lp-banner-figure">
+          <img src="genie.svg" alt="The genie, floating on mist above his bottle" width="320" height="562" />
+        </div>
+      </header>
+
+      <main id="main" tabindex="-1">
+        <section class="lp-does" aria-labelledby="lp-does">
+          <h2 id="lp-does" class="lp-kicker">What it does</h2>
+          <ul class="lp-points">
+            <li>
+              <h3>A real browser</h3>
+              <p>
+                It loads the page in the Chrome already on your machine, or in Edge, with a new, empty profile
+                each time, deleted afterwards. Your own profile, cookies and sign-ins are never opened.
+              </p>
+            </li>
+            <li>
+              <h3>Worst first</h3>
+              <p>
+                It runs axe-core's rules on the page and orders what it finds by the harm to a person. Each
+                finding names its rule, the WCAG success criterion where there is one, and the elements it
+                hit.
+              </p>
+            </li>
+            <li>
+              <h3>For agents and people</h3>
+              <p>
+                <code>scan.json</code> has a versioned schema and exit codes that mean something, for an agent
+                or a script. <code>report.md</code> says the same in plain words, for a person.
+              </p>
+            </li>
+            <li>
+              <h3>Every page is a stranger</h3>
+              <p>
+                A scanned page gets no downloads, no permissions and no pop-ups, and a public page cannot
+                reach your own network through the scan. Its text is quoted as data, never run.
+              </p>
+            </li>
+          </ul>
+          <p class="lp-note">
+            A11y Genie is in early development. Today it scans one page at a time; more is on the way.
+          </p>
+
+          <figure class="lp-sample">
+            <figcaption>The start of a report, shortened</figcaption>
+            <pre class="lp-code"><code data-sample="report"># A11y Genie report
+
+## Findings, worst first
+
+### 1. Critical: Images must have alternative text
+
+- Rule: `axe/image-alt` · WCAG 1.1.1
+- Fix: Element does not have an alt attribute
+
+### 2. Serious: Elements must meet minimum color contrast ratio thresholds
+
+- Rule: `axe/color-contrast` · WCAG 1.4.3
+- Colours: `#9a9a9a on #ffffff, 2.81, needs 4.5`</code></pre>
+          </figure>
+          <p class="lp-note">From a scan of a test page in A11y Genie's own tests.</p>
+        </section>
+
+        <section class="lp-never" aria-labelledby="lp-never">
+          <h2 id="lp-never">What it never claims</h2>
+          <p>
+            A11y Genie never tells you a site is done, or that it meets a standard. Automated rules find only
+            some of the problems a person would. So every report says what it checked and what it found, and
+            ends with <strong>What this scan cannot see</strong>: focus order, whether alternative text says
+            what an image is for, captions, zoom, and whether someone using a screen reader can finish the
+            page's main task.
+          </p>
+          <p>A scan with no findings says how much it checked, and nothing more:</p>
+          <blockquote class="lp-quote">
+            <p>
+              No problems found by these 90 rules on this page. Automated rules find only some problems; the
+              checklist covers what they cannot see.
+            </p>
+          </blockquote>
+        </section>
+
+        <section class="lp-quick" id="try" aria-labelledby="lp-quick">
+          <h2 id="lp-quick">Quick start</h2>
+          <pre class="lp-code"><code data-sample="try">npx a11y-genie scan &lt;url&gt;</code></pre>
+          <p>
+            You need Node 24 or newer and Chrome. With no Chrome, it says so and downloads Playwright's
+            Chromium once, about 200 MB; <code>--no-download</code> refuses instead. It writes
+            <code>scan.json</code> and <code>report.md</code> to a scans folder of your own, never into the
+            folder you run it from, and exits 1 when it found something.
+          </p>
+          <p>
+            It isn't on npm yet. Until it is,
+            <a href="https://github.com/johnfrog76/a11y-genie#build-it-from-a-clone">build it from a clone</a
+            >.
+          </p>
+        </section>
+      </main>
+
+      <footer class="lp-footer">
+        <p class="lp-repo">
+          <a href="https://github.com/johnfrog76/a11y-genie">github.com/johnfrog76/a11y-genie</a>
+        </p>
+        <nav aria-label="Documentation">
+          <ul class="lp-docs">
+            <li><a href="https://github.com/johnfrog76/a11y-genie#readme">README</a></li>
+            <li>
+              <a href="https://github.com/johnfrog76/a11y-genie/blob/main/docs/JSON.md">The JSON</a>
+            </li>
+            <li>
+              <a href="https://github.com/johnfrog76/a11y-genie/blob/main/docs/EXIT-CODES.md">Exit codes</a>
+            </li>
+            <li>
+              <a href="https://github.com/johnfrog76/a11y-genie/blob/main/docs/ARCHITECTURE.md"
+                >How it works</a
+              >
+            </li>
+            <li><a href="https://github.com/johnfrog76/a11y-genie/blob/main/SECURITY.md">Security</a></li>
+            <li>
+              <a href="https://github.com/johnfrog76/a11y-genie/blob/main/CODE_OF_CONDUCT.md"
+                >Code of conduct</a
+              >
+            </li>
+            <li>
+              <a href="https://github.com/johnfrog76/a11y-genie/blob/main/THIRD-PARTY-NOTICES.md"
+                >Third-party notices</a
+              >
+            </li>
+          </ul>
+        </nav>
+        <p class="lp-license">
+          <a href="https://github.com/johnfrog76/a11y-genie/blob/main/LICENSE">MIT licensed</a>.
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>
