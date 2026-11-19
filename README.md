@@ -7,8 +7,15 @@ as JSON, Markdown and HTML.
 It never says a site is "accessible" or "compliant". Automated checks find some problems, not all of them,
 and every report says what a scan cannot see.
 
-A11y Genie is in early development. Nothing here is ready to use yet: today the command only answers
-`--version` and `--help`.
+A11y Genie is in early development. Nothing here is ready to use yet: today the command answers
+`--version` and `--help`, and `scan` only launches the browser and closes it. It does not check a page yet.
+
+## The browser
+
+A11y Genie uses the Chrome already installed on your machine, or Microsoft Edge with
+`--browser-channel msedge`. Each run gets a new, empty browser profile, deleted afterwards; your own profile,
+cookies and sign-ins are never opened. If the browser is not installed, it stops and says so.
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) says how.
 
 ## Build it from a clone
 
