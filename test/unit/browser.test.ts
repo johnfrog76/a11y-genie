@@ -1,0 +1,80 @@
+import type { Browser, LaunchOptions } from "playwright-core";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { NO_BROWSER_ENV, isNotInstalledError, withBrowser, type Launcher } from "../../src/browser.js";
+import { Refusal } from "../../src/refusal.js";
+
+// No browser runs here: the launcher is a stand-in.
+function fakeBrowser() {
+  const close = vi.fn(async () => {});
+  return { browser: { close } as unknown as Browser, close };
+}
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
+describe("withBrowser", () => {
+  it("asks playwright-core for the channel, headless, and never for a profile folder", async () => {
+    const { browser } = fakeBrowser();
+    const seen: LaunchOptions[] = [];
+    const launcher: Launcher = async (options) => {
+      seen.push(options);
+      return browser;
+    };
+    await withBrowser("msedge", async () => undefined, launcher);
+    expect(seen).toEqual([{ channel: "msedge", headless: true }]);
+  });
+
+  it("closes the browser when the run throws", async () => {
+    const { browser, close } = fakeBrowser();
+    await expect(
+      withBrowser(
+        "chrome",
+        async () => {
+          throw new Error("boom");
+        },
+        async () => browser,
+      ),
+    ).rejects.toThrow("boom");
+    expect(close).toHaveBeenCalledOnce();
+  });
+
+  it("turns playwright-core's not-found error into a refusal", async () => {
+    const launcher: Launcher = async () => {
+      throw new Error(
+        "browserType.launch: Chromium distribution 'chrome' is not found at /opt/google/chrome/chrome\n" +
+          'Run "npx playwright install chrome"',
+      );
+    };
+    const refusal = await withBrowser("chrome", async () => undefined, launcher).catch((e: unknown) => e);
+    expect(refusal).toBeInstanceOf(Refusal);
+    expect((refusal as Refusal).message).toContain("Chrome was not found");
+    expect((refusal as Refusal).hint).toContain("--browser-channel msedge");
+  });
+
+  it("passes other launch errors through unchanged", async () => {
+    const launcher: Launcher = async () => {
+      throw new Error("Target page, context or browser has been closed");
+    };
+    const error = await withBrowser("chrome", async () => undefined, launcher).catch((e: unknown) => e);
+    expect(error).not.toBeInstanceOf(Refusal);
+  });
+
+  it(`refuses without launching when ${NO_BROWSER_ENV}=1`, async () => {
+    vi.stubEnv(NO_BROWSER_ENV, "1");
+    const launcher = vi.fn<Launcher>();
+    await expect(withBrowser("chrome", async () => undefined, launcher)).rejects.toBeInstanceOf(Refusal);
+    expect(launcher).not.toHaveBeenCalled();
+  });
+});
+
+describe("isNotInstalledError", () => {
+  it("knows both of playwright-core's not-installed messages", () => {
+    expect(isNotInstalledError(new Error("Chromium distribution 'msedge' is not found at /x"))).toBe(true);
+    expect(isNotInstalledError(new Error("Chromium distribution 'msedge' is not supported on linux"))).toBe(
+      true,
+    );
+    expect(isNotInstalledError(new Error("Timeout 180000ms exceeded."))).toBe(false);
+    expect(isNotInstalledError("not an error")).toBe(false);
+  });
+});
