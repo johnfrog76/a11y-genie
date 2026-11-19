@@ -68,6 +68,8 @@ async function scan(args: string[]): Promise<void> {
   });
   console.error(`Launched ${channel} ${browserVersion} with a new, empty profile, and closed it.`);
   console.error("Nothing was scanned: scan does not load pages yet.");
+  // Exit 0 never stands for a page nobody saw: nothing scanned is exit 1, as a page that could not be scanned is.
+  process.exitCode = 1;
 }
 
 async function main(args: string[]): Promise<void> {

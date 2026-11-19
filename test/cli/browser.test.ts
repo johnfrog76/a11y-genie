@@ -46,10 +46,10 @@ describe("a11y-genie scan, the browser", () => {
     expect(err[1]).toMatch(/^Hint: /);
   });
 
-  it("launches Chrome and says nothing was scanned (skipped where Chrome is not installed)", (ctx) => {
+  it("launches Chrome and says nothing was scanned, exiting 1 (skipped where Chrome is not installed)", (ctx) => {
     const result = run(["scan"]);
     if (result.status === 2 && result.stderr.includes("Chrome was not found")) ctx.skip();
-    expect(result.status).toBe(0);
+    expect(result.status).toBe(1);
     expect(result.stdout).toBe("");
     expect(result.stderr).toMatch(/^Launched chrome \d+\./);
     expect(result.stderr).toContain("Nothing was scanned");
