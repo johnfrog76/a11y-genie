@@ -168,6 +168,11 @@ took about 5 seconds on a fast connection, and a scan with `--browser-channel ch
 (`engine.browser`: `chromium 159.0.8154.6`). The headless shell the download leaves out is 105.7 MB on macOS
 arm64.
 
+**Decided 2026-11-19: the full Chromium, not the headless shell.** A11y Genie downloads the full Chromium
+build, not Chrome Headless Shell (about 107 MB). The full build runs the same headless mode as Chrome, so a scan
+finds the same things on either browser. That matters more than the extra download of about 90 MB, which
+happens once.
+
 `test/unit/chromium-download.test.ts` pins Chromium build 1255 against playwright-core's `browsers.json`, so a
 playwright-core upgrade fails it until the sizes are measured again.
 
