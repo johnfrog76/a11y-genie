@@ -91,13 +91,29 @@ describe("the report", () => {
       "No problems found by these 123 rules on these 3 pages. Automated rules find only some problems; the checklist covers what they cannot see.",
     );
     expect(renderReport(empty)).toContain(emptyScanSentence(empty));
-    expect(emptyScanSentence({ ...empty, pages: [record.pages[0]!] })).toContain("on this 1 page.");
+    expect(emptyScanSentence({ ...empty, pages: [record.pages[0]!] })).toContain("on this page.");
+  });
+
+  it("words one page as 'this page' and several as 'these N pages', in the sentence and the header", () => {
+    const record = recordFrom("impact-mix");
+    const empty: ScanRecord = {
+      ...record,
+      engine: { ...record.engine, rulesRun: 90 },
+      summary: { ...record.summary, critical: 0, serious: 0, moderate: 0, minor: 0 },
+      findings: [],
+    };
+    const one = { ...empty, pages: [record.pages[0]!] };
+    expect(emptyScanSentence(one)).toMatch(/^No problems found by these 90 rules on this page\. /);
+    expect(renderReport(one)).toContain("90 rules ran on this page.");
+    const two = { ...empty, pages: [record.pages[0]!, { ...record.pages[0]!, key: "two" }] };
+    expect(emptyScanSentence(two)).toMatch(/^No problems found by these 90 rules on these 2 pages\. /);
+    expect(renderReport(two)).toContain("90 rules ran on 2 pages.");
   });
 
   it("reads the empty scan's sentence only when nothing was found", () => {
     expect(renderReport(recordFrom("impact-mix"))).not.toContain("No problems found");
     expect(renderReport(readGoldenRecord("clean"))).toContain(
-      "No problems found by these 90 rules on this 1 page.",
+      "No problems found by these 90 rules on this page.",
     );
   });
 

@@ -1,6 +1,6 @@
 # A11y Genie report
 
-Scanned `http://127.0.0.1:0000/icon-button.html` with axe-core 0.0.0 in chrome 0.0.0.0, using its default rule set. 90 rules ran on 1 page. Started 2000-01-01T00:00:00Z.
+Scanned `http://127.0.0.1:0000/icon-button.html` with axe-core 0.0.0 in chrome 0.0.0.0, using its default rule set. 90 rules ran on this page. Started 2000-01-01T00:00:00Z.
 
 ## Summary
 

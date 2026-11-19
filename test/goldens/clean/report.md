@@ -1,10 +1,10 @@
 # A11y Genie report
 
-Scanned `http://127.0.0.1:0000/clean.html` with axe-core 0.0.0 in chrome 0.0.0.0, using its default rule set. 90 rules ran on 1 page. Started 2000-01-01T00:00:00Z.
+Scanned `http://127.0.0.1:0000/clean.html` with axe-core 0.0.0 in chrome 0.0.0.0, using its default rule set. 90 rules ran on this page. Started 2000-01-01T00:00:00Z.
 
 ## Summary
 
-No problems found by these 90 rules on this 1 page. Automated rules find only some problems; the checklist covers what they cannot see.
+No problems found by these 90 rules on this page. Automated rules find only some problems; the checklist covers what they cannot see.
 
 ## What this scan cannot see
 

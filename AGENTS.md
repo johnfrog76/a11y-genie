@@ -30,6 +30,8 @@ Run all five before you ask for a review. CI runs the same five in that order, o
   `test/unit/` runs no browser. `test/browser/` launches the real installed Chrome and skips itself where
   Chrome is not installed.
 - `test/fixtures/site/` holds the fixture pages, each with a comment naming the axe-core rule that must fire. `test/fixtures/axe/` holds axe-core results recorded from those pages, for tests with no browser. `test/goldens/` holds the committed `scan.json` and `report.md` of the four first fixture pages; `UPDATE_GOLDENS=1 npm test` rewrites them, and you review the diff. `test/helpers/` holds the loopback fixture server, the no-network guard for Node, and `guardContext()`, its browser-side half; `test/setup/` installs the guard for every test file.
+- `src/exit-codes.ts` names the exit codes, `src/out-folder.ts` checks `--out`, and `src/interrupt.ts` handles
+  Ctrl-C. `docs/EXIT-CODES.md` lists the exit codes and every refusal's words.
 - `docs/ARCHITECTURE.md` says how the parts work and why, including what was checked against a real browser.
 - `docs/JSON.md` documents the finding's fields and axe-core's result shape at the pinned version.
 - `THIRD-PARTY-NOTICES.md` ships in the package, and so does `dist/`. Nothing else does: `files` in
