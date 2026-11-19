@@ -22,7 +22,7 @@ describe("withBrowser", () => {
       return browser;
     };
     await withBrowser("msedge", async () => undefined, launcher);
-    expect(seen).toEqual([{ channel: "msedge", headless: true }]);
+    expect(seen).toEqual([{ channel: "msedge", headless: true, handleSIGINT: false }]);
   });
 
   it("closes the browser when the run throws", async () => {
