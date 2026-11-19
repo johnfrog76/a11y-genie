@@ -51,6 +51,74 @@ already using is never touched.
 refusal can be tested on a machine that has Chrome. It can only make a run refuse; it never changes which
 browser is launched.
 
+### playwright-core's installer (V10)
+
+Checked on 2026-11-19 with `playwright-core` 1.65.1, on macOS (arm64).
+
+**The entry point.** playwright-core's own CLI, `cli.js` in the package's folder. The package's `exports` do not
+list `cli.js`, but they do list `./package.json`, so `src/chromium-download.ts` resolves
+`playwright-core/package.json` and takes `cli.js` beside it. It runs as a child of the same Node,
+`process.execPath`, with nothing installed globally and no `npx`:
+
+```sh
+node <playwright-core>/cli.js install --no-shell --no-remove chromium
+```
+
+- `install chromium` installs Playwright's Chromium (Chrome for Testing) and FFmpeg, which playwright-core
+  always adds to it. By default it also adds Chrome Headless Shell, a second build of about 100 MB.
+- `--no-shell` leaves the headless shell out. A11y Genie launches `channel: "chromium"`, the full build, which
+  runs the same headless mode as the branded Chrome, so the shell would never be used.
+- `--no-remove` stops the installer from deleting other Playwright browsers in the shared cache that it
+  thinks nothing uses any more. Without it, a run could delete a browser another project on the machine
+  installed.
+- `--no-progress` is added when stderr is not a terminal.
+- A second run of the same command, with the build already installed, prints nothing, fetches nothing and
+  exits 0.
+
+**The command a hint names**, for a person to run themselves. It installs the same build into the same cache:
+
+```sh
+npx playwright-core@1.65.1 install --no-shell chromium
+```
+
+(The version comes from the installed playwright-core, so it follows an upgrade.) Run through `npx` with no
+project around it, playwright-core prints a boxed warning that it looks like a global `npx` run; the install
+still works.
+
+**What is fetched, and from where.** Two zip files over HTTPS, nothing else. The build numbers are in
+playwright-core's `browsers.json`; `install --dry-run` prints the addresses.
+
+| File | From |
+| --- | --- |
+| Chromium 159.0.8154.6 (Chrome for Testing, Playwright build 1255) | `https://cdn.playwright.dev/builds/cft/159.0.8154.6/<platform>/chrome-<platform>.zip` |
+| FFmpeg (Playwright build 1013) | `https://cdn.playwright.dev/dbazure/download/playwright/builds/ffmpeg/1013/ffmpeg-<platform>.zip`, falling back to `playwright.download.prss.microsoft.com` and then `cdn.playwright.dev/builds/ffmpeg/...` |
+
+They are unpacked into Playwright's cache: `~/Library/Caches/ms-playwright` on macOS, `~/.cache/ms-playwright`
+on Linux (or `$XDG_CACHE_HOME/ms-playwright`), `%LOCALAPPDATA%\ms-playwright` on Windows, or the folder
+`PLAYWRIGHT_BROWSERS_PATH` names. The installer honours playwright-core's own settings, among them
+`PLAYWRIGHT_DOWNLOAD_HOST` for a mirror and `HTTPS_PROXY`. playwright-core also records, in the cache's
+`.links` folder, which installation uses which build.
+
+**The size**, measured from the `Content-Length` of each file on Playwright's servers, in MB of 1,000,000
+bytes:
+
+| Platform | Chromium | FFmpeg | Download | The message says |
+| --- | --- | --- | --- | --- |
+| macOS arm64 | 201.3 | 1.4 | 202.7 | about 200 MB |
+| macOS x64 | 212.5 | 1.5 | 214.1 | about 210 MB |
+| Linux x64 | 209.0 | 2.3 | 211.3 | about 210 MB |
+| Linux arm64 | 207.6 | 2.0 | 209.7 | about 210 MB |
+| Windows x64 | 217.4 | 1.7 | 219.0 | about 220 MB |
+
+Any other platform reads "about 220 MB", the largest measured. Unpacked, it takes about 400 MB on disk (macOS
+arm64: 377 MB for Chromium, 3 MB for FFmpeg). The download was run for real once, by hand, on macOS arm64: it
+took about 5 seconds on a fast connection, and a scan with `--browser-channel chromium` then ran on it
+(`engine.browser`: `chromium 159.0.8154.6`). The headless shell the download leaves out is 105.7 MB on macOS
+arm64.
+
+`test/unit/chromium-download.test.ts` pins Chromium build 1255 against playwright-core's `browsers.json`, so a
+playwright-core upgrade fails it until the sizes are measured again.
+
 ### Which launch switches reach a branded Chrome (V11)
 
 Checked on 2026-11-19 with `playwright-core` 1.65.1 and Google Chrome 158.0.8127.36 (the official build) on
