@@ -9,8 +9,11 @@ import { IMPACTS } from "./finding.js";
 import { LIMITS, type Limits, type Stopped } from "./context.js";
 import { escapeJsonControls } from "./printable.js";
 
-/** 1.1 added `pages[].requestedUrl`, `redirects` and `stopped`, `limits`, and `elementsCut` on findings. */
-export const SCHEMA_VERSION = "1.1";
+/**
+ * 1.1 added `pages[].requestedUrl`, `redirects` and `stopped`, `limits`, and `elementsCut` on findings.
+ * 1.2 added `colorPair` on a `color-contrast` element.
+ */
+export const SCHEMA_VERSION = "1.2";
 
 /**
  * What a scan cannot see: the questions a person has to answer, because automated rules cannot. Fixed

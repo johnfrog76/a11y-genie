@@ -156,7 +156,20 @@
         "html": { "type": "string" },
         "failure": { "type": "string" },
         "states": { "type": "array", "minItems": 1, "items": { "type": "string" } },
-        "reason": { "type": "string" }
+        "reason": { "type": "string" },
+        "colorPair": { "$ref": "#/$defs/colorPair" }
+      }
+    },
+    "colorPair": {
+      "type": "object",
+      "required": ["foreground", "background", "ratio", "required", "fontSize", "fontWeight"],
+      "properties": {
+        "foreground": { "type": "string", "minLength": 1 },
+        "background": { "type": "string", "minLength": 1 },
+        "ratio": { "type": "number", "minimum": 1 },
+        "required": { "type": "number", "minimum": 1 },
+        "fontSize": { "type": "string" },
+        "fontWeight": { "type": "string" }
       }
     },
     "finding": {
