@@ -4,13 +4,25 @@ What `a11y-genie` exits with, and what it says when it refuses. The codes are in
 
 | Code | Meaning for `scan` |
 | --- | --- |
-| 0 | Scanned, and no findings. |
-| 1 | Scanned, and at least one finding; or the page answered and was **not scanned** (below). |
+| 0 | Scanned, and no violation at or above `--fail-on` (any violation, by default). |
+| 1 | Scanned, and at least one violation at or above `--fail-on`; or the page answered and was **not scanned** (below), whatever `--fail-on` says. |
 | 2 | A stated refusal: one `Error:` line and one `Hint:` line on stderr, nothing on stdout, nothing scanned or written. |
 | 3 | Something unexpected: one `Error:` line and one `Hint:` line saying where to report it. The stack trace prints only when `A11Y_GENIE_DEBUG` is set. |
 | 130 | Ctrl-C. |
 
 A scan with no findings says how much it checked. It never says a site is accessible.
+
+**`--fail-on <impact>`** (`critical`, `serious`, `moderate` or `minor`; default `minor`, so any violation fails the
+run) sets the lowest impact that makes the exit 1. With `--fail-on serious`, a page whose only findings are
+moderate exits 0: the findings are still in `scan.json` and `report.md`, and the command line says
+`None is serious or worse, so the exit is 0 (--fail-on serious).` Three things never depend on it:
+
+- A page that was **not scanned** always exits 1.
+- *Advice* never changes the exit.
+- *Needs review* items (what axe-core could not decide, so a person looks) never change the exit, with any
+  `--fail-on`. They are counted in `summary.needsReview` and listed, and the command line says how many.
+
+`scan.json` records the floor in `options.failOn`, and its `exit` is the code the run ends with.
 
 Not built yet, with a place waiting in `src/exit-codes.ts`:
 
@@ -27,9 +39,15 @@ Every refusal is exit 2 and happens before anything is written: the scans folder
 | An extra argument | `scan takes one page, and got more: two` | the same hint |
 | No address | `scan needs a page address to scan.` | `run: a11y-genie scan <url>` |
 | A target that is not `http:` or `https:` | `only http: and https: addresses can be scanned, and this one is file:` (or `javascript:`, `data:`) | `give a full address that starts with http:// or https://. To scan a built site, serve it first, for example: npx serve dist` |
+| An unknown `--fail-on` impact | `unknown --fail-on impact: "severe"` | `use one of: critical, serious, moderate, minor.` |
+| An unknown `--tags` tag | `unknown --tags value: "nope"` | `use axe-core tags separated by commas, such as wcag2a, wcag2aa, wcag21aa or best-practice. The landmark rules need best-practice.` |
+| An empty part of `--tags` (`--tags wcag2a,` or `--tags ""`) | `--tags needs one or more axe-core tags, separated by commas, and one is empty.` | `use axe-core tags separated by commas, such as wcag2a,wcag2aa,best-practice.` |
+| `--offline` with a target that is not loopback (`127.0.0.0/8`, `::1`, `localhost`, `*.localhost`) | `--offline allows only a page on this machine, and http://example.com is not one.` | `serve the page on localhost, 127.0.0.1 or [::1], or run without --offline.` |
 | A target that is not an address | `not a web address: "example"` | the same hint |
 | A target that does not answer | `http://127.0.0.1:5173 did not answer: the connection was refused.`, `... the host name was not found.`, `... no answer within 30 seconds.`, or `... the browser reported ERR_<NAME>.` | `check the address, and that the server is running.` |
 | No Chrome, with `--no-download` | `Chrome was not found on this machine, and --no-download stops A11y Genie from downloading Playwright's Chromium.` | `Install Chrome, or run with --browser-channel msedge if that one is installed, or download Playwright's Chromium yourself: npx playwright-core@1.65.1 install --no-shell chromium` |
+| No Chrome, with `--offline` (and no `--no-download`) | `Chrome was not found on this machine, and --offline stops A11y Genie from downloading Playwright's Chromium.` | the same hint as `--no-download` |
+| `--browser-channel chromium --offline`, with no Chromium in Playwright's cache | `Playwright's Chromium is not installed on this machine, and --offline stops A11y Genie from downloading it.` | the same hint as `--no-download` |
 | `--browser-channel chromium --no-download`, with no Chromium in Playwright's cache | `Playwright's Chromium is not installed on this machine, and --no-download stops A11y Genie from downloading it.` | `download it yourself: npx playwright-core@1.65.1 install --no-shell chromium, or run with another --browser-channel.` |
 | A named `--browser-channel chrome` that is not installed (never replaced) | `Chrome was not found on this machine.` | `Install Chrome, or run with --browser-channel chromium to use Playwright's Chromium (downloaded once), or msedge if that one is installed.` |
 | A `--browser-channel msedge` that is not installed (never replaced) | `Microsoft Edge was not found on this machine.` | `Install Microsoft Edge, or run with --browser-channel chrome, or chromium to use Playwright's Chromium (downloaded once).` |
@@ -37,6 +55,9 @@ Every refusal is exit 2 and happens before anything is written: the scans folder
 | An `--out` that is a file | `--out is not a folder: <path>` | `give a folder, or a new name inside a folder that exists.` |
 | An `--out` whose parent is missing, or a file | `--out cannot be made, because the folder above it does not exist: <path>` (or `the path above it is not a folder`) | `make the folder above it first, or choose another --out.` |
 | An `--out` with no permission | `--out cannot be written to: <path>` (or `... because the folder above it cannot be written to`) | `choose a folder you may write to.` |
+
+Given both `--offline` and `--no-download`, the refusal names `--no-download`. `--offline` never downloads; a
+Chromium already in Playwright's cache is used.
 
 With no Chrome and no `--browser-channel`, the run does not refuse: it says so in one line on stderr and downloads
 Playwright's Chromium once (docs/ARCHITECTURE.md). That line comes before the download, so a download that then
@@ -72,6 +93,9 @@ page nobody saw never exits 0. The reasons, in the scan's own words:
 | the page has not finished loading 60 seconds after the first request | `it did not finish loading within 60 seconds` |
 | axe-core has not finished 60 seconds after the first request | `the scan did not finish within 60 seconds` |
 | the page moves to another address while axe-core reads it | `it went to another address while it was being scanned` |
+| the page's own frame went to an address a private-network rule stopped | `it went to a loopback, link-local or private address, which a public page may not reach, and the scan stopped it (--allow-private lets it through)` |
+| with `--offline`, the page's own frame went (or was redirected) to an address that is not on this machine | `it went to an address that is not on this machine, and --offline stopped it` |
+| with `--same-origin`, the page's own frame went (or was redirected) to another origin | `it went to another origin, and --same-origin stopped it` |
 | `scan.json` would be over 50 MB even with one element per finding | `its results were larger than the 52428800 byte limit on scan.json, even cut down` |
 
 The 60 seconds are the spec's limit for one state, which `--timeout` will set in a later milestone. On the command

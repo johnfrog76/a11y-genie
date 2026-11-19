@@ -12,11 +12,15 @@ import {
   testPublicOrigins,
   type ContextGuard,
   type Limits,
+  type StoppedKind,
 } from "./context.js";
 import type { AxeScan } from "./finding.js";
 import { pageKeyOf } from "./map-axe.js";
 import { packageInfo } from "./package-info.js";
 import { Refusal } from "./refusal.js";
+import type { NoDownloadFlag } from "./browser-choice.js";
+import type { Impact } from "./finding.js";
+import { DEFAULT_FAIL_ON } from "./rule-flags.js";
 import { buildScanRecord, type ScanRecord } from "./scan-record.js";
 
 /** How long the first page may take to answer before the scan refuses, in milliseconds. */
@@ -83,12 +87,29 @@ const DOWNLOAD_STARTED = /Download is starting/;
 export const PRIVATE_NAVIGATION =
   "it went to a loopback, link-local or private address, which a public page may not reach, and the scan stopped it (--allow-private lets it through)";
 
+export const OFFLINE_NAVIGATION =
+  "it went to an address that is not on this machine, and --offline stopped it";
+export const OTHER_ORIGIN_NAVIGATION = "it went to another origin, and --same-origin stopped it";
+
+/** Why a page reads *not scanned* when a network rule stopped its own frame, by the rule that did. */
+const NAVIGATION_REASONS: Partial<Record<StoppedKind, string>> = {
+  "private-network": PRIVATE_NAVIGATION,
+  offline: OFFLINE_NAVIGATION,
+  "other-origin": OTHER_ORIGIN_NAVIGATION,
+};
+
+function navigationReason(guard: Pick<ContextGuard, "blockedNavigation">): string | undefined {
+  const kind = guard.blockedNavigation;
+  return kind === undefined ? undefined : NAVIGATION_REASONS[kind];
+}
+
 export function answeredButNotScanned(
   error: unknown,
-  guard: Pick<ContextGuard, "redirectCapReached" | "privateNavigationBlocked">,
+  guard: Pick<ContextGuard, "redirectCapReached" | "blockedNavigation">,
   limits: Limits,
 ): string | undefined {
-  if (guard.privateNavigationBlocked) return PRIVATE_NAVIGATION;
+  const stopped = navigationReason(guard);
+  if (stopped !== undefined) return stopped;
   if (guard.redirectCapReached) {
     return `it redirected more than ${limits.redirects} times, so the scan stopped following it`;
   }
@@ -120,6 +141,19 @@ export interface RunScanOptions {
   limits?: Partial<Limits>;
   /** `--allow-private`: a public page may reach loopback, link-local and private addresses. */
   allowPrivate?: boolean;
+  /** `--same-origin`: requests to any origin but the target's are aborted and noted. */
+  sameOrigin?: boolean;
+  /**
+   * `--offline`: only a loopback target, every request off loopback aborted and noted, and no browser
+   * download. The command has checked the target; this makes the download refuse.
+   */
+  offline?: boolean;
+  /** `--tags`: the axe-core tags to run, or none for axe-core's default rule set. */
+  tags?: readonly string[];
+  /** `--fail-on`: the lowest impact that makes the exit 1. Default `minor`. */
+  failOn?: Impact;
+  /** The flag a refused download names. Default: `--offline` when `offline`, else `--no-download`. */
+  noDownloadFlag?: NoDownloadFlag;
   /**
    * For tests only: origins read as public (src/context.ts, `TEST_PUBLIC_ORIGINS_ENV`, which is read when
    * this is not given). It can only turn the private-network rule on for a loopback target.
@@ -198,7 +232,8 @@ async function loadAndScan(
     if ((error as Error).name !== "TimeoutError") throw error;
     return notScanned(`it did not finish loading within ${seconds} seconds`, redirects);
   }
-  if (guard.privateNavigationBlocked) return notScanned(PRIVATE_NAVIGATION, redirects);
+  const stoppedGoing = navigationReason(guard);
+  if (stoppedGoing !== undefined) return notScanned(stoppedGoing, redirects);
   const loadedUrl = tab.url();
   if (!isAllowedScheme(loadedUrl)) {
     return notScanned(`it went to ${schemeOf(loadedUrl)}, which is not http: or https:`, redirects);
@@ -212,7 +247,7 @@ async function loadAndScan(
   });
   let axe: AxeScan | typeof TIMED_OUT;
   try {
-    axe = await within(scanPage(tab, pageKeyOf(requested)), left());
+    axe = await within(scanPage(tab, pageKeyOf(requested), options.tags ?? null), left());
   } catch (error) {
     // A page that moves while axe-core reads it leaves nothing to read: say so rather than fail.
     if (navigations > 0 || tab.isClosed()) {
@@ -221,7 +256,8 @@ async function loadAndScan(
     throw error;
   }
   if (axe === TIMED_OUT) return notScanned(`the scan did not finish within ${seconds} seconds`, redirects);
-  if (guard.privateNavigationBlocked) return notScanned(PRIVATE_NAVIGATION, redirects);
+  const stoppedAfter = navigationReason(guard);
+  if (stoppedAfter !== undefined) return notScanned(stoppedAfter, redirects);
   const finalUrl = tab.url();
   if (!isAllowedScheme(finalUrl)) {
     return notScanned(`it went to ${schemeOf(finalUrl)}, which is not http: or https:`, redirects);
@@ -248,7 +284,9 @@ export async function runScan(options: RunScanOptions): Promise<ScanRecord> {
   const choice = {
     channel: options.channel,
     named: options.named ?? true,
-    download: options.download ?? false,
+    // `--offline` downloads nothing, whatever `download` says.
+    download: options.offline === true ? false : (options.download ?? false),
+    noDownloadFlag: options.noDownloadFlag ?? (options.offline === true ? "--offline" : "--no-download"),
     deps: options.browserDeps,
   };
   return withChosenBrowser(choice, async (browser, used) => {
@@ -257,6 +295,8 @@ export async function runScan(options: RunScanOptions): Promise<ScanRecord> {
       target: options.url,
       allowPrivate: options.allowPrivate ?? false,
       publicOrigins: options.publicOrigins ?? testPublicOrigins(),
+      sameOrigin: options.sameOrigin ?? false,
+      offline: options.offline ?? false,
     });
     await options.onContext?.(context);
     const tab = await context.newPage();
@@ -277,6 +317,10 @@ export async function runScan(options: RunScanOptions): Promise<ScanRecord> {
       ...(loaded.scanned ? {} : { notScanned: loaded.reason }),
       stopped: guard.stopped(),
       limits,
+      tags: options.tags ?? null,
+      failOn: options.failOn ?? DEFAULT_FAIL_ON,
+      sameOrigin: options.sameOrigin ?? false,
+      offline: options.offline ?? false,
     });
   });
 }

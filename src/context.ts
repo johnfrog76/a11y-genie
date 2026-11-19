@@ -77,7 +77,14 @@ export const CONTEXT_OPTIONS: Readonly<BrowserContextOptions> = Object.freeze({
 });
 
 /** What a page tried that the scan stopped. Listed in `scan.json` under `pages[].stopped`. */
-export const STOPPED_KINDS = ["dialog", "popup", "download", "private-network"] as const;
+export const STOPPED_KINDS = [
+  "dialog",
+  "popup",
+  "download",
+  "private-network",
+  "offline",
+  "other-origin",
+] as const;
 export type StoppedKind = (typeof STOPPED_KINDS)[number];
 
 export interface Stopped {
@@ -86,7 +93,7 @@ export interface Stopped {
   count: number;
   /**
    * The first few, quoted from the page and cut short: a dialog's type and message, or an address (a
-   * pop-up's, a download's, or the private address a request was going to).
+   * pop-up's, a download's, or the address a blocked request was going to).
    */
   examples: string[];
 }
@@ -115,6 +122,10 @@ export interface NetworkOptions {
   allowPrivate?: boolean;
   /** For tests only: origins read as public, as `TEST_PUBLIC_ORIGINS_ENV` says. */
   publicOrigins?: readonly string[];
+  /** `--same-origin`: a request to any origin but the target's is aborted. */
+  sameOrigin?: boolean;
+  /** `--offline`: a request to any address that is not loopback is aborted. */
+  offline?: boolean;
 }
 
 /** The schemes a request leaves the browser by, so the only ones the rule judges. `data:` and `blob:` do not. */
@@ -170,6 +181,58 @@ export function privateNetworkRule(options: NetworkOptions): PrivateNetworkRule 
   return { blocks };
 }
 
+/**
+ * What a scan's network rules decide about a request: which of them, if any, stops it. Made by
+ * `networkRule` from the private-network rule above and the two flags that add to it, so the route, the
+ * WebSocket route and `FetchGuard` ask one question and every stop is noted under its own kind.
+ */
+export interface NetworkRule {
+  /** The kind a request to `url` is stopped as, or undefined when it may go. The first rule that holds wins. */
+  kindOf(url: string): StoppedKind | undefined;
+  /** Whether a request to `url` is stopped. */
+  blocks(url: string): boolean;
+}
+
+/**
+ * The rules for one scan, or undefined when none holds. In the order they are asked:
+ * 1. `--offline`: any address that is not loopback (src/private-address.ts) is off the machine. The tests'
+ *    declared origins read as off it, except the target's own, so a second loopback server can stand in
+ *    for a host out on the network.
+ * 2. `--same-origin`: any origin but the target's.
+ * 3. the private-network rule.
+ *
+ * Only requests that leave the browser by `http:`, `https:`, `ws:` or `wss:` are judged.
+ */
+export function networkRule(options: NetworkOptions): NetworkRule | undefined {
+  const privateRule = privateNetworkRule(options);
+  const targetOrigin = options.target === undefined ? undefined : originOf(options.target);
+  const offline = options.offline === true;
+  const sameOrigin = options.sameOrigin === true && targetOrigin !== undefined;
+  if (privateRule === undefined && !offline && !sameOrigin) return undefined;
+  const declaredOff = new Set(
+    (options.publicOrigins ?? []).map(originOf).filter((o): o is string => o !== undefined),
+  );
+  const kindOf = (url: string): StoppedKind | undefined => {
+    let scheme: string;
+    try {
+      scheme = new URL(url).protocol;
+    } catch {
+      return undefined;
+    }
+    if (!NETWORK_SCHEMES.includes(scheme)) return undefined;
+    const origin = originOf(url);
+    if (offline) {
+      const onMachine =
+        addressKindOfUrl(url) === "loopback" && !(declaredOff.has(origin ?? "") && origin !== targetOrigin);
+      if (!onMachine) return "offline";
+    }
+    if (sameOrigin && origin !== targetOrigin) return "other-origin";
+    if (privateRule?.blocks(url)) return "private-network";
+    return undefined;
+  };
+  return { kindOf, blocks: (url) => kindOf(url) !== undefined };
+}
+
 function cut(text: string, limit: number): string {
   const chars = [...text];
   return chars.length <= limit ? text : `${chars.slice(0, limit).join("")}…`;
@@ -201,7 +264,7 @@ function isPausedRequest(value: unknown): value is PausedRequest {
 }
 
 /**
- * The private-network rule for every request of one page, redirect hops included, by the DevTools
+ * The network rules for every request of one page, redirect hops included, by the DevTools
  * Protocol's `Fetch` domain. Playwright's `route()` sees only the first request of a redirect chain
  * (checked at playwright-core 1.65.1), so the hops after it are judged here, in a session of our own beside
  * Playwright's: Chrome pauses each request for both, and a request this session fails never leaves.
@@ -217,8 +280,8 @@ class FetchGuard {
 
   constructor(
     private readonly session: CDPSession,
-    private readonly rule: PrivateNetworkRule,
-    private readonly onBlocked: (url: string, mainFrame: boolean) => void,
+    private readonly rule: NetworkRule,
+    private readonly onBlocked: (kind: StoppedKind, url: string, mainFrame: boolean) => void,
   ) {}
 
   async start(): Promise<void> {
@@ -257,10 +320,11 @@ class FetchGuard {
   private paused(path: SessionPath, event: unknown): void {
     if (!isPausedRequest(event)) return;
     const url = event.request.url;
-    if (this.rule.blocks(url)) {
+    const kind = this.rule.kindOf(url);
+    if (kind !== undefined) {
       const mainFrame =
         path.length === 0 && event.resourceType === "Document" && event.frameId === this.mainFrameId;
-      this.onBlocked(url, mainFrame);
+      this.onBlocked(kind, url, mainFrame);
       this.send(path, "Fetch.failRequest", { requestId: event.requestId, errorReason: "BlockedByClient" });
     } else {
       this.send(path, "Fetch.continueRequest", { requestId: event.requestId });
@@ -309,13 +373,13 @@ class FetchGuard {
 export class ContextGuard {
   private readonly tried = new Map<StoppedKind, Stopped>();
   private tooManyRedirects = false;
-  private privateNavigation = false;
+  private blockedNavigationKind: StoppedKind | undefined;
   private mainPage: Page | undefined;
 
-  /** `rule` is the private-network rule, or undefined when it does not hold for this scan. */
+  /** `rule` is the network rules, or undefined when none holds for this scan. */
   constructor(
     private readonly limits: Limits,
-    readonly rule?: PrivateNetworkRule,
+    readonly rule?: NetworkRule,
   ) {}
 
   /** What the page tried and was stopped from doing, in a fixed order, only the kinds it tried. */
@@ -331,15 +395,15 @@ export class ContextGuard {
     return this.tooManyRedirects;
   }
 
-  /** Whether the scanned page's own frame was stopped going to a private address. */
-  get privateNavigationBlocked(): boolean {
-    return this.privateNavigation;
+  /** Which rule stopped the scanned page's own frame going somewhere, or undefined when none did. */
+  get blockedNavigation(): StoppedKind | undefined {
+    return this.blockedNavigationKind;
   }
 
-  /** A request to a private address, stopped. */
-  blocked(url: string, mainFrame: boolean): void {
-    this.note("private-network", url);
-    if (mainFrame) this.privateNavigation = true;
+  /** A request a network rule stopped. */
+  blocked(kind: StoppedKind, url: string, mainFrame: boolean): void {
+    this.note(kind, url);
+    if (mainFrame && this.blockedNavigationKind === undefined) this.blockedNavigationKind = kind;
   }
 
   /**
@@ -386,7 +450,9 @@ export class ContextGuard {
     const rule = this.rule;
     if (rule !== undefined) {
       const session = await page.context().newCDPSession(page);
-      await new FetchGuard(session, rule, (url, mainFrame) => this.blocked(url, mainFrame)).start();
+      await new FetchGuard(session, rule, (kind, url, mainFrame) =>
+        this.blocked(kind, url, mainFrame),
+      ).start();
     }
     page.on("request", (request) => {
       if (this.tooManyRedirects || !request.isNavigationRequest()) return;
@@ -409,9 +475,10 @@ export class ContextGuard {
  * - every page (the scanned page, axe-core's own, and any pop-up) gets the dialog and download rules;
  * - a pop-up (any page with an opener: `window.open`, `target="_blank"`, with or without `noopener`) is
  *   closed at once and noted. axe-core's own page has no opener and is left alone;
- * - when the private-network rule holds (a public target, no `--allow-private`): a context route aborts the
- *   first request of every chain to a private address, from any page, frame or worker, and
- *   `routeWebSocket` closes every WebSocket to one before it connects, since WebSockets do not pass
+ * - when a network rule holds (the private-network rule: a public target, no `--allow-private`; or
+ *   `--same-origin`; or `--offline`; `networkRule`): a context route aborts the
+ *   first request of every chain it stops, from any page, frame or worker, and
+ *   `routeWebSocket` closes every WebSocket it stops before it connects, since WebSockets do not pass
  *   through `route`. Both are noted. Redirect hops do not pass through `route` either: `watchMainPage`
  *   stops those of the scanned page, and the route lets no other page (a pop-up) load anything at all, so a
  *   pop-up's chain never starts.
@@ -421,7 +488,7 @@ export async function armContext(
   limits: Limits = LIMITS,
   network: NetworkOptions = {},
 ): Promise<ContextGuard> {
-  const rule = privateNetworkRule(network);
+  const rule = networkRule(network);
   const guard = new ContextGuard(limits, rule);
   context.on("page", (page) => {
     guard.armPage(page);
@@ -437,14 +504,15 @@ export async function armContext(
   if (rule !== undefined) {
     await context.route("**/*", async (route) => {
       const request = route.request();
-      if (rule.blocks(request.url())) {
+      const kind = rule.kindOf(request.url());
+      if (kind !== undefined) {
         let mainFrame = false;
         try {
           mainFrame = request.isNavigationRequest() && request.frame() === request.frame().page().mainFrame();
         } catch {
           // a request with no frame is not a navigation of the page
         }
-        guard.blocked(request.url(), mainFrame && guard.fromMainPage(request));
+        guard.blocked(kind, request.url(), mainFrame && guard.fromMainPage(request));
         await route.abort("blockedbyclient");
       } else if (!guard.fromMainPage(request)) {
         await route.abort("blockedbyclient");
@@ -455,7 +523,7 @@ export async function armContext(
     await context.routeWebSocket(
       (url) => rule.blocks(url.href),
       async (socket) => {
-        guard.note("private-network", socket.url());
+        guard.note(rule.kindOf(socket.url()) ?? "private-network", socket.url());
         await socket.close();
       },
     );
