@@ -7,6 +7,7 @@
 import type { AxeScan, Finding, FindingElement, Impact, NeedsReview, Rule } from "./finding.js";
 import { IMPACTS } from "./finding.js";
 import { LIMITS, type Limits, type Stopped } from "./context.js";
+import { escapeJsonControls } from "./printable.js";
 
 /** 1.1 added `pages[].requestedUrl`, `redirects` and `stopped`, `limits`, and `elementsCut` on findings. */
 export const SCHEMA_VERSION = "1.1";
@@ -209,9 +210,13 @@ export function originOf(url: string): string {
   return new URL(url).origin;
 }
 
-/** `scan.json` as it is written: two-space JSON and a newline. */
+/**
+ * `scan.json` as it is written: two-space JSON and a newline. The page's text is kept exactly; the control
+ * characters JSON.stringify leaves raw (DEL, C1, the bidirectional controls) are written as `\u` escapes,
+ * so neither the file nor `--json` on a terminal carries one (src/printable.ts).
+ */
 export function scanJson(record: ScanRecord): string {
-  return `${JSON.stringify(record, null, 2)}\n`;
+  return `${escapeJsonControls(JSON.stringify(record, null, 2))}\n`;
 }
 
 function bytesOf(record: ScanRecord): number {

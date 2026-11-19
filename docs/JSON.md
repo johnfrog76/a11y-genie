@@ -81,6 +81,11 @@ below for what each form looks like and how to use it.
 ## `scan.json` (`src/scan-record.ts`, `schema/scan-1.json`)
 
 `a11y-genie scan <url>` writes `scan.json` on every run, and `--json` prints the same document on stdout.
+Text from the page is kept in it exactly, terminal escape sequences included: it is data. The control
+characters JSON allows raw (DEL, the C1 controls, the bidirectional controls and the line and paragraph
+separators) are written as `\u` escapes, so the file holds no raw control and parses to the same text.
+`report.md` and the terminal get the same text with every escape sequence and control stripped.
+
 It is versioned: `schema` is `"<major>.<minor>"`, now `"1.1"`. A field may be added in a minor version and is
 never removed or renamed in one; a removal or a rename is a new major, and a new schema file. Readers must
 ignore fields they do not know, so the schema allows extra fields. 1.1 added `pages[].requestedUrl`,

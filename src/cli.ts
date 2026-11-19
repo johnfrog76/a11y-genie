@@ -5,6 +5,7 @@ import { packageInfo } from "./package-info.js";
 import { EXIT } from "./exit-codes.js";
 import { installInterruptHandler } from "./interrupt.js";
 import { checkOutFolder } from "./out-folder.js";
+import { printable } from "./printable.js";
 import { Refusal } from "./refusal.js";
 import { emptyScanSentence, renderReport } from "./report.js";
 import { runScan } from "./run-scan.js";
@@ -167,8 +168,10 @@ async function scan(args: string[]): Promise<void> {
     refuseUnwritable(error, root);
   }
 
-  // Under --json stdout holds the one document and everything for a person goes to stderr.
-  const say = values.json ? console.error : console.log;
+  // Under --json stdout holds the one document and everything for a person goes to stderr. Every line has
+  // its terminal escapes and control characters stripped, since addresses in it are the page's to choose.
+  const write = values.json ? console.error : console.log;
+  const say = (line: string): void => write(printable(line));
   const found =
     record.summary.critical + record.summary.serious + record.summary.moderate + record.summary.minor;
   const page = record.pages[0];
@@ -218,13 +221,14 @@ installInterruptHandler();
 try {
   await main(process.argv.slice(2));
 } catch (error) {
+  // A refusal or an error can quote what it was given or what the browser said: print it stripped too.
   if (error instanceof Refusal) {
-    console.error(`Error: ${error.message}`);
-    console.error(`Hint: ${error.hint}`);
+    console.error(printable(`Error: ${error.message}`));
+    console.error(printable(`Hint: ${error.hint}`));
     process.exitCode = EXIT.refusal;
   } else {
     const message = error instanceof Error ? error.message.split("\n")[0] : String(error);
-    console.error(`Error: something unexpected went wrong: ${message}`);
+    console.error(printable(`Error: something unexpected went wrong: ${message}`));
     console.error("Hint: please report it at https://github.com/johnfrog76/a11y-genie/issues.");
     if (process.env.A11Y_GENIE_DEBUG) console.error(error);
     process.exitCode = EXIT.unexpected;

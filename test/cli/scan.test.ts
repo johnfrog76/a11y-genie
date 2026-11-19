@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SCANS_DIR_ENV } from "../../src/scans-folder.js";
 import { chromeIsInstalled } from "../helpers/browser-guard.js";
+import { controlsIn } from "../helpers/controls.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 import { neverClaimViolations } from "../helpers/never-claim.js";
 import { validate } from "../helpers/json-schema.js";
@@ -156,6 +157,23 @@ describe.skipIf(!hasChrome)("a11y-genie scan <url> (skipped where Chrome is not 
       "Stopped what the page tried: 5 dialogs dismissed. The report lists them.",
     );
     expect(result.stdout).not.toContain("Your password?");
+  });
+
+  it("no escape sequence from the page reaches the terminal or report.md, with or without --json", async () => {
+    const root = fresh();
+    const result = await run(["scan", server.url("hostile/escapes.html")], root);
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("Stopped what the page tried: 2 dialogs dismissed.");
+    expect(controlsIn(result.stdout + result.stderr)).toEqual([]);
+    const report = readFileSync(join(scanFolder(root), "report.md"), "utf8");
+    expect(controlsIn(report)).toEqual([]);
+    expect(report).toContain("RED alert click here");
+
+    const json = await run(["scan", server.url("hostile/escapes.html"), "--json"], fresh());
+    expect(controlsIn(json.stdout + json.stderr)).toEqual([]);
+    // The document still holds the page's text exactly.
+    const record = JSON.parse(json.stdout);
+    expect(record.pages[0].stopped[0].examples[0]).toContain(`${String.fromCharCode(0x1b)}[31mRED`);
   });
 
   it("writes nothing into the folder it was run from", async () => {

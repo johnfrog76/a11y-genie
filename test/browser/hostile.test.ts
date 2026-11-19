@@ -7,6 +7,7 @@ import { renderReport } from "../../src/report.js";
 import { runScan } from "../../src/run-scan.js";
 import { scanJson, type ScanRecord } from "../../src/scan-record.js";
 import { chromeIsInstalled, guardContext } from "../helpers/browser-guard.js";
+import { controlsIn } from "../helpers/controls.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 import { validate } from "../helpers/json-schema.js";
 
@@ -260,6 +261,36 @@ describe.skipIf(!hasChrome)(
           expect(tab.isClosed()).toBe(false);
           expect(attempted).toEqual([]);
         });
+      });
+    });
+
+    describe("page text is printed without its escapes", () => {
+      it("report.md carries no escape or control character, and scan.json keeps the text exactly", async () => {
+        const ESC = String.fromCharCode(0x1b);
+        const { record } = await scan("hostile/escapes.html");
+        expectScanned(record);
+        // scan.json is data: the dialogs are quoted exactly as the page wrote them.
+        const [dialogs] = page(record).stopped ?? [];
+        expect(dialogs?.kind).toBe("dialog");
+        expect(dialogs?.examples[0]).toContain(`${ESC}[31mRED${ESC}[0m alert ${ESC}]0;window title`);
+        // Chrome hands the carriage return over as a newline.
+        expect(dialogs?.examples[1]).toMatch(/^confirm: fake[\r\n]Error: overwritten /);
+        const imageAlt = record.findings.find((f) => f.rule.id === "image-alt");
+        expect(imageAlt?.elements[0]?.html).toContain(`${ESC}[31mRED`);
+        // The file holds them as escapes, and no raw control.
+        const json = scanJson(record);
+        expect(json).toContain(String.raw`\u001b[31mRED`);
+        expect(json).toContain(String.raw`\u009b1;31m8-bit`);
+        expect(controlsIn(json)).toEqual([]);
+        // report.md quotes the same text with every sequence stripped whole.
+        const report = renderReport(record);
+        expect(controlsIn(report)).toEqual([]);
+        expect(report).toContain("RED alert click here");
+        // Each example on its own line, so a newline in one cannot pass for another.
+        expect(report).toContain("confirm: fake Error: overwritten txt.exe");
+        expect(report).not.toContain("window title");
+        expect(report).not.toContain("evil.example");
+        expect(report).not.toContain("[31m");
       });
     });
 

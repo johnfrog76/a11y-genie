@@ -1,0 +1,37 @@
+<!doctype html>
+<!--
+  Hostile fixture: page text that carries terminal escape sequences. Its title, an alert, a confirm and an
+  image's attribute hold a colour (CSI), an 8-bit CSI, a window title (OSC 0), an OSC 8 link, a carriage
+  return and a bidi override. The file itself holds none of them: the script builds each from its code.
+  axe-core rule that must fire: image-alt, on the image, whose quoted HTML carries the sequences.
+  Must: no escape or control character reaches the terminal or report.md; scan.json keeps the text exactly.
+  Test: test/browser/hostile.test.ts and test/cli/scan.test.ts
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hostile fixture: escapes</title>
+  </head>
+  <body>
+    <main>
+      <h1>Hostile fixture</h1>
+      <p>escapes</p>
+    </main>
+    <script>
+      const ESC = String.fromCharCode(0x1b);
+      const BEL = String.fromCharCode(0x07);
+      const CSI8 = String.fromCharCode(0x9b);
+      const RLO = String.fromCharCode(0x202e);
+      const red = `${ESC}[31mRED${ESC}[0m`;
+      const title = `${ESC}]0;window title${BEL}`;
+      const link = `${ESC}]8;;https://evil.example/${ESC}\\click here${ESC}]8;;${ESC}\\`;
+      document.title = `${red} ${title}${CSI8}2Jtitle`;
+      alert(`${red} alert ${title}${link}`);
+      confirm(`fake\rError: overwritten ${RLO}txt.exe`);
+      const image = document.createElement("img");
+      image.setAttribute("src", "data:image/gif;base64,R0lGODlhAQABAAAAACw=");
+      image.setAttribute("data-note", `${red} ${link} ${CSI8}1;31m8-bit`);
+      document.querySelector("main").append(image);
+    </script>
+  </body>
+</html>

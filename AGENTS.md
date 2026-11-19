@@ -24,6 +24,8 @@ Run all five before you ask for a review. CI runs the same five in that order, o
 - `src/context.ts` holds every hostile-page defence of the browser context and the limits, in one place;
   docs/ARCHITECTURE.md (*Hostile pages*) lists each one with its fixture in `test/fixtures/site/hostile/` and
   its test in `test/browser/hostile.test.ts`.
+- `src/printable.ts` strips terminal escapes and control characters from page text before it is printed or
+  written into `report.md`; every printed line and the whole report pass through it.
 - `src/axe.ts` runs axe-core on a loaded page; `src/map-axe.ts` maps its results to findings (`src/finding.ts`), and
   `src/order.ts` orders them worst first.
 - `src/banner.ts` holds the genie and his bottle, the drawing for a person at a terminal. Nothing prints it
