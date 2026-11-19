@@ -9,6 +9,8 @@
 
 import type { Page } from "playwright-core";
 import type { Finding } from "./finding.js";
+import { registerGenieRule } from "./genie-rules.js";
+import { BEST_PRACTICE_TAG } from "./rule-flags.js";
 
 /** The four landmarks the check looks for. Others (`complementary`, `search`, `form`) do not count. */
 export const LANDMARK_ROLES = ["banner", "navigation", "main", "contentinfo"] as const;
@@ -20,6 +22,16 @@ export const NO_LANDMARKS_RULE = {
   helpUrl: "",
   wcag: ["1.3.1", "2.4.1"],
 } as const;
+
+/** `moderate`, on the page's `body`. */
+const NO_LANDMARKS_IMPACT = "moderate";
+
+// It is listed by `a11y-genie rules`. Like the landmark rules it sums up, it runs only with `best-practice`.
+registerGenieRule({
+  rule: { ...NO_LANDMARKS_RULE, wcag: [...NO_LANDMARKS_RULE.wcag] },
+  impact: NO_LANDMARKS_IMPACT,
+  tags: [BEST_PRACTICE_TAG],
+});
 
 const FAILURE =
   "Fix all of the following:\n" +
@@ -45,7 +57,7 @@ export async function checkLandmarks(page: Page, pageKey: string): Promise<Findi
     id: `genie/no-landmarks@${pageKey}`,
     rule: { ...NO_LANDMARKS_RULE, wcag: [...NO_LANDMARKS_RULE.wcag] },
     kind: "violation",
-    impact: "moderate",
+    impact: NO_LANDMARKS_IMPACT,
     page: pageKey,
     elements: [
       {
