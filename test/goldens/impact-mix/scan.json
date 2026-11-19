@@ -1,5 +1,5 @@
 {
-  "schema": "1.1",
+  "schema": "1.2",
   "tool": {
     "name": "a11y-genie",
     "version": "0.0.0"
@@ -99,6 +99,14 @@
           ],
           "html": "<p style=\"color: #9a9a9a; background: #ffffff\">This sentence is pale grey on white.</p>",
           "failure": "Fix any of the following:\n  Element has insufficient color contrast of 2.81 (foreground color: #9a9a9a, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1",
+          "colorPair": {
+            "foreground": "#9a9a9a",
+            "background": "#ffffff",
+            "ratio": 2.81,
+            "required": 4.5,
+            "fontSize": "12.0pt (16px)",
+            "fontWeight": "normal"
+          },
           "states": [
             "default"
           ]

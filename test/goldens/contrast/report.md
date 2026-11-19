@@ -29,6 +29,8 @@ Scanned `http://127.0.0.1:0000/contrast.html` with axe-core 0.0.0 in chrome 0.0.
   <p style="color: #9a9a9a; background: #ffffff">This sentence is pale grey on white and hard to read.</p>
   ```
 
+  Colours: `#9a9a9a on #ffffff, 2.81, needs 4.5` (font 12.0pt (16px), normal)
+
 ## What this scan cannot see
 
 Automated rules find only some problems. A person has to check what they cannot. The guided checklist (`a11y-genie checklist`) is planned and does not exist yet; until it does, ask these questions by hand:
