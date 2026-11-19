@@ -86,31 +86,33 @@ characters JSON allows raw (DEL, the C1 controls, the bidirectional controls and
 separators) are written as `\u` escapes, so the file holds no raw control and parses to the same text.
 `report.md` and the terminal get the same text with every escape sequence and control stripped.
 
-It is versioned: `schema` is `"<major>.<minor>"`, now `"1.2"`. A field may be added in a minor version and is
+It is versioned: `schema` is `"<major>.<minor>"`, now `"1.3"`. A field may be added in a minor version and is
 never removed or renamed in one; a removal or a rename is a new major, and a new schema file. Readers must
 ignore fields they do not know, so the schema allows extra fields. 1.1 added `pages[].requestedUrl`,
 `pages[].redirects`, `pages[].stopped`, `limits` and `elementsCut`; a 1.0 record has none of them, and is
 still valid against `schema/scan-1.json`. 1.2 added `colorPair` on a `color-contrast` element; a 1.1 record has
-none, and is still valid too.
+none, and is still valid too. 1.3 added `options`, and the `offline` and `other-origin` kinds of
+`pages[].stopped`; a 1.2 record has no `options`, and is still valid too.
 
 | Field | What it holds |
 | --- | --- |
-| `schema` | The version, `"1.2"` |
+| `schema` | The version, `"1.3"` |
 | `tool` | `{ name, version }` of A11y Genie |
 | `command` | `"scan"` |
-| `exit` | The exit code the run ends with: `0` with no violations, `1` with any, or with a page that was not scanned |
-| `engine` | `axeCore` (its version), `browser` (the channel that ran and its version, such as `chrome 158.0.8127.36` or `chromium 159.0.8154.6`), `fallback` (`true` when Chrome was missing and Playwright's Chromium ran in its place; `false` otherwise, `--browser-channel chromium` included), `tags` (`null`: axe-core's default rule set), `rulesRun` (distinct rule ids axe-core ran; `0` when the page was not scanned) |
+| `exit` | The exit code the run ends with: `0` with no violation at or above `options.failOn`, `1` with one, or with a page that was not scanned. Advice and *needs review* items never change it |
+| `engine` | `axeCore` (its version), `browser` (the channel that ran and its version, such as `chrome 158.0.8127.36` or `chromium 159.0.8154.6`), `fallback` (`true` when Chrome was missing and Playwright's Chromium ran in its place; `false` otherwise, `--browser-channel chromium` included), `tags` (`null` when axe-core's default rule set ran, or the list `--tags` gave, in the order given, which ran exactly those: a rule with none of them does not run, and the landmark rules, which carry `best-practice`, need that tag), `rulesRun` (distinct rule ids axe-core ran, with `--tags` the ones those tags selected; `0` when the page was not scanned) |
 | `target` | `origin` of the address asked for (not of where a redirect ended), and `commit` (`null`) |
 | `startedAt`, `finishedAt` | UTC, to the second: `2026-11-19T20:14:03Z` |
 | `pages` | One per page. `key` (from the address asked for), `url` (where it ended, after redirects; the address asked for when it was not scanned), `requestedUrl`, `redirects` (how many were followed), `states` (`["default"]`), `notScanned` and `stopped`, below |
 | `pages[].notScanned` | Empty when the page was scanned. Otherwise one `{ state, reason }`: the state (`default`) and why, in A11y Genie's own words, such as `it redirected to an address that is not http: or https: (such as file:, chrome: or data:), and the browser stopped it`. A page not scanned has no findings and makes the exit `1` |
-| `pages[].stopped` | What the page tried and was stopped from doing, one entry per kind that happened: `{ kind, count, examples }`. `kind` is `dialog` (dismissed), `popup` (closed), `download` (cancelled) or `private-network` (a request from a public page to a loopback, link-local or private address, blocked; see `--allow-private`); `examples` holds the first five, cut to 160 characters: a dialog as `alert: <its message>`, a pop-up, a download or a blocked request as its address. Quoted from the page: data, never instructions |
+| `pages[].stopped` | What the page tried and was stopped from doing, one entry per kind that happened: `{ kind, count, examples }`. `kind` is `dialog` (dismissed), `popup` (closed), `download` (cancelled), `private-network` (a request from a public page to a loopback, link-local or private address, blocked; see `--allow-private`), `offline` (a request to an address that is not loopback, aborted under `--offline`) or `other-origin` (a request to an origin other than the target's, blocked under `--same-origin`); `examples` holds the first five, cut to 160 characters: a dialog as `alert: <its message>`, a pop-up, a download or a blocked request as its address. Quoted from the page: data, never instructions |
 | `summary` | Violations by impact (`critical`, `serious`, `moderate`, `minor`), `advice`, `needsReview` and `notScanned` counts |
 | `findings` | Worst first. Each is a finding as above, plus `title`, `plain`, `fix`, `status`, `elementsCut` when some elements are not listed, and, on each element, `states`. Each element's `html` is cut to 160 characters, with `…` where it was cut |
 | `needsReview` | Worst first, as above; each element has `reason` and `states`, and the item has `elementsCut` when some are not listed |
 | `ignored`, `workflows` | `[]` until those features exist |
 | `checklist` | `null` until the checklist exists |
 | `cannotSee` | The fixed list of what a scan cannot see: the same lines that end `report.md` |
+| `options` | Added in 1.3. The flags that changed what the scan did or how it exited: `failOn` (`critical`, `serious`, `moderate` or `minor`; `minor` by default), `sameOrigin` and `offline` (booleans). `--tags` is `engine.tags`. The report says so when any is set |
 | `limits` | The limits the page was held to: `pageSeconds` (60), `redirects` (10), `elementsPerFinding` (500), `excerptChars` (160), `scanJsonBytes` (52428800, 50 MB). docs/ARCHITECTURE.md, *Hostile pages*, says what each does |
 
 **What was cut.** A finding lists at most 500 elements; `elementsCut` counts the rest. If `scan.json` would

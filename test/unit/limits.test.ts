@@ -107,7 +107,7 @@ describe("the record's limits", () => {
 });
 
 describe("which loads read not scanned rather than refused", () => {
-  const guard = { redirectCapReached: false, privateNavigationBlocked: false };
+  const guard = { redirectCapReached: false, blockedNavigation: undefined };
   const error = (message: string) => new Error(`page.goto: ${message} at http://127.0.0.1:1/`);
 
   it("a redirect the browser stops, or a download, reads not scanned", () => {
@@ -128,7 +128,7 @@ describe("which loads read not scanned rather than refused", () => {
   });
 
   it("a page whose own frame was stopped going to a private address reads not scanned, and says so", () => {
-    const stopped = { ...guard, privateNavigationBlocked: true };
+    const stopped = { ...guard, blockedNavigation: "private-network" as const };
     expect(answeredButNotScanned(error("net::ERR_BLOCKED_BY_CLIENT"), stopped, LIMITS)).toMatch(
       /loopback, link-local or private address.*--allow-private/,
     );

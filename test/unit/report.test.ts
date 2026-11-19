@@ -155,7 +155,7 @@ describe("the record", () => {
       notScanned: 0,
     });
     expect(record.exit).toBe(1);
-    expect(record.schema).toBe("1.2");
+    expect(record.schema).toBe("1.3");
   });
 
   it("sets exit 0 for none", () => {

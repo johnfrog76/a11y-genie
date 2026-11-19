@@ -131,6 +131,8 @@ const STOPPED_LABEL: Record<Stopped["kind"], [one: string, many: string, done: s
   popup: ["pop-up window", "pop-up windows", "closed"],
   download: ["download", "downloads", "cancelled"],
   "private-network": ["request to a private address", "requests to private addresses", "blocked"],
+  offline: ["request off this machine", "requests off this machine", "aborted"],
+  "other-origin": ["request to another origin", "requests to other origins", "blocked"],
 };
 
 function stoppedLines(pages: RecordPage[]): string[] {
@@ -169,6 +171,29 @@ const IMPACT_LABEL: Record<Impact, string> = {
   minor: "Minor",
 };
 
+/** What the flags changed about this scan, in plain words, so a reader of the report alone knows. */
+function optionLines(record: ScanRecord): string[] {
+  const options = record.options;
+  if (options === undefined) return [];
+  const lines: string[] = [];
+  if (options.sameOrigin) {
+    lines.push(
+      "It was run with `--same-origin`: every request to an origin other than the page's own was aborted, so some of the page's content (scripts, styles, images, frames) may be missing from what was scanned.",
+    );
+  }
+  if (options.offline) {
+    lines.push(
+      "It was run with `--offline`: only addresses on this machine were allowed, and every request off this machine was aborted, so some of the page's content may be missing from what was scanned.",
+    );
+  }
+  if (options.failOn !== "minor") {
+    lines.push(
+      `The exit code counts only findings at or above ${options.failOn} (\`--fail-on\`); the findings below it are still listed.`,
+    );
+  }
+  return lines.length === 0 ? [] : [...lines.flatMap((line) => [line, ""])];
+}
+
 export function renderReport(record: ScanRecord): string {
   const out: string[] = [];
   const { summary, engine } = record;
@@ -182,6 +207,7 @@ export function renderReport(record: ScanRecord): string {
     "",
   );
   for (const page of record.pages) out.push(...redirectLine(page));
+  out.push(...optionLines(record));
 
   out.push("## Summary", "");
   const found = summary.critical + summary.serious + summary.moderate + summary.minor;

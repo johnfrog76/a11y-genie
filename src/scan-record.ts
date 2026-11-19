@@ -7,13 +7,16 @@
 import type { AxeScan, Finding, FindingElement, Impact, NeedsReview, Rule } from "./finding.js";
 import { IMPACTS } from "./finding.js";
 import { LIMITS, type Limits, type Stopped } from "./context.js";
+import { atOrAbove, DEFAULT_FAIL_ON } from "./rule-flags.js";
 import { escapeJsonControls } from "./printable.js";
 
 /**
  * 1.1 added `pages[].requestedUrl`, `redirects` and `stopped`, `limits`, and `elementsCut` on findings.
  * 1.2 added `colorPair` on a `color-contrast` element.
+ * 1.3 added `options` (`failOn`, `sameOrigin`, `offline`), and the `offline` and `other-origin` kinds of
+ * `pages[].stopped`.
  */
-export const SCHEMA_VERSION = "1.2";
+export const SCHEMA_VERSION = "1.3";
 
 /**
  * What a scan cannot see: the questions a person has to answer, because automated rules cannot. Fixed
@@ -112,6 +115,18 @@ export interface ScanRecord {
   cannotSee: string[];
   /** Added in 1.1: a 1.0 record has none. */
   limits?: RecordLimits;
+  /** Added in 1.3: the flags that changed what the scan did or how it exited. A 1.2 record has none. */
+  options?: RecordOptions;
+}
+
+/** The flags that shape a scan, as `scan.json` records them. (`--tags` is `engine.tags`.) */
+export interface RecordOptions {
+  /** The lowest impact that makes the exit 1; `minor` unless `--fail-on` said otherwise. */
+  failOn: Impact;
+  /** `--same-origin` was given: requests to other origins were aborted. */
+  sameOrigin: boolean;
+  /** `--offline` was given: only loopback was allowed. */
+  offline: boolean;
 }
 
 export interface RecordInput {
@@ -135,6 +150,11 @@ export interface RecordInput {
   notScanned?: string;
   stopped?: Stopped[];
   limits?: Limits;
+  /** `--tags`: the axe-core tags that ran; null for axe-core's default rule set. */
+  tags?: readonly string[] | null;
+  failOn?: Impact;
+  sameOrigin?: boolean;
+  offline?: boolean;
 }
 
 /** One line: whitespace runs, newlines included, become a single space. */
@@ -298,6 +318,7 @@ export function buildScanRecord(input: RecordInput): ScanRecord {
   });
   const notScanned = input.notScanned === undefined ? [] : [{ state: "default", reason: input.notScanned }];
   const requestedUrl = input.requestedUrl ?? input.url;
+  const failOn = input.failOn ?? DEFAULT_FAIL_ON;
   const violations = findings.filter((f) => f.kind === "violation");
   const count = (impact: Impact): number => violations.filter((f) => f.impact === impact).length;
   const [critical, serious, moderate, minor] = IMPACTS.map(count) as [number, number, number, number];
@@ -305,12 +326,13 @@ export function buildScanRecord(input: RecordInput): ScanRecord {
     schema: SCHEMA_VERSION,
     tool: input.tool,
     command: "scan",
-    exit: violations.length > 0 || notScanned.length > 0 ? 1 : 0,
+    // Advice and needs-review items never change the exit; a violation does at or above `--fail-on`.
+    exit: violations.some((f) => atOrAbove(f.impact, failOn)) || notScanned.length > 0 ? 1 : 0,
     engine: {
       axeCore: axe?.axeCore ?? input.axeCore ?? "",
       browser: input.browser,
       fallback: input.fallback,
-      tags: null,
+      tags: input.tags === undefined || input.tags === null ? null : [...input.tags],
       rulesRun: axe?.rulesRun ?? 0,
     },
     // The target is the origin asked for, so a scan that is redirected elsewhere is filed under it.
@@ -350,6 +372,7 @@ export function buildScanRecord(input: RecordInput): ScanRecord {
       excerptChars: limits.excerptChars,
       scanJsonBytes: limits.scanJsonBytes,
     },
+    options: { failOn, sameOrigin: input.sameOrigin ?? false, offline: input.offline ?? false },
   };
   return fitToSize(record, limits.scanJsonBytes);
 }

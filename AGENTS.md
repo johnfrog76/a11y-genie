@@ -24,6 +24,8 @@ Run all five before you ask for a review. CI runs the same five in that order, o
 - `src/context.ts` holds every hostile-page defence of the browser context and the limits, in one place;
   docs/ARCHITECTURE.md (*Hostile pages*) lists each one with its fixture in `test/fixtures/site/hostile/` and
   its test in `test/browser/hostile.test.ts`.
+- `src/rule-flags.ts` parses `--tags` (against axe-core's own rule tags) and `--fail-on`. `--same-origin` and
+  `--offline` are rules of `src/context.ts`, asked with the private-network rule by `networkRule()`.
 - `src/private-address.ts` says which hosts are loopback, link-local, private or unspecified, for the
   private-network rule in `src/context.ts`.
 - `src/printable.ts` strips terminal escapes and control characters from page text before it is printed or

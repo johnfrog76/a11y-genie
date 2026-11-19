@@ -84,7 +84,9 @@
               "type": "object",
               "required": ["kind", "count", "examples"],
               "properties": {
-                "kind": { "enum": ["dialog", "popup", "download", "private-network"] },
+                "kind": {
+                  "enum": ["dialog", "popup", "download", "private-network", "offline", "other-origin"]
+                },
                 "count": { "type": "integer", "minimum": 1 },
                 "examples": { "type": "array", "items": { "type": "string" } }
               }
@@ -112,6 +114,15 @@
     "workflows": { "type": "array" },
     "checklist": { "type": "null" },
     "cannotSee": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+    "options": {
+      "type": "object",
+      "required": ["failOn", "sameOrigin", "offline"],
+      "properties": {
+        "failOn": { "$ref": "#/$defs/impact" },
+        "sameOrigin": { "type": "boolean" },
+        "offline": { "type": "boolean" }
+      }
+    },
     "limits": {
       "type": "object",
       "required": ["pageSeconds", "redirects", "elementsPerFinding", "excerptChars", "scanJsonBytes"],
