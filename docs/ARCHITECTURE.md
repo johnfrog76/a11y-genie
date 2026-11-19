@@ -90,3 +90,25 @@ turn it off.
 Not checked here: Microsoft Edge (not installed where this was run), Chrome on Windows or Linux, and runs
 longer than 90 seconds. A scan that loads a page also sends that page's own traffic, which is a different
 question.
+
+## axe-core (`src/axe.ts`, `src/map-axe.ts`, `src/order.ts`)
+
+`scanPage(page)` runs axe-core on a page that is already loaded and returns its findings and *needs review*
+items (`src/finding.ts`), worst first. It is split in three so that only the first part needs a browser:
+
+- `src/axe.ts` runs `@axe-core/playwright` with axe-core's default rule set. There is no `withTags` until
+  `--tags` exists. `@axe-core/playwright` injects axe-core from the installed package into the page and each
+  of its frames; it fetches nothing.
+- `src/map-axe.ts` turns axe-core's results into findings. axe-core runs inside the page, so its results
+  come back through `page.evaluate`, and a page can tamper with them. They are read as `unknown` and checked
+  field by field: a value of the wrong type is dropped. A result with no rule id, or with no element that
+  has a usable `target`, is not reported.
+- `src/order.ts` orders findings: impact, then kind, then rule id, then page order.
+
+**The page must come from `browser.newContext()`.** To put the frames' results together,
+`@axe-core/playwright` opens a blank page in the page's own context. A context made by `browser.newPage()`
+refuses a second page, and the run fails with "Please use browser.newContext()". Checked at
+`@axe-core/playwright` 4.14.0.
+
+axe-core's result shape at the pinned version, and how its `target` reads for shadow roots and frames, are in
+`docs/JSON.md`.

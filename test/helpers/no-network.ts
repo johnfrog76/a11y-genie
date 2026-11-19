@@ -11,9 +11,9 @@ import net from "node:net";
  *   `new net.Socket().connect`), which is what `http`, `https`, `tls` and `fetch` use underneath.
  *
  * What it does not cover:
- * - A browser launched by a test. Its traffic never passes through Node. A browser-side
- *   guard (routing every browser context and aborting anything not served by the fixture
- *   server) comes with the browser tests, in a later issue.
+ * - A browser launched by a test. Its traffic never passes through Node. The browser-side
+ *   guard is `guardContext()` in `browser-guard.ts`: it routes the browser context and aborts
+ *   anything not served by the fixture server, and the browser test checks nothing was tried.
  * - UDP (`dgram`), DNS lookups on their own, `http2`, and child processes.
  * - Unix-socket and named-pipe connections, which stay on the machine.
  *
