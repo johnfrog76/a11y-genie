@@ -49,3 +49,44 @@ already using is never touched.
 **For tests only:** setting `A11Y_GENIE_TEST_NO_BROWSER=1` makes every channel read as not installed, so the
 refusal can be tested on a machine that has Chrome. It can only make a run refuse; it never changes which
 browser is launched.
+
+### Which launch switches reach a branded Chrome (V11)
+
+Checked on 2026-11-19 with `playwright-core` 1.65.1 and Google Chrome 158.0.8127.36 (the official build) on
+macOS, headless.
+
+**Every one of Playwright's default switches is passed to the branded Chrome.** The browser's own
+`chrome://version` page lists its command line, and it holds the whole default list from playwright-core's
+`chromiumSwitches.ts`, among them:
+
+- `--disable-background-networking`
+- `--disable-component-update`
+- `--disable-field-trial-config`
+- `--disable-breakpad`
+- `--disable-sync`
+- `--disable-default-apps`, `--disable-extensions`,
+  `--disable-component-extensions-with-background-pages`
+- `--no-first-run`, `--no-default-browser-check`, `--no-service-autorun`
+- `--metrics-recording-only`, `--password-store=basic`, `--use-mock-keychain`
+- `--disable-features=` with `OptimizationHints`, `NetworkTimeServiceQuerying`, `AimEnabled`,
+  `PreconnectToSearch`, `MediaRouter` and others
+- `--headless`, `--no-sandbox`, `--user-data-dir=<the temp folder>`, `--remote-debugging-pipe`
+
+**The two that matter most for traffic take effect.** The browser was left open on `about:blank` for 90
+seconds with Chrome's network log on (`--log-net-log`), once with the defaults and once with
+`--disable-background-networking` and `--disable-component-update` removed (`ignoreDefaultArgs`):
+
+| Run | Requests the browser made on its own |
+| --- | --- |
+| Playwright's defaults | one: `https://www.gstatic.com/ohttp_gateway/hpke_public_keys/v1/sbc_prod` (with the DNS-over-HTTPS lookup of `www.gstatic.com` that the machine's DNS settings ask for) |
+| Without those two switches | the variations seed (`clientservices.googleapis.com/chrome-variations/seed`), component update checks (`update.googleapis.com/service/update2/json`) and component downloads (`edgedl.me.gvt1.com`), and the same `gstatic.com` request |
+
+So on a branded Chrome the switches do stop the variations fetch and the component updater. **One request is
+left**: the fetch of a public key from `www.gstatic.com/ohttp_gateway/...`, which by its path belongs to Safe
+Browsing's privacy-preserving lookups. None of the default switches stops it. It carries no page content and
+no person's data, but it is traffic the person did not ask for, and the security gate should decide whether to
+turn it off.
+
+Not checked here: Microsoft Edge (not installed where this was run), Chrome on Windows or Linux, and runs
+longer than 90 seconds. A scan that loads a page also sends that page's own traffic, which is a different
+question.
