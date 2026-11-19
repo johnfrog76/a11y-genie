@@ -19,11 +19,14 @@ Run all five before you ask for a review. CI runs the same five in that order, o
 
 - `src/` holds the command. `src/cli.ts` is the entry point (`bin` points at `dist/cli.js`).
 - `src/browser.ts` launches the installed browser; `src/refusal.ts` is the exit-2 refusal.
+- `src/axe.ts` runs axe-core on a loaded page; `src/map-axe.ts` maps its results to findings (`src/finding.ts`), and
+  `src/order.ts` orders them worst first.
 - `test/` holds the tests, in folders by kind. `test/cli/` runs the built `dist/`, so `npm test` builds first.
   `test/unit/` runs no browser. `test/browser/` launches the real installed Chrome and skips itself where
   Chrome is not installed.
-- `test/fixtures/site/` holds the fixture pages, each with a comment naming the axe-core rule that must fire. `test/helpers/` holds the loopback fixture server and the no-network guard; `test/setup/` installs the guard for every test file.
+- `test/fixtures/site/` holds the fixture pages, each with a comment naming the axe-core rule that must fire. `test/fixtures/axe/` holds axe-core results recorded from those pages, for tests with no browser. `test/helpers/` holds the loopback fixture server, the no-network guard for Node, and `guardContext()`, its browser-side half; `test/setup/` installs the guard for every test file.
 - `docs/ARCHITECTURE.md` says how the parts work and why, including what was checked against a real browser.
+- `docs/JSON.md` documents the finding's fields and axe-core's result shape at the pinned version.
 - `THIRD-PARTY-NOTICES.md` ships in the package, and so does `dist/`. Nothing else does: `files` in
   `package.json` is an allow-list. Check it with `npm pack --dry-run` before changing it.
 

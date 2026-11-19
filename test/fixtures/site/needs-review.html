@@ -1,0 +1,19 @@
+<!doctype html>
+<!--
+  Fixture: grey text over a gradient, whose contrast axe-core cannot measure.
+  Must fire:     nothing as a violation
+  Needs review:  color-contrast (serious), under axe-core's incomplete
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Needs review fixture</title>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <main>
+      <h1>Needs review fixture</h1>
+      <p style="color: #777777; background-image: linear-gradient(#ffffff, #dddddd)">This sentence sits on a gradient.</p>
+    </main>
+  </body>
+</html>
