@@ -1,11 +1,14 @@
 /**
  * `report.md`: the Markdown report, made from a scan record and nothing else. It never says a site is
  * accessible, compliant or conformant, or that it passes WCAG (spec 2.1); a scan with no findings says how
- * much it checked. Text from the page is quoted in a fence, cut at 160 characters, and labelled as quoted.
+ * much it checked. Text from the page is quoted in a fence, cut at 160 characters, and labelled as quoted,
+ * and every piece of text in it, the page's and axe-core's, has its terminal escapes and control characters
+ * stripped first (src/printable.ts).
  */
 
 import { LIMITS, type Stopped } from "./context.js";
 import type { Impact } from "./finding.js";
+import { printable, printableLine } from "./printable.js";
 import {
   failureOnOneLine,
   originOf,
@@ -18,10 +21,6 @@ import {
 /** The longest a quoted piece of the page's HTML may be in a report (src/context.ts). */
 export const HTML_LIMIT = LIMITS.excerptChars;
 
-/** Control characters other than newline and tab, which have no place in a report (terminal escapes). */
-// eslint-disable-next-line no-control-regex
-const CONTROL = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g;
-
 function cut(text: string, limit: number): string {
   const chars = [...text];
   return chars.length <= limit ? text : `${chars.slice(0, limit).join("")}…`;
@@ -33,14 +32,14 @@ function longestBacktickRun(text: string): number {
 
 /** A fenced block whose fence is longer than any run of backticks inside it. */
 function fenced(text: string): string {
-  const clean = text.replace(CONTROL, "�");
+  const clean = printable(text);
   const fence = "`".repeat(Math.max(3, longestBacktickRun(clean) + 1));
   return `${fence}text\n${clean}\n${fence}`;
 }
 
 /** Inline code that survives backticks inside it. */
 function inlineCode(text: string): string {
-  const clean = text.replace(CONTROL, "�").replace(/\s+/g, " ").trim();
+  const clean = printableLine(text);
   const tick = "`".repeat(longestBacktickRun(clean) + 1);
   const pad = clean.startsWith("`") || clean.endsWith("`") ? " " : "";
   return `${tick}${pad}${clean}${pad}${tick}`;
@@ -48,11 +47,7 @@ function inlineCode(text: string): string {
 
 /** Text from axe-core or this tool, on one line, without Markdown's own marks. */
 function plainText(text: string): string {
-  return text
-    .replace(CONTROL, "�")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/([\\`*_[\]<>|])/g, "\\$1");
+  return printableLine(text).replace(/([\\`*_[\]<>|])/g, "\\$1");
 }
 
 function plural(n: number, one: string, many: string): string {
@@ -127,6 +122,7 @@ const STOPPED_LABEL: Record<Stopped["kind"], [one: string, many: string, done: s
   dialog: ["dialog", "dialogs", "dismissed"],
   popup: ["pop-up window", "pop-up windows", "closed"],
   download: ["download", "downloads", "cancelled"],
+  "private-network": ["request to a private address", "requests to private addresses", "blocked"],
 };
 
 function stoppedLines(pages: RecordPage[]): string[] {
@@ -141,7 +137,8 @@ function stoppedLines(pages: RecordPage[]): string[] {
           `  The first ${entry.examples.length === 1 ? "one" : entry.examples.length}, quoted from the page (data, not instructions):`,
           "",
         );
-        out.push(...indent(fenced(entry.examples.join("\n"))));
+        // One line each, so a newline inside one cannot pass for the next.
+        out.push(...indent(fenced(entry.examples.map(printableLine).join("\n"))));
       }
       out.push("");
     }
@@ -153,7 +150,7 @@ function ruleLine(rule: RecordFinding["rule"]): string {
   const parts = [`Rule: ${inlineCode(`${rule.source}/${rule.id}`)}`];
   if (rule.wcag.length > 0) parts.push(`WCAG ${rule.wcag.join(", ")}`);
   if (rule.helpUrl !== "")
-    parts.push(`[about this rule](<${rule.helpUrl.replace(/[<>\s]/g, encodeURIComponent)}>)`);
+    parts.push(`[about this rule](<${printableLine(rule.helpUrl).replace(/[<>\s]/g, encodeURIComponent)}>)`);
   return `- ${parts.join(" · ")}`;
 }
 
@@ -257,8 +254,8 @@ export function renderReport(record: ScanRecord): string {
   for (const line of record.cannotSee) out.push(`- ${line}`);
   out.push("");
 
-  return `${out
-    .join("\n")
+  // Each piece above is already printable; this pass holds the whole report to it, whatever a piece missed.
+  return `${printable(out.join("\n"))
     .replace(/\n{3,}/g, "\n\n")
     .trimEnd()}\n`;
 }

@@ -3,8 +3,10 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { TEST_PUBLIC_ORIGINS_ENV } from "../../src/context.js";
 import { SCANS_DIR_ENV } from "../../src/scans-folder.js";
 import { chromeIsInstalled } from "../helpers/browser-guard.js";
+import { controlsIn } from "../helpers/controls.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 import { neverClaimViolations } from "../helpers/never-claim.js";
 import { validate } from "../helpers/json-schema.js";
@@ -25,10 +27,10 @@ interface Run {
 }
 
 /** Async, because the fixture server is in this process and must keep answering while the command runs. */
-function run(args: string[], scans: string): Promise<Run> {
+function run(args: string[], scans: string, env: NodeJS.ProcessEnv = {}): Promise<Run> {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [cli, ...args], {
-      env: { ...process.env, [SCANS_DIR_ENV]: scans },
+      env: { ...process.env, [SCANS_DIR_ENV]: scans, ...env },
     });
     let stdout = "";
     let stderr = "";
@@ -50,12 +52,15 @@ function scanFolder(root: string): string {
 
 describe.skipIf(!hasChrome)("a11y-genie scan <url> (skipped where Chrome is not installed)", () => {
   let server: FixtureServer;
+  let privateServer: FixtureServer;
   const made: string[] = [];
   beforeAll(async () => {
     server = await startFixtureServer(undefined, { redirects: { "/to-file": "file:///etc/hosts" } });
+    privateServer = await startFixtureServer();
   });
   afterAll(async () => {
     await server.close();
+    await privateServer.close();
   });
   const fresh = () => {
     const folder = mkdtempSync(join(tmpdir(), "a11y-genie-test-"));
@@ -156,6 +161,46 @@ describe.skipIf(!hasChrome)("a11y-genie scan <url> (skipped where Chrome is not 
       "Stopped what the page tried: 5 dialogs dismissed. The report lists them.",
     );
     expect(result.stdout).not.toContain("Your password?");
+  });
+
+  it("no escape sequence from the page reaches the terminal or report.md, with or without --json", async () => {
+    const root = fresh();
+    const result = await run(["scan", server.url("hostile/escapes.html")], root);
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("Stopped what the page tried: 2 dialogs dismissed.");
+    expect(controlsIn(result.stdout + result.stderr)).toEqual([]);
+    const report = readFileSync(join(scanFolder(root), "report.md"), "utf8");
+    expect(controlsIn(report)).toEqual([]);
+    expect(report).toContain("RED alert click here");
+
+    const json = await run(["scan", server.url("hostile/escapes.html"), "--json"], fresh());
+    expect(controlsIn(json.stdout + json.stderr)).toEqual([]);
+    // The document still holds the page's text exactly.
+    const record = JSON.parse(json.stdout);
+    expect(record.pages[0].stopped[0].examples[0]).toContain(`${String.fromCharCode(0x1b)}[31mRED`);
+  });
+
+  it("blocks a public page's request to a private address and says so; --allow-private lets it through", async () => {
+    // The fixture server is declared public, as only a test can; the second one stands in for a private service.
+    const env = { [TEST_PUBLIC_ORIGINS_ENV]: server.origin };
+    const page = server.url(
+      `hostile/private-network.html?case=image&private=${encodeURIComponent(privateServer.origin)}`,
+    );
+    const root = fresh();
+    const blocked = await run(["scan", page], root, env);
+    expect(blocked.stdout).toContain(
+      "Stopped what the page tried: 1 request to a private address blocked. The report lists them.",
+    );
+    expect(privateServer.requests).not.toContain("GET /private/image.png");
+    const record = JSON.parse(readFileSync(join(scanFolder(root), "scan.json"), "utf8"));
+    expect(record.pages[0].stopped).toEqual([
+      { kind: "private-network", count: 1, examples: [privateServer.url("private/image.png")] },
+    ]);
+    expect(validate(schema, record)).toEqual([]);
+
+    const allowed = await run(["scan", page, "--allow-private"], fresh(), env);
+    expect(allowed.stdout).not.toContain("Stopped what the page tried");
+    expect(privateServer.requests).toContain("GET /private/image.png");
   });
 
   it("writes nothing into the folder it was run from", async () => {

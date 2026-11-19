@@ -107,7 +107,7 @@ describe("the record's limits", () => {
 });
 
 describe("which loads read not scanned rather than refused", () => {
-  const guard = { redirectCapReached: false };
+  const guard = { redirectCapReached: false, privateNavigationBlocked: false };
   const error = (message: string) => new Error(`page.goto: ${message} at http://127.0.0.1:1/`);
 
   it("a redirect the browser stops, or a download, reads not scanned", () => {
@@ -122,9 +122,18 @@ describe("which loads read not scanned rather than refused", () => {
   });
 
   it("the redirect cap wins over whatever error the closed page gave", () => {
-    expect(answeredButNotScanned(new Error("Target closed"), { redirectCapReached: true }, LIMITS)).toBe(
-      "it redirected more than 10 times, so the scan stopped following it",
+    expect(
+      answeredButNotScanned(new Error("Target closed"), { ...guard, redirectCapReached: true }, LIMITS),
+    ).toBe("it redirected more than 10 times, so the scan stopped following it");
+  });
+
+  it("a page whose own frame was stopped going to a private address reads not scanned, and says so", () => {
+    const stopped = { ...guard, privateNavigationBlocked: true };
+    expect(answeredButNotScanned(error("net::ERR_BLOCKED_BY_CLIENT"), stopped, LIMITS)).toMatch(
+      /loopback, link-local or private address.*--allow-private/,
     );
+    // Without the rule's word, the same error is not the page's doing.
+    expect(answeredButNotScanned(error("net::ERR_BLOCKED_BY_CLIENT"), guard, LIMITS)).toBeUndefined();
   });
 
   it("a page that did not answer is left to the refusal", () => {

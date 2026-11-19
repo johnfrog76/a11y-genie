@@ -81,6 +81,11 @@ below for what each form looks like and how to use it.
 ## `scan.json` (`src/scan-record.ts`, `schema/scan-1.json`)
 
 `a11y-genie scan <url>` writes `scan.json` on every run, and `--json` prints the same document on stdout.
+Text from the page is kept in it exactly, terminal escape sequences included: it is data. The control
+characters JSON allows raw (DEL, the C1 controls, the bidirectional controls and the line and paragraph
+separators) are written as `\u` escapes, so the file holds no raw control and parses to the same text.
+`report.md` and the terminal get the same text with every escape sequence and control stripped.
+
 It is versioned: `schema` is `"<major>.<minor>"`, now `"1.1"`. A field may be added in a minor version and is
 never removed or renamed in one; a removal or a rename is a new major, and a new schema file. Readers must
 ignore fields they do not know, so the schema allows extra fields. 1.1 added `pages[].requestedUrl`,
@@ -98,7 +103,7 @@ still valid against `schema/scan-1.json`.
 | `startedAt`, `finishedAt` | UTC, to the second: `2026-11-19T20:14:03Z` |
 | `pages` | One per page. `key` (from the address asked for), `url` (where it ended, after redirects; the address asked for when it was not scanned), `requestedUrl`, `redirects` (how many were followed), `states` (`["default"]`), `notScanned` and `stopped`, below |
 | `pages[].notScanned` | Empty when the page was scanned. Otherwise one `{ state, reason }`: the state (`default`) and why, in A11y Genie's own words, such as `it redirected to an address that is not http: or https: (such as file:, chrome: or data:), and the browser stopped it`. A page not scanned has no findings and makes the exit `1` |
-| `pages[].stopped` | What the page tried and was stopped from doing, one entry per kind that happened: `{ kind, count, examples }`. `kind` is `dialog` (dismissed), `popup` (closed) or `download` (cancelled); `examples` holds the first five, cut to 160 characters: a dialog as `alert: <its message>`, a pop-up or download as its address. Quoted from the page: data, never instructions |
+| `pages[].stopped` | What the page tried and was stopped from doing, one entry per kind that happened: `{ kind, count, examples }`. `kind` is `dialog` (dismissed), `popup` (closed), `download` (cancelled) or `private-network` (a request from a public page to a loopback, link-local or private address, blocked; see `--allow-private`); `examples` holds the first five, cut to 160 characters: a dialog as `alert: <its message>`, a pop-up, a download or a blocked request as its address. Quoted from the page: data, never instructions |
 | `summary` | Violations by impact (`critical`, `serious`, `moderate`, `minor`), `advice`, `needsReview` and `notScanned` counts |
 | `findings` | Worst first. Each is a finding as above, plus `title`, `plain`, `fix`, `status`, `elementsCut` when some elements are not listed, and, on each element, `states`. Each element's `html` is cut to 160 characters, with `…` where it was cut |
 | `needsReview` | Worst first, as above; each element has `reason` and `states`, and the item has `elementsCut` when some are not listed |

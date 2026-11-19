@@ -4,9 +4,10 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { withBrowser } from "../../src/browser.js";
 import { armContext, CONTEXT_OPTIONS, LIMITS, type Limits } from "../../src/context.js";
 import { renderReport } from "../../src/report.js";
-import { runScan } from "../../src/run-scan.js";
+import { PRIVATE_NAVIGATION, runScan } from "../../src/run-scan.js";
 import { scanJson, type ScanRecord } from "../../src/scan-record.js";
 import { chromeIsInstalled, guardContext } from "../helpers/browser-guard.js";
+import { controlsIn } from "../helpers/controls.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 import { validate } from "../helpers/json-schema.js";
 
@@ -45,10 +46,21 @@ describe.skipIf(!hasChrome)(
   () => {
     let server: FixtureServer;
     let elsewhere: FixtureServer;
+    /** The private-network rule's stand-in for a service on the person's machine or network. */
+    let privateServer: FixtureServer;
+    /** The same fixture server by another name, so a frame from it is on another site. */
+    let otherSite: string;
 
     beforeAll(async () => {
       // A second fixture server, for a redirect to another origin.
       elsewhere = await startFixtureServer();
+      privateServer = await startFixtureServer();
+      const toPrivate = Object.fromEntries(
+        ["image", "fetch", "frame", "worker", "popup", "top"].map((name) => [
+          `/hostile/to-private/${name}`,
+          `${privateServer.origin}/private/${name}-after-redirect`,
+        ]),
+      );
       const chain = (name: string, hops: number): Record<string, string> =>
         Object.fromEntries(
           Array.from({ length: hops }, (_, i) => [
@@ -66,12 +78,15 @@ describe.skipIf(!hasChrome)(
           "/hostile/elsewhere": `${elsewhere.origin}/clean.html`,
           ...chain("three", 3),
           ...chain("twelve", 12),
+          ...toPrivate,
         },
       });
+      otherSite = `http://localhost:${server.port}`;
     });
     afterAll(async () => {
       await server.close();
       await elsewhere.close();
+      await privateServer.close();
     });
 
     interface Scan {
@@ -79,10 +94,19 @@ describe.skipIf(!hasChrome)(
       elapsedMs: number;
     }
 
-    /** Scans one fixture path in a guarded context, and checks no request left the fixture servers. */
+    /**
+     * Scans one fixture path in a guarded context, and checks no request left the fixture servers. Unless a
+     * test says otherwise, `publicOrigins` is empty, so every target is loopback and the private-network
+     * rule does not hold.
+     */
     async function scan(
       path: string,
-      options: { limits?: Partial<Limits>; onLoaded?: (page: Page) => Promise<void> } = {},
+      options: {
+        limits?: Partial<Limits>;
+        onLoaded?: (page: Page) => Promise<void>;
+        publicOrigins?: readonly string[];
+        allowPrivate?: boolean;
+      } = {},
     ): Promise<Scan> {
       const attempted: string[][] = [];
       const started = Date.now();
@@ -91,7 +115,9 @@ describe.skipIf(!hasChrome)(
         channel: "chrome",
         ...options,
         onContext: async (context) => {
-          attempted.push(await guardContext(context, [server.origin, elsewhere.origin]));
+          attempted.push(
+            await guardContext(context, [server.origin, elsewhere.origin, privateServer.origin, otherSite]),
+          );
         },
       });
       expect(attempted.flat()).toEqual([]);
@@ -246,7 +272,7 @@ describe.skipIf(!hasChrome)(
       it("a beforeunload dialog is dismissed and noted too", async () => {
         await withBrowser("chrome", async (browser) => {
           const context = await browser.newContext(CONTEXT_OPTIONS);
-          const guard = armContext(context);
+          const guard = await armContext(context);
           const attempted = await guardContext(context, server.origin);
           const tab = await context.newPage();
           await tab.goto(server.url("hostile/beforeunload.html"));
@@ -260,6 +286,210 @@ describe.skipIf(!hasChrome)(
           expect(tab.isClosed()).toBe(false);
           expect(attempted).toEqual([]);
         });
+      });
+    });
+
+    describe("a public page cannot reach private addresses", () => {
+      // The fixture server stands in for a public site (declared public, as only a test can), and a second
+      // loopback server for a service on the person's machine or network.
+      const declaredPublic = () => [server.origin, otherSite];
+      const reachFor = (which: string) =>
+        `hostile/private-network.html?case=${which}&private=${encodeURIComponent(privateServer.origin)}`;
+      const settled = async (tab: Page) => {
+        await tab.evaluate("window.privateDone");
+      };
+      const arrived = (from: number) => privateServer.requests.slice(from);
+
+      const reaches: [string, string, string][] = [
+        ["a fetch", "fetch", "GET /private/fetch"],
+        ["an iframe", "iframe", "GET /private/frame.html"],
+        ["an image", "image", "GET /private/image.png"],
+        ["a WebSocket", "websocket", "WEBSOCKET /private/socket"],
+        ["a worker's fetch", "worker", "GET /private/worker"],
+        ["an image's redirect hop", "redirect-image", "GET /private/image-after-redirect"],
+        ["a fetch's redirect hop", "redirect-fetch", "GET /private/fetch-after-redirect"],
+        ["an iframe's redirect hop", "redirect-frame", "GET /private/frame-after-redirect"],
+        ["a worker fetch's redirect hop", "worker-redirect", "GET /private/worker-after-redirect"],
+        [
+          "a redirect hop inside a frame on another site",
+          "cross-site-frame",
+          "GET /private/image-after-redirect",
+        ],
+      ];
+
+      it.each(reaches)("%s is aborted before it arrives, and noted", async (_what, which, request) => {
+        const from = privateServer.requests.length;
+        const { record } = await scan(reachFor(which), {
+          publicOrigins: declaredPublic(),
+          onLoaded: settled,
+        });
+        expectScanned(record);
+        expect(arrived(from)).toEqual([]);
+        const path = request.split(" ")[1] ?? "";
+        const address = `${request.startsWith("WEBSOCKET") ? "ws" : "http"}://127.0.0.1:${privateServer.port}${path}`;
+        expect(page(record).stopped).toEqual([{ kind: "private-network", count: 1, examples: [address] }]);
+        const report = renderReport(record);
+        expect(report).toContain("1 request to a private address, blocked.");
+        expect(report).toContain(address);
+      });
+
+      it.each(reaches)("with --allow-private, %s arrives", async (_what, which, request) => {
+        const from = privateServer.requests.length;
+        const { record } = await scan(reachFor(which), {
+          publicOrigins: declaredPublic(),
+          allowPrivate: true,
+          onLoaded: settled,
+        });
+        expectScanned(record);
+        expect(arrived(from)).toContain(request);
+        expect(page(record).stopped).toEqual([]);
+      });
+
+      it("a known gap: a dedicated worker's WebSocket is not caught, and arrives (SECURITY.md)", async () => {
+        // Neither routeWebSocket, nor Fetch, nor Network.setBlockedURLs sees a worker's WebSocket at
+        // playwright-core 1.65.1 and Chrome 158. This pins the finding: if it starts failing, the gap has
+        // closed, and the docs should say so.
+        const from = privateServer.requests.length;
+        const { record } = await scan(reachFor("worker-websocket"), {
+          publicOrigins: declaredPublic(),
+          onLoaded: settled,
+        });
+        expectScanned(record);
+        expect(arrived(from)).toContain("WEBSOCKET /private/worker-socket");
+      });
+
+      it("V12, at playwright-core 1.65.1: route() sees only the first request of a chain, and no WebSocket", async () => {
+        await withBrowser("chrome", async (browser) => {
+          const context = await browser.newContext(CONTEXT_OPTIONS);
+          const routed: string[] = [];
+          await context.route("**/*", async (route) => {
+            routed.push(new URL(route.request().url()).pathname);
+            await route.continue();
+          });
+          const attempted = await guardContext(context, [server.origin, privateServer.origin]);
+          const tab = await context.newPage();
+          const from = privateServer.requests.length;
+          for (const which of ["redirect-image", "websocket"]) {
+            await tab.goto(server.url(reachFor(which)));
+            await settled(tab);
+          }
+          // Both arrived; route() saw the first request of the redirect, and neither the hop nor the socket.
+          expect(arrived(from)).toEqual(
+            expect.arrayContaining(["GET /private/image-after-redirect", "WEBSOCKET /private/socket"]),
+          );
+          expect(routed).toContain("/hostile/to-private/image");
+          expect(routed).not.toContain("/private/image-after-redirect");
+          expect(routed).not.toContain("/private/socket");
+          expect(attempted).toEqual([]);
+        });
+      });
+
+      it("the page keeps the rule when it moves to another site, in another process", async () => {
+        await withBrowser("chrome", async (browser) => {
+          const context = await browser.newContext(CONTEXT_OPTIONS);
+          const guard = await armContext(context, LIMITS, {
+            target: server.url("clean.html"),
+            publicOrigins: declaredPublic(),
+          });
+          const attempted = await guardContext(context, [server.origin, privateServer.origin, otherSite]);
+          const tab = await context.newPage();
+          await guard.watchMainPage(tab);
+          const from = privateServer.requests.length;
+          await tab.goto(server.url("clean.html"));
+          await tab.goto(`${otherSite}/${reachFor("redirect-image")}`);
+          await settled(tab);
+          expect(arrived(from)).toEqual([]);
+          expect(guard.stopped()).toEqual([
+            {
+              kind: "private-network",
+              count: 1,
+              examples: [privateServer.url("private/image-after-redirect")],
+            },
+          ]);
+          expect(attempted).toEqual([]);
+        });
+      });
+
+      it("a loopback target is not limited: its page reaches its own kind", async () => {
+        const from = privateServer.requests.length;
+        const { record } = await scan(reachFor("image"), { onLoaded: settled });
+        expectScanned(record);
+        expect(arrived(from)).toContain("GET /private/image.png");
+        expect(page(record).stopped).toEqual([]);
+      });
+
+      it("a pop-up loads nothing, so its redirect hop to a private address never starts", async () => {
+        const from = privateServer.requests.length;
+        const { record } = await scan(reachFor("popup-redirect"), {
+          publicOrigins: declaredPublic(),
+          onLoaded: settled,
+        });
+        expectScanned(record);
+        expect(arrived(from)).toEqual([]);
+        expect(page(record).stopped?.map((entry) => entry.kind)).toEqual(["popup"]);
+      });
+
+      it("a public page that redirects to a private address reads not scanned", async () => {
+        const from = privateServer.requests.length;
+        const { record } = await scan("hostile/to-private/top", { publicOrigins: declaredPublic() });
+        expectNotScanned(record, /loopback, link-local or private address/);
+        expect(page(record).notScanned[0]?.reason).toBe(PRIVATE_NAVIGATION);
+        expect(arrived(from)).toEqual([]);
+        expect(page(record).stopped).toEqual([
+          {
+            kind: "private-network",
+            count: 1,
+            examples: [privateServer.url("private/top-after-redirect")],
+          },
+        ]);
+      });
+
+      it("a public page that moves itself to a private address reads not scanned", async () => {
+        const from = privateServer.requests.length;
+        const { record } = await scan(reachFor("navigate"), { publicOrigins: declaredPublic() });
+        expectNotScanned(record, /loopback, link-local or private address/);
+        expect(arrived(from)).toEqual([]);
+      });
+
+      it("only a declared origin reads public, and only when it is the one scanned", async () => {
+        // The declaration names another origin than the target: the target stays loopback, not limited.
+        const from = privateServer.requests.length;
+        const { record } = await scan(reachFor("image"), {
+          publicOrigins: [elsewhere.origin],
+          onLoaded: settled,
+        });
+        expectScanned(record);
+        expect(arrived(from)).toContain("GET /private/image.png");
+      });
+    });
+
+    describe("page text is printed without its escapes", () => {
+      it("report.md carries no escape or control character, and scan.json keeps the text exactly", async () => {
+        const ESC = String.fromCharCode(0x1b);
+        const { record } = await scan("hostile/escapes.html");
+        expectScanned(record);
+        // scan.json is data: the dialogs are quoted exactly as the page wrote them.
+        const [dialogs] = page(record).stopped ?? [];
+        expect(dialogs?.kind).toBe("dialog");
+        expect(dialogs?.examples[0]).toContain(`${ESC}[31mRED${ESC}[0m alert ${ESC}]0;window title`);
+        // Chrome hands the carriage return over as a newline.
+        expect(dialogs?.examples[1]).toMatch(/^confirm: fake[\r\n]Error: overwritten /);
+        const imageAlt = record.findings.find((f) => f.rule.id === "image-alt");
+        expect(imageAlt?.elements[0]?.html).toContain(`${ESC}[31mRED`);
+        // The file holds them as escapes, and no raw control.
+        const json = scanJson(record);
+        expect(json).toContain(String.raw`\u001b[31mRED`);
+        expect(json).toContain(String.raw`\u009b1;31m8-bit`);
+        expect(controlsIn(json)).toEqual([]);
+        // report.md quotes the same text with every sequence stripped whole.
+        const report = renderReport(record);
+        expect(controlsIn(report)).toEqual([]);
+        expect(report).toContain("RED alert click here");
+        // Each example on its own line, so a newline in one cannot pass for another.
+        expect(report).toContain("confirm: fake Error: overwritten txt.exe");
+        expect(report).not.toContain("window title");
+        expect(report).not.toContain("evil.example");
+        expect(report).not.toContain("[31m");
       });
     });
 

@@ -284,6 +284,8 @@ fixture in the real Chrome, from `127.0.0.1`, with every request off the fixture
 | The time limit | 60 seconds a page, from the first request to the end of axe-core. The answer is waited for first (30 seconds; no answer is a refusal), then the load and axe-core within what is left. Past it, *not scanned* | `busy-load.html`, `busy-after-load.html` | *the time, element and size caps* |
 | The element and excerpt caps | at most 500 elements per finding, the rest counted in `elementsCut`; each element's quoted HTML cut at 160 characters in `scan.json` as well as in the report | `many-elements.html` | *the time, element and size caps* |
 | The size cap | `scan.json` at most 50 MB. Over it, elements are dropped, least severe first and never a finding's last one, and counted; if that is not enough, *not scanned* | `many-elements.html`, with the limit lowered | *the time, element and size caps* |
+| Private networks | when the address scanned is public, every request to a loopback, link-local, private or unspecified address is aborted before it leaves the browser and noted under `stopped` as `private-network`; a page whose own frame goes to one reads *not scanned*. `--allow-private` turns it off, and a target that is itself loopback or private is never limited. See *The private-network rule (V12)* below | `private-network.html`, and redirects the test's fixture server makes | *a public page cannot reach private addresses* |
+| Page text printed without its escapes | `printable()` (`src/printable.ts`) strips every terminal escape sequence whole (CSI, OSC with OSC 8 links and window titles, DCS, APC and the rest, in their 7-bit and 8-bit forms) and every control character but newline and tab (carriage return, DEL, C1 and the bidi overrides and isolates included) from every line the command prints and from all of `report.md`. `scan.json` keeps the page's text exactly, as data, and writes the controls `JSON.stringify` leaves raw (DEL, C1, bidi) as `\u` escapes, so `--json` on a terminal carries none either | `escapes.html` | *page text is printed without its escapes*; `test/cli/scan.test.ts` checks the real terminal output |
 
 What was stopped is recorded per page in `scan.json` (`pages[].stopped`: the kind, a count, and the first five,
 cut at 160 characters) and listed in `report.md` under *What the page tried, and was stopped*, quoted as data.
@@ -308,12 +310,75 @@ the run used under `limits`.
 - Only the first request of a redirect chain goes through `context.route()`: the hops after it do not. That
   is why the redirect cap counts `request` events. It matters for the private-network rule too (below).
 
-**Not done here: issue #9.** The private-network rule (a public page's requests to loopback, link-local and
-private addresses aborted and noted, unless `--allow-private`), and stripping terminal escape sequences from
-everything printed, are the next slice. Their place is in `armContext()`, and `stopped` can take a new kind for
-them. Because redirect hops skip `route`, that rule cannot rest on `route` alone; WebSockets need
-`routeWebSocket`. Both are V12, which #9 settles.
+### The private-network rule (V12)
+
+A hostile public page could use the browser to reach services on the person's own machine or network: a
+router's admin page, a dev server, a cloud metadata address. So when the address scanned is public, every
+request the page makes to one of these is aborted (spec 8A.1):
+
+| Kind | Ranges |
+| --- | --- |
+| loopback | `127.0.0.0/8`, `::1`, `localhost` and any name under `.localhost` |
+| private | `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `fc00::/7` |
+| link-local | `169.254.0.0/16`, `fe80::/10` |
+| unspecified | `0.0.0.0/8`, `::` |
+| IPv4-mapped IPv6 | `::ffff:0:0/96`, judged by the IPv4 address inside it |
+
+`src/private-address.ts` holds the classifier, and `test/unit/private-address.test.ts` its edges. It reads the
+host in the form the browser's URL parser gives it, so `http://0x7f.1/`, `http://2130706433/` and
+`http://[::ffff:127.0.0.1]/` read as the loopback addresses they are. Anything else reads public, `100.64.0.0/10`
+(shared address space) among them, since the spec does not list it. The rule reads the host as written and
+never looks a name up, so a public name that resolves to a private address is not caught (gap G7; see
+`SECURITY.md`). A target that is itself loopback or private (the usual dev server) is not limited at all, and
+`--allow-private` turns the rule off.
+
+**V12: what passes through Playwright's routes.** Checked with playwright-core 1.65.1 and Chrome 158 on macOS,
+against loopback servers; the two *not*s below are pinned by the test *V12, at playwright-core 1.65.1* in
+`hostile.test.ts`, so an upgrade that changes them fails it:
+
+- `context.route()` sees the first request of every chain from the page, its frames (a frame on another site
+  included), its dedicated workers and `navigator.sendBeacon`.
+- It does **not** see a redirect hop: the second request of a chain onward. A redirect from a public address to
+  a private one reaches the private address with `route()` alone.
+- It does **not** see a WebSocket. `context.routeWebSocket()` does, from the page and from its frames.
+
+So the rule is held in three places, all set in `src/context.ts`:
+
+1. A context route aborts every first request to a private address, from any page, frame or worker. With the
+   rule on, it also aborts every request of any page but the scanned one: a pop-up loads nothing, so the redirect
+   hops of a pop-up's chain, which nothing else would see, never start. Pop-ups are closed anyway.
+2. `context.routeWebSocket()` closes every WebSocket to a private address before it connects.
+3. For redirect hops, the scanned page gets a DevTools Protocol session of its own (`FetchGuard`), with the
+   `Fetch` domain pausing every request at the request stage, hops included, beside Playwright's own: Chrome
+   pauses each request for both, and one this session fails never leaves. A frame on another site runs in a
+   process of its own (site isolation) with a target of its own, which the page's session does not see. So the
+   session auto-attaches to each new target below it, held at its start (`waitForDebuggerOnStart`) until it is
+   armed, and each attaches to its own in turn. They are reached with `Target.sendMessageToTarget`, because
+   Playwright's session object cannot send to a flattened child. A dedicated worker's requests are paused in its
+   page's session.
+
+Each blocked attempt is noted under `pages[].stopped` (kind `private-network`, the count, and the first five
+addresses). A blocked navigation of the page's own frame, a redirect of the address asked for included, reads
+*not scanned*. The tests stand in for a public site with the fixture server, declared public as only a test can
+(`A11Y_GENIE_TEST_PUBLIC_ORIGINS`, which is read only when the address scanned is on one of its origins, so it
+can turn the rule on for a loopback target and never off), and for a private service with a second loopback
+server, which records every request it receives. Each way of reaching it is proved aborted before it arrives,
+and arriving with `--allow-private`: a fetch, an iframe, an image, a WebSocket, a worker's fetch, the redirect hop
+of an image, a fetch, an iframe and a worker's fetch, a redirect hop inside a frame on another site, a pop-up
+that redirects, and the page moving itself or being redirected there. Each layer was also taken out once, by
+hand, to see its tests fail: without `FetchGuard` every redirect-hop test fails, and without its auto-attach the
+frame on another site's does.
+
+**What it does not hold.** These are not caught, and `SECURITY.md` lists them:
+
+- **A dedicated worker's WebSocket.** Neither `routeWebSocket()`, nor the `Fetch` domain, nor
+  `Network.setBlockedURLs` (which blocks no WebSocket at all) sees it, so it reaches a private address. The test
+  *a known gap* pins it, and fails when that changes.
+- **DNS rebinding** (G7): a public name that resolves to a private address.
+- **Shared workers**, and connections that are not HTTP requests or WebSockets: WebRTC, and anything else that
+  opens a socket of its own. Not checked. One check of `<link rel="preconnect">` to a private address opened no
+  connection, which is not a proof.
 
 **What a scan does not defend against.** A page shares its document with axe-core, and can change what
 axe-core reads (gap G6 in the spec): a scan describes the page as the page presents itself, and is never a
-security boundary.
+security boundary. `SECURITY.md` lists this and every other known gap.

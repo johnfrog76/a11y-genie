@@ -1,6 +1,6 @@
-import { existsSync, readdirSync, realpathSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, dirname } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { chromium, type Browser } from "playwright-core";
 import { describe, expect, it } from "vitest";
 import { isNotInstalledError, withBrowser } from "../../src/browser.js";
@@ -78,12 +78,25 @@ describe.skipIf(!hasChrome)("the installed Chrome (skipped where Chrome is not i
 
 describe("a browser that is not installed", () => {
   it("leaves no profile or artifacts folder behind (skipped where Edge is installed)", async (ctx) => {
-    const playwrightFolders = () =>
-      readdirSync(tmpdir()).filter((name) => /^playwright(_chromiumdev_profile|-artifacts)-/.test(name));
-    const before = new Set(playwrightFolders());
-    const outcome = await withBrowser("msedge", async () => "launched").catch((e: unknown) => e);
-    if (outcome === "launched") ctx.skip();
-    expect(outcome).toBeInstanceOf(Refusal);
-    expect(playwrightFolders().filter((name) => !before.has(name))).toEqual([]);
+    // A temporary folder of this test's own: other test files launch browsers at the same time, and their
+    // folders in the shared one would read as left behind by this launch. This file runs in its own process.
+    const keys = ["TMPDIR", "TEMP", "TMP"] as const;
+    const saved = keys.map((key) => process.env[key]);
+    const own = mkdtempSync(join(tmpdir(), "a11y-genie-launch-"));
+    for (const key of keys) process.env[key] = own;
+    try {
+      const outcome = await withBrowser("msedge", async () => "launched").catch((e: unknown) => e);
+      if (outcome === "launched") ctx.skip();
+      expect(outcome).toBeInstanceOf(Refusal);
+      expect(
+        readdirSync(own).filter((name) => /^playwright(_chromiumdev_profile|-artifacts)-/.test(name)),
+      ).toEqual([]);
+    } finally {
+      keys.forEach((key, i) => {
+        if (saved[i] === undefined) delete process.env[key];
+        else process.env[key] = saved[i];
+      });
+      rmSync(own, { recursive: true, force: true });
+    }
   });
 });

@@ -1,0 +1,79 @@
+<!doctype html>
+<!--
+  Hostile fixture: a page that reaches for a private address. `?private=` names the address (the test's
+  second loopback server, standing in for a service on the person's machine or network), and `?case=` says
+  how it reaches: fetch, iframe, image, websocket, worker, worker-websocket, a redirect hop from this server (redirect-image,
+  redirect-fetch, redirect-frame, worker-redirect), a pop-up that redirects (popup-redirect), a frame on
+  another site whose image redirects (cross-site-frame), or moving the page itself (navigate).
+  Must: with a public target, every one is aborted before it arrives and noted under stopped as
+  private-network; with --allow-private, every one arrives.
+  window.privateDone settles when every attempt has.
+  Test: test/browser/hostile.test.ts
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hostile fixture: private network</title>
+  </head>
+  <body>
+    <main>
+      <h1>Hostile fixture</h1>
+      <p>private network</p>
+    </main>
+    <script>
+      const params = new URLSearchParams(location.search);
+      const target = params.get("private");
+      const which = params.get("case");
+      const main = document.querySelector("main");
+      const attempts = [];
+      const settle = (work) => attempts.push(Promise.race([work, new Promise((r) => setTimeout(r, 2000))]));
+      const element = (tag, src) => {
+        const node = document.createElement(tag);
+        settle(new Promise((resolve) => (node.onload = node.onerror = resolve)));
+        node.src = src;
+        if (tag === "img") node.alt = "";
+        if (tag === "iframe") node.title = "frame";
+        main.append(node);
+      };
+      const worker = (url) => {
+        const code = `fetch(${JSON.stringify(url)}).catch(() => {}).finally(() => postMessage("done"));`;
+        const runner = new Worker(URL.createObjectURL(new Blob([code], { type: "text/javascript" })));
+        settle(new Promise((resolve) => (runner.onmessage = resolve)));
+      };
+      const cases = {
+        fetch: () => settle(fetch(`${target}/private/fetch`).catch(() => {})),
+        iframe: () => element("iframe", `${target}/private/frame.html`),
+        image: () => element("img", `${target}/private/image.png`),
+        websocket: () => {
+          const socket = new WebSocket(`${target.replace(/^http/, "ws")}/private/socket`);
+          settle(new Promise((resolve) => (socket.onopen = socket.onerror = socket.onclose = resolve)));
+        },
+        worker: () => worker(`${target}/private/worker`),
+        "worker-websocket": () => {
+          const url = `${target.replace(/^http/, "ws")}/private/worker-socket`;
+          const code = `const s = new WebSocket(${JSON.stringify(url)}); s.onopen = s.onerror = s.onclose = () => postMessage("done");`;
+          const runner = new Worker(URL.createObjectURL(new Blob([code], { type: "text/javascript" })));
+          settle(new Promise((resolve) => (runner.onmessage = resolve)));
+        },
+        "redirect-image": () => element("img", "/hostile/to-private/image"),
+        "redirect-fetch": () => settle(fetch("/hostile/to-private/fetch").catch(() => {})),
+        "redirect-frame": () => element("iframe", "/hostile/to-private/frame"),
+        "worker-redirect": () => worker(`${location.origin}/hostile/to-private/worker`),
+        "popup-redirect": () => {
+          window.open("/hostile/to-private/popup");
+          settle(new Promise((resolve) => setTimeout(resolve, 1000)));
+        },
+        "cross-site-frame": () => {
+          const inner = `${location.pathname}?case=redirect-image&private=${encodeURIComponent(target)}`;
+          element("iframe", `http://localhost:${location.port}${inner}`);
+          settle(new Promise((resolve) => setTimeout(resolve, 1000)));
+        },
+        navigate: () => {
+          location.href = `${target}/private/navigate`;
+        },
+      };
+      cases[which]?.();
+      window.privateDone = Promise.allSettled(attempts);
+    </script>
+  </body>
+</html>
