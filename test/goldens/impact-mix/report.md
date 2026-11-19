@@ -45,6 +45,8 @@ Scanned `http://127.0.0.1:0000/impact-mix.html` with axe-core 0.0.0 in chrome 0.
   <p style="color: #9a9a9a; background: #ffffff">This sentence is pale grey on white.</p>
   ```
 
+  Colours: `#9a9a9a on #ffffff, 2.81, needs 4.5` (font 12.0pt (16px), normal)
+
 ### 3. Moderate: Heading levels should only increase by one
 
 - Rule: `axe/heading-order` · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/heading-order?application=playwright>)

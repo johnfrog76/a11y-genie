@@ -54,6 +54,14 @@ describe("mapping recorded axe-core results", () => {
           target: ["p"],
           html: '<p style="color: #9a9a9a; background: #ffffff">This sentence is pale grey on white.</p>',
           failure: expect.stringContaining("insufficient color contrast of 2.81") as unknown as string,
+          colorPair: {
+            foreground: "#9a9a9a",
+            background: "#ffffff",
+            ratio: 2.81,
+            required: 4.5,
+            fontSize: "12.0pt (16px)",
+            fontWeight: "normal",
+          },
         },
       ],
     });

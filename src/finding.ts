@@ -34,6 +34,25 @@ export interface Rule {
  */
 export type AxeTarget = (string | string[])[];
 
+/**
+ * The colours axe-core measured for a contrast failure, copied from its `color-contrast` check data
+ * (spec 6.1.2). Only on a violation: where axe-core could not measure, there is no pair and the element
+ * reads *needs review* with axe-core's reason. `required` is the number read out of axe-core's
+ * `"4.5:1"` string.
+ */
+export interface ColorPair {
+  foreground: string;
+  background: string;
+  /** axe-core's own measured ratio, a number. */
+  ratio: number;
+  /** The ratio the text needed, such as `4.5`. */
+  required: number;
+  /** As axe-core wrote it, such as `12.0pt (16px)`. */
+  fontSize: string;
+  /** As axe-core wrote it, such as `normal` or `bold`. */
+  fontWeight: string;
+}
+
 export interface FindingElement {
   /**
    * `target` as one string. For an element in the page's own document it is one CSS selector a script
@@ -46,6 +65,8 @@ export interface FindingElement {
   html: string;
   /** axe-core's `failureSummary` for the element, or an empty string when it gave none. */
   failure: string;
+  /** Present only on a `color-contrast` violation axe-core measured. */
+  colorPair?: ColorPair;
 }
 
 export interface Finding {

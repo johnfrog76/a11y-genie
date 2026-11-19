@@ -23,6 +23,15 @@ describe("schema/scan-1.json", () => {
     expect(validate(schema, record)).toEqual([]);
   });
 
+  it("holds a 1.1 record with no colorPair, and refuses a colorPair with no ratio", () => {
+    const record = structuredClone(readGoldenRecord("impact-mix")) as unknown as Record<string, any>;
+    for (const finding of record.findings) for (const element of finding.elements) delete element.colorPair;
+    record.schema = "1.1";
+    expect(validate(schema, record)).toEqual([]);
+    record.findings[1].elements[0].colorPair = { foreground: "#000000", background: "#ffffff" };
+    expect(validate(schema, record).join("\n")).toContain("ratio");
+  });
+
   describe("refuses", () => {
     const refuses = (change: (record: Record<string, any>) => void, mention: string) => {
       const record = structuredClone(readGoldenRecord("impact-mix")) as unknown as Record<string, any>;

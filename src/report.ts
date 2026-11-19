@@ -7,7 +7,7 @@
  */
 
 import { LIMITS, type Stopped } from "./context.js";
-import type { Impact } from "./finding.js";
+import type { ColorPair, Impact } from "./finding.js";
 import { printable, printableLine } from "./printable.js";
 import {
   failureOnOneLine,
@@ -75,6 +75,13 @@ function indent(block: string): string[] {
   return block.split("\n").map((line) => `  ${line}`);
 }
 
+/** "`#9a9a9a on #ffffff, 2.81, needs 4.5` (font 12.0pt (16px), normal)": axe-core's own measured numbers. */
+function colorPairLine(pair: ColorPair): string {
+  const text = inlineCode(`${pair.foreground} on ${pair.background}, ${pair.ratio}, needs ${pair.required}`);
+  const font = [pair.fontSize, pair.fontWeight].filter((part) => part !== "").join(", ");
+  return font === "" ? text : `${text} (font ${plainText(font)})`;
+}
+
 function elementLines(element: RecordElement, fix: string, reason?: string): string[] {
   const lines = [
     `- Element: ${inlineCode(element.selector)}`,
@@ -84,6 +91,7 @@ function elementLines(element: RecordElement, fix: string, reason?: string): str
     ...indent(fenced(cut(element.html, HTML_LIMIT))),
   ];
   // The finding's fix line already says what axe-core said about its first element; say it again only where it differs.
+  if (element.colorPair !== undefined) lines.push("", `  Colours: ${colorPairLine(element.colorPair)}`);
   const why = reason ?? (failureOnOneLine(element.failure) === fix ? "" : element.failure);
   if (why.trim() !== "") {
     lines.push(

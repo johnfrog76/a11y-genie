@@ -9,6 +9,7 @@
 
 import {
   IMPACTS,
+  type ColorPair,
   type AxeScan,
   type AxeTarget,
   type Finding,
@@ -100,6 +101,46 @@ function checkMessages(node: Record<string, unknown>): string {
   return messages.join(" ");
 }
 
+/** The rules whose checks carry the colours (spec 4.5: `colorPair` is on these only). */
+const COLOR_RULES: readonly string[] = ["color-contrast", "color-contrast-enhanced"];
+
+/** `4.5` from axe-core's `"4.5:1"` (or from a number); undefined for anything else. */
+export function requiredRatioOf(value: unknown): number | undefined {
+  if (typeof value === "number") return Number.isFinite(value) && value > 0 ? value : undefined;
+  if (typeof value !== "string") return undefined;
+  const match = /^\s*(\d+(?:\.\d+)?)\s*:\s*1\s*$/.exec(value);
+  const ratio = match?.[1] === undefined ? undefined : Number(match[1]);
+  return ratio !== undefined && ratio > 0 ? ratio : undefined;
+}
+
+/**
+ * The colour pair from a node's `any` check named after the rule, or undefined when axe-core did not
+ * measure one: no colours, a ratio of 0 (what it reports when it could not decide), or a required ratio
+ * that cannot be read. A pair is never guessed.
+ */
+export function colorPairOf(node: Record<string, unknown>, ruleId: string): ColorPair | undefined {
+  if (!COLOR_RULES.includes(ruleId)) return undefined;
+  for (const check of list(node.any)) {
+    if (!isRecord(check) || check.id !== ruleId || !isRecord(check.data)) continue;
+    const data = check.data;
+    const foreground = str(data.fgColor);
+    const background = str(data.bgColor);
+    const ratio = data.contrastRatio;
+    const required = requiredRatioOf(data.expectedContrastRatio);
+    if (foreground === "" || background === "" || required === undefined) continue;
+    if (typeof ratio !== "number" || !Number.isFinite(ratio) || ratio <= 0) continue;
+    return {
+      foreground,
+      background,
+      ratio,
+      required,
+      fontSize: str(data.fontSize),
+      fontWeight: str(data.fontWeight),
+    };
+  }
+  return undefined;
+}
+
 interface Mapped {
   rule: Rule;
   impact: Impact;
@@ -110,7 +151,7 @@ interface Mapped {
  * One axe-core result (a rule and its nodes) as a rule, an impact and elements. Undefined when it has no
  * rule id, or no element that can be pointed at: nothing is reported without a rule and a place.
  */
-function mapResult(result: unknown): Mapped | undefined {
+function mapResult(result: unknown, withPair: boolean): Mapped | undefined {
   if (!isRecord(result)) return undefined;
   const id = str(result.id).trim();
   if (id === "") return undefined;
@@ -122,12 +163,14 @@ function mapResult(result: unknown): Mapped | undefined {
     const target = targetOf(node.target);
     if (target === undefined) continue;
     nodeImpacts.push(impactOf(node.impact));
+    const colorPair = withPair ? colorPairOf(node, id) : undefined;
     elements.push({
       selector: selectorOf(target),
       target,
       html: str(node.html),
       failure: str(node.failureSummary),
       reason: checkMessages(node),
+      ...(colorPair === undefined ? {} : { colorPair }),
     });
   }
   if (elements.length === 0) return undefined;
@@ -175,7 +218,7 @@ export function mapAxeResults(raw: unknown, page: string): AxeScan {
 
   const findings: Finding[] = [];
   for (const result of list(results.violations)) {
-    const mapped = mapResult(result);
+    const mapped = mapResult(result, true);
     if (mapped === undefined) continue;
     findings.push({
       id: findingId(mapped.rule, page),
@@ -183,18 +226,19 @@ export function mapAxeResults(raw: unknown, page: string): AxeScan {
       kind: "violation",
       impact: mapped.impact,
       page,
-      elements: mapped.elements.map(({ selector, target, html, failure }) => ({
+      elements: mapped.elements.map(({ selector, target, html, failure, colorPair }) => ({
         selector,
         target,
         html,
         failure,
+        ...(colorPair === undefined ? {} : { colorPair }),
       })),
     });
   }
 
   const needsReview: NeedsReview[] = [];
   for (const result of list(results.incomplete)) {
-    const mapped = mapResult(result);
+    const mapped = mapResult(result, false);
     if (mapped === undefined) continue;
     needsReview.push({ id: findingId(mapped.rule, page), ...mapped, page });
   }
