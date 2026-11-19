@@ -2,6 +2,7 @@ import { readdirSync, rmdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium, type Browser, type LaunchOptions } from "playwright-core";
+import { onInterrupted } from "./interrupt.js";
 import { Refusal } from "./refusal.js";
 
 /** The browsers `--browser-channel` may name. `chromium` (Playwright's own) comes with the download, later. */
@@ -92,16 +93,20 @@ export async function withBrowser<T>(
   const before = playwrightTempFolders();
   let browser: Browser;
   try {
-    browser = await launcher({ channel, headless: true });
+    browser = await launcher({ channel, headless: true, handleSIGINT: false });
   } catch (error) {
     removeFoldersLeftBy(before);
     if (isNotInstalledError(error)) throw noBrowserRefusal(channel);
     throw error;
   }
 
+  // Ctrl-C closes the browser, which deletes its profile folder, and then exits 130 (src/interrupt.ts).
+  // playwright-core's own handler is off (`handleSIGINT: false`) so there is one, ours, and it sets the code.
+  const forget = onInterrupted(() => browser.close());
   try {
     return await use(browser);
   } finally {
+    forget();
     await browser.close();
   }
 }
