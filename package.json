@@ -8,6 +8,7 @@
     "a11y-genie": "dist/cli.js"
   },
   "files": [
+    "schema",
     "dist",
     "THIRD-PARTY-NOTICES.md",
     "LICENSE"

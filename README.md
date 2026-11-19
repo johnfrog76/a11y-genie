@@ -28,8 +28,8 @@ as JSON, Markdown and HTML.
 It never says a site is "accessible" or "compliant". Automated checks find some problems, not all of them,
 and every report says what a scan cannot see.
 
-A11y Genie is in early development. Nothing here is ready to use yet: today the command answers
-`--version` and `--help`, and `scan` only launches the browser and closes it. It does not check a page yet.
+A11y Genie is in early development. Today `scan <url>` scans one page with axe-core in the installed
+Chrome and writes `scan.json` and `report.md`, worst first; [docs/JSON.md](docs/JSON.md) says what they hold.
 
 ## The browser
 

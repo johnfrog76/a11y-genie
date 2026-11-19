@@ -1,0 +1,184 @@
+{
+  "schema": "1.0",
+  "tool": {
+    "name": "a11y-genie",
+    "version": "0.0.0"
+  },
+  "command": "scan",
+  "exit": 1,
+  "engine": {
+    "axeCore": "0.0.0",
+    "browser": "chrome 0.0.0.0",
+    "fallback": false,
+    "tags": null,
+    "rulesRun": 90
+  },
+  "target": {
+    "origin": "http://127.0.0.1:0000",
+    "commit": null
+  },
+  "startedAt": "2000-01-01T00:00:00Z",
+  "finishedAt": "2000-01-01T00:00:00Z",
+  "pages": [
+    {
+      "key": "impact-mix.html",
+      "url": "http://127.0.0.1:0000/impact-mix.html",
+      "states": [
+        "default"
+      ],
+      "notScanned": []
+    }
+  ],
+  "summary": {
+    "critical": 1,
+    "serious": 1,
+    "moderate": 1,
+    "minor": 1,
+    "advice": 0,
+    "needsReview": 0,
+    "notScanned": 0
+  },
+  "findings": [
+    {
+      "id": "axe/image-alt@impact-mix.html",
+      "rule": {
+        "source": "axe",
+        "id": "image-alt",
+        "help": "Images must have alternative text",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/0.0/image-alt?application=playwright",
+        "wcag": [
+          "1.1.1"
+        ]
+      },
+      "kind": "violation",
+      "impact": "critical",
+      "page": "impact-mix.html",
+      "title": "Images must have alternative text on impact-mix.html",
+      "plain": "Images must have alternative text",
+      "fix": "Fix any of the following: Element does not have an alt attribute; aria-label attribute does not exist or is empty; aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty; Element has no title attribute; Element's default semantics were not overridden with role=\"none\" or role=\"presentation\"",
+      "elements": [
+        {
+          "selector": "img",
+          "target": [
+            "img"
+          ],
+          "html": "<img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\" width=\"40\" height=\"40\">",
+          "failure": "Fix any of the following:\n  Element does not have an alt attribute\n  aria-label attribute does not exist or is empty\n  aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty\n  Element has no title attribute\n  Element's default semantics were not overridden with role=\"none\" or role=\"presentation\"",
+          "states": [
+            "default"
+          ]
+        }
+      ],
+      "status": "new"
+    },
+    {
+      "id": "axe/color-contrast@impact-mix.html",
+      "rule": {
+        "source": "axe",
+        "id": "color-contrast",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/0.0/color-contrast?application=playwright",
+        "wcag": [
+          "1.4.3"
+        ]
+      },
+      "kind": "violation",
+      "impact": "serious",
+      "page": "impact-mix.html",
+      "title": "Elements must meet minimum color contrast ratio thresholds on impact-mix.html",
+      "plain": "Elements must meet minimum color contrast ratio thresholds",
+      "fix": "Fix any of the following: Element has insufficient color contrast of 2.81 (foreground color: #9a9a9a, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "elements": [
+        {
+          "selector": "p",
+          "target": [
+            "p"
+          ],
+          "html": "<p style=\"color: #9a9a9a; background: #ffffff\">This sentence is pale grey on white.</p>",
+          "failure": "Fix any of the following:\n  Element has insufficient color contrast of 2.81 (foreground color: #9a9a9a, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1",
+          "states": [
+            "default"
+          ]
+        }
+      ],
+      "status": "new"
+    },
+    {
+      "id": "axe/heading-order@impact-mix.html",
+      "rule": {
+        "source": "axe",
+        "id": "heading-order",
+        "help": "Heading levels should only increase by one",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/0.0/heading-order?application=playwright",
+        "wcag": []
+      },
+      "kind": "violation",
+      "impact": "moderate",
+      "page": "impact-mix.html",
+      "title": "Heading levels should only increase by one on impact-mix.html",
+      "plain": "Heading levels should only increase by one",
+      "fix": "Fix any of the following: Heading order invalid",
+      "elements": [
+        {
+          "selector": "h3",
+          "target": [
+            "h3"
+          ],
+          "html": "<h3>Skipped a level</h3>",
+          "failure": "Fix any of the following:\n  Heading order invalid",
+          "states": [
+            "default"
+          ]
+        }
+      ],
+      "status": "new"
+    },
+    {
+      "id": "axe/empty-heading@impact-mix.html",
+      "rule": {
+        "source": "axe",
+        "id": "empty-heading",
+        "help": "Headings should not be empty",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/0.0/empty-heading?application=playwright",
+        "wcag": []
+      },
+      "kind": "violation",
+      "impact": "minor",
+      "page": "impact-mix.html",
+      "title": "Headings should not be empty on impact-mix.html",
+      "plain": "Headings should not be empty",
+      "fix": "Fix any of the following: Element does not have text that is visible to screen readers; aria-label attribute does not exist or is empty; aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty; Element has no title attribute",
+      "elements": [
+        {
+          "selector": "h2",
+          "target": [
+            "h2"
+          ],
+          "html": "<h2></h2>",
+          "failure": "Fix any of the following:\n  Element does not have text that is visible to screen readers\n  aria-label attribute does not exist or is empty\n  aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty\n  Element has no title attribute",
+          "states": [
+            "default"
+          ]
+        }
+      ],
+      "status": "new"
+    }
+  ],
+  "needsReview": [],
+  "ignored": [],
+  "workflows": [],
+  "checklist": null,
+  "cannotSee": [
+    "Whether focus follows the reading order when you press Tab (WCAG 2.4.3).",
+    "Whether the focus indicator is easy to see against every background it lands on (WCAG 2.4.7, 1.4.11).",
+    "Whether every image's alternative text says what the image is for (WCAG 1.1.1).",
+    "Whether headings and labels describe what follows them (WCAG 2.4.6).",
+    "Whether anything is shown by colour alone (WCAG 1.4.1).",
+    "Whether everything is still readable and usable at 200% zoom (WCAG 1.4.4).",
+    "Whether the page works at 320 px wide without scrolling sideways (WCAG 1.4.10).",
+    "Whether error messages say which field and how to fix it (WCAG 3.3.1, 3.3.3).",
+    "Whether video and audio have captions or a transcript (WCAG 1.2.2, 1.2.3).",
+    "Whether moving content pauses, and whether motion respects the reduced-motion setting (WCAG 2.2.2).",
+    "Whether a person using a real screen reader can finish the page's main task (WCAG 4.1.2)."
+  ]
+}

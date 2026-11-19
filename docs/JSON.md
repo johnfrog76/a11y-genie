@@ -3,9 +3,10 @@
 This document has two parts:
 
 1. **Findings**: the shape A11y Genie gives each finding and each *needs review* item. `scan.json` is built
-   from these. The rest of `scan.json` (its version, its summary, its pages) is documented here when the
-   command writes it.
-2. **axe-core's results**: the shape axe-core hands back, at the version A11y Genie pins, as checked
+   from these.
+2. **`scan.json`**: the record `a11y-genie scan` writes, which `--json` prints and `report.md` is made from.
+   Its JSON Schema is `schema/scan-1.json`.
+3. **axe-core's results**: the shape axe-core hands back, at the version A11y Genie pins, as checked
    against a real browser. The findings are filled from it.
 
 ## Findings (`src/finding.ts`)
@@ -76,6 +77,67 @@ For an element inside a shadow root or a frame, `selector` is the parts joined w
 an agent to read. It is not one selector: `document.querySelector("#host >>> button")` throws a syntax
 error. The parts are in `target`, each a selector within its own root or frame. See *How `target` reads*
 below for what each form looks like and how to use it.
+
+## `scan.json` (`src/scan-record.ts`, `schema/scan-1.json`)
+
+`a11y-genie scan <url>` writes `scan.json` on every run, and `--json` prints the same document on stdout.
+It is versioned: `schema` is `"<major>.<minor>"`, now `"1.0"`. A field may be added in a minor version and is
+never removed or renamed in one; a removal or a rename is a new major, and a new schema file. Readers must
+ignore fields they do not know, so the schema allows extra fields.
+
+| Field | What it holds |
+| --- | --- |
+| `schema` | The version, `"1.0"` |
+| `tool` | `{ name, version }` of A11y Genie |
+| `command` | `"scan"` |
+| `exit` | The exit code the run ends with: `0` with no violations, `1` with any |
+| `engine` | `axeCore` (its version), `browser` (such as `chrome 158.0.8127.36`), `fallback` (`false` until the browser fallback), `tags` (`null`: axe-core's default rule set), `rulesRun` (distinct rule ids axe-core ran) |
+| `target` | `origin` of the page, and `commit` (`null`) |
+| `startedAt`, `finishedAt` | UTC, to the second: `2026-11-19T20:14:03Z` |
+| `pages` | One per page: `key`, `url`, `states` (`["default"]`), `notScanned` (empty) |
+| `summary` | Violations by impact (`critical`, `serious`, `moderate`, `minor`), `advice`, `needsReview` and `notScanned` counts |
+| `findings` | Worst first. Each is a finding as above, plus `title`, `plain`, `fix`, `status` and, on each element, `states` |
+| `needsReview` | Worst first, as above; each element has `reason` and `states` |
+| `ignored`, `workflows` | `[]` until those features exist |
+| `checklist` | `null` until the checklist exists |
+| `cannotSee` | The fixed list of what a scan cannot see: the same lines that end `report.md` |
+
+What an agent can rely on in major version 1: per finding `id`, `rule.source`, `rule.id`, `impact`, `kind`,
+`fix`; per element `selector` and `html`; at the top `schema`, `exit`, `summary` and `pages[].notScanned`.
+
+**`plain` and `fix` until plain-language fixes are written.** `plain` is axe-core's `help` for the rule. `fix`
+is axe-core's `failureSummary` for the finding's first element, on one line ("Fix any of the following:" then
+its messages, separated by semicolons); where axe-core gave none, it is the rule's `help` and `helpUrl`. A
+finding always has a fix. `title` is the `help` and the page. `status` is `new` until a scan is compared
+with the one before it. Each element's `failure` stays as axe-core wrote it, newlines included.
+
+`summary` counts findings (one per rule per page), not elements. `toolkit` and `colorPair` are not written
+yet.
+
+## `report.md` (`src/report.ts`)
+
+Made from the record and nothing else. It holds, in order: what was scanned and with what; a summary (the
+empty-scan sentence when nothing was found); the findings worst first, each with its rule, WCAG criteria,
+page, fix and elements; *Needs review*, when axe-core could not decide something; and *What this scan cannot
+see*, the same fixed list in every report, last.
+
+- It never calls a site accessible, compliant or conformant and never says it passes WCAG. A scan with no
+  findings reads: `No problems found by these {rulesRun} rules on {pages}. Automated rules find only some
+  problems; the checklist covers what they cannot see.` Both counts come from the record (`engine.rulesRun`,
+  and the number of `pages`, written "this 1 page" for one and "these 3 pages" for more).
+- Text from the page is data. Element HTML is in a fenced block, labelled as quoted, cut at 160 characters;
+  the fence is longer than any run of backticks inside, and control characters are replaced.
+- *What this scan cannot see* points to the guided checklist, which does not exist yet, and says so.
+
+## Where a scan is written (`src/scans-folder.ts`)
+
+`<scans>/<origin key>/<start time>/scan.json` and `report.md`, outside the scanned project. The origin key is
+the host and port (`localhost-5173`); the start time is `2026-11-19T20-14-03Z`, with `-2`, `-3` added if two
+scans start in the same second. `<scans>` is, in this order: `--out`; the `A11Y_GENIE_SCANS_DIR` environment
+variable (tests set it to a temporary folder); then the per-user folder, `~/Library/Application Support/a11y-genie`
+on macOS, `$XDG_DATA_HOME/a11y-genie` or `~/.local/share/a11y-genie` on Linux, and
+`%LOCALAPPDATA%\a11y-genie` on Windows. `--format md,json` (the default) picks the reports; `scan.json` is
+always written, because every other file is made from it.
 
 ## axe-core's results (V1)
 
