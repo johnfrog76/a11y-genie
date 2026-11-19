@@ -1,0 +1,50 @@
+# Publishes the project's page to GitHub Pages on every push to main that changes it, and on demand: site/ as
+# built by scripts/build-site.ts, which adds the deck's button only once DECK_URL is set there.
+#
+# Like CI, the job runs only while the repository is public. Pages' source is "GitHub Actions" (Settings,
+# Pages, Build and deployment). The page's own scan is a test (test/browser/site.test.ts), so CI runs it on
+# every push and pull request.
+#
+# Making the repository public does not publish the page: nothing has pushed to site/. The first time, set the
+# source above once the repository is public, then run this workflow by hand (Actions, Pages, Run workflow).
+# The build needs Node only, no dependencies, so nothing is installed: this job can deploy.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", "scripts/build-site.ts"]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ github.event.repository.private == false }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - run: node scripts/build-site.ts _site
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
