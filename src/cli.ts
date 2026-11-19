@@ -157,7 +157,8 @@ async function scan(args: string[]): Promise<void> {
           `${record.summary.critical} critical, ${record.summary.serious} serious, ` +
           `${record.summary.moderate} moderate, ${record.summary.minor} minor.`,
   );
-  if (record.summary.needsReview > 0) say(`${record.summary.needsReview} more need a person to look.`);
+  const review = record.summary.needsReview;
+  if (review > 0) say(`${review} more ${review === 1 ? "needs" : "need"} a person to look.`);
   say(`Wrote ${folder}`);
   if (values.json) process.stdout.write(json);
   process.exitCode = record.exit;
