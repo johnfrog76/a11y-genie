@@ -2,6 +2,9 @@
 import { parseArgs } from "node:util";
 import { BROWSER_CHANNELS, DEFAULT_CHANNEL, isBrowserChannel } from "./browser.js";
 import { packageInfo } from "./package-info.js";
+import { EXIT } from "./exit-codes.js";
+import { installInterruptHandler } from "./interrupt.js";
+import { checkOutFolder } from "./out-folder.js";
 import { Refusal } from "./refusal.js";
 import { emptyScanSentence, renderReport } from "./report.js";
 import { runScan } from "./run-scan.js";
@@ -26,6 +29,9 @@ Commands:
   scan       load one page in a browser with a new, empty profile, run axe-core on it, and write
              scan.json and report.md. Exit 0: no findings. Exit 1: findings.
 
+Exit codes: 0 no findings, 1 findings, 2 a refusal (one Error: line and one Hint: line, nothing written),
+3 something unexpected, 130 Ctrl-C.
+
 Commands (coming, none works yet):
   check      scan again and say what is new and what is fixed
   narrate    describe a keyboard workflow step by step
@@ -38,6 +44,9 @@ Commands (coming, none works yet):
 `;
 
 const HELP_HINT = "run a11y-genie --help to see what exists so far.";
+
+const SERVE_HINT =
+  "give a full address that starts with http:// or https://. To scan a built site, serve it first, for example: npx serve dist";
 
 const FORMATS = ["md", "json"] as const;
 
@@ -56,6 +65,34 @@ function parseFormats(values: string[] | undefined): Set<(typeof FORMATS)[number
     }
   }
   return chosen;
+}
+
+/** Refuses an address this tool may not load: anything but a full `http:` or `https:` address. */
+function checkTarget(target: string): void {
+  let protocol: string;
+  try {
+    protocol = new URL(target).protocol;
+  } catch {
+    throw new Refusal(`not a web address: ${JSON.stringify(target.slice(0, 80))}`, SERVE_HINT);
+  }
+  if (protocol !== "http:" && protocol !== "https:") {
+    throw new Refusal(
+      `only http: and https: addresses can be scanned, and this one is ${protocol}`,
+      SERVE_HINT,
+    );
+  }
+}
+
+/** A scan folder that cannot be made or written, found only when the write is tried. */
+function refuseUnwritable(error: unknown, where: string): never {
+  const code = (error as NodeJS.ErrnoException).code;
+  if (
+    code !== undefined &&
+    ["EACCES", "EPERM", "ENOENT", "ENOTDIR", "EROFS", "ENOSPC", "EEXIST"].includes(code)
+  ) {
+    throw new Refusal(`cannot write the scan under ${where}: ${code}`, "choose another folder with --out.");
+  }
+  throw error;
 }
 
 /** Scans one page, writes its scan folder, and sets the exit code: 0 with no findings, 1 with any. */
@@ -92,14 +129,22 @@ async function scan(args: string[]): Promise<void> {
     throw new Refusal(`unknown --browser-channel: ${channel}`, `use one of: ${BROWSER_CHANNELS.join(", ")}.`);
   }
   const formats = parseFormats(values.format);
+  checkTarget(url);
+  if (values.out !== undefined) checkOutFolder(values.out);
 
   const record = await runScan({ url, channel });
 
-  const folder = makeScanFolder(values.out ?? defaultScansDir(), record.target.origin, record.startedAt);
+  const root = values.out ?? defaultScansDir();
   const json = `${JSON.stringify(record, null, 2)}\n`;
-  // scan.json is the record every other file is made from, so it is always written.
-  writeScanFile(folder, "scan.json", json);
-  if (formats.has("md")) writeScanFile(folder, "report.md", renderReport(record));
+  let folder: string;
+  try {
+    folder = makeScanFolder(root, record.target.origin, record.startedAt);
+    // scan.json is the record every other file is made from, so it is always written.
+    writeScanFile(folder, "scan.json", json);
+    if (formats.has("md")) writeScanFile(folder, "report.md", renderReport(record));
+  } catch (error) {
+    refuseUnwritable(error, root);
+  }
 
   // Under --json stdout holds the one document and everything for a person goes to stderr.
   const say = values.json ? console.error : console.log;
@@ -129,18 +174,19 @@ async function main(args: string[]): Promise<void> {
   }
 }
 
+installInterruptHandler();
 try {
   await main(process.argv.slice(2));
 } catch (error) {
   if (error instanceof Refusal) {
     console.error(`Error: ${error.message}`);
     console.error(`Hint: ${error.hint}`);
-    process.exitCode = 2;
+    process.exitCode = EXIT.refusal;
   } else {
     const message = error instanceof Error ? error.message.split("\n")[0] : String(error);
     console.error(`Error: something unexpected went wrong: ${message}`);
     console.error("Hint: please report it at https://github.com/johnfrog76/a11y-genie/issues.");
     if (process.env.A11Y_GENIE_DEBUG) console.error(error);
-    process.exitCode = 3;
+    process.exitCode = EXIT.unexpected;
   }
 }
