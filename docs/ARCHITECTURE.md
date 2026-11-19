@@ -162,7 +162,7 @@ bytes:
 | Linux arm64 | 207.6 | 2.0 | 209.7 | about 210 MB |
 | Windows x64 | 217.4 | 1.7 | 219.0 | about 220 MB |
 
-Any other platform reads "about 220 MB", the largest measured. Unpacked, it takes about 400 MB on disk (macOS
+Any other platform reads "about 220 MB", the largest measured. Unpacked, it takes about 380 MB on disk (macOS
 arm64: 377 MB for Chromium, 3 MB for FFmpeg). The download was run for real once, by hand, on macOS arm64: it
 took about 5 seconds on a fast connection, and a scan with `--browser-channel chromium` then ran on it
 (`engine.browser`: `chromium 159.0.8154.6`). The headless shell the download leaves out is 105.7 MB on macOS
