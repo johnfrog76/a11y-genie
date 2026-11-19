@@ -21,6 +21,8 @@ Run all five before you ask for a review. CI runs the same five in that order, o
 - `src/browser.ts` launches the installed browser; `src/refusal.ts` is the exit-2 refusal.
 - `src/axe.ts` runs axe-core on a loaded page; `src/map-axe.ts` maps its results to findings (`src/finding.ts`), and
   `src/order.ts` orders them worst first.
+- `src/banner.ts` holds the genie and his bottle, the drawing for a person at a terminal. Nothing prints it
+  yet, and the README's first block is the same drawing.
 - `test/` holds the tests, in folders by kind. `test/cli/` runs the built `dist/`, so `npm test` builds first.
   `test/unit/` runs no browser. `test/browser/` launches the real installed Chrome and skips itself where
   Chrome is not installed.

@@ -1,5 +1,26 @@
 # A11y Genie
 
+```text
+                    ,-.
+                   ( (_)
+            .-~~~~~' '~~~~~-.
+           /  .---.   .---.  \
+          |   |===|   |===|   |
+          |   '-o-'   '-o-'   |
+           \     -.____.-~'  /
+             '-._________.-'
+        .-~-.(  ~-.___.-~  ).-~-.
+       (__.-~-.__)~~~~~(__.-~-.__)
+                   /^\
+                  /___\
+                   | |
+                   | |
+                .-'   '-.
+               /  ~   ~  \
+               |  a11y   |
+               '._______.'
+```
+
 An accessibility scanner for agents and people. It drives a real browser through a site's pages and their
 states, runs axe-core and its own checks, and writes a plain-language report with the fixes, worst first,
 as JSON, Markdown and HTML.
