@@ -268,6 +268,18 @@ do not count: a page with only those has none of the four. It runs on the page's
 it does not change `engine.rulesRun`, which stays axe-core's count. The report lists it as any other finding;
 no landmark map is drawn.
 
+### The list of rules (`src/rules-command.ts`, `src/genie-rules.ts`)
+
+`a11y-genie rules` prints axe-core's rules from `axe.getRules()` at the installed version and the product's own
+`genie/*` rules, each with impact, WCAG criteria and tags (`--json` is documented in `docs/JSON.md`). It runs
+in Node alone: no browser, no network. axe-core's `getRules()` leaves out each rule's impact, so it is read
+from `axe._audit.rules`, the one place axe-core keeps it, and shown as `null` if it is ever missing (a test
+fails when it is, at the pinned version). The own rules come from one registry, `src/genie-rules.ts`: a check
+calls `registerGenieRule` in its module (`src/landmarks.ts` does, for `genie/no-landmarks`, `moderate`, tagged
+`best-practice`), and `src/rules-command.ts` imports that module. A check added later registers itself and
+imports it there, and a rule not built yet is not listed. `--tags` keeps the rules that carry any of the tags,
+as axe-core's own `--tags` runs them, so a list without `best-practice` leaves the landmark rules out.
+
 ### The rule flags (`src/rule-flags.ts`)
 
 - **`--tags <list>`** is comma-separated, in the order given, without repeats. The tags it accepts are the ones
