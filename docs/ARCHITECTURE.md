@@ -29,8 +29,9 @@ folder from its own `chrome://version` page, and checks that the folder is in th
 this run, differs between two runs, and is gone after the run, including a run that throws.
 
 One case is not covered: if the A11y Genie process itself is killed outright (`SIGKILL`), nothing runs to
-delete the folder, and it stays in the temp folder until the system clears it. On Ctrl-C and on a normal
-`SIGTERM`, playwright-core closes the browser and deletes the folder.
+delete the folder, and it stays in the temp folder until the system clears it. On Ctrl-C, `src/interrupt.ts` closes the browser (so the folder is deleted) and exits 130; the launch passes
+`handleSIGINT: false`, so playwright-core's own handler does not race it. On a normal `SIGTERM`,
+playwright-core closes the browser and deletes the folder.
 
 ### No browser is a refusal
 
@@ -121,7 +122,7 @@ axe-core's result shape at the pinned version, and how its `target` reads for sh
 report is a pure function of the record, so a stored `scan.json` can write it again later.
 
 - **Exit code.** 0 when there is no violation, 1 when there is any. The record's `exit` says the same.
-  Refusals (exit 2) and the full exit-code table are a later change.
+  Refusals (exit 2), Ctrl-C (130) and the unexpected (3) are in `docs/EXIT-CODES.md`.
 - **`--json`.** stdout holds the document and nothing else; every line meant for a person goes to stderr.
   Without it, the summary goes to stdout.
 - **Never into the project.** Nothing is written in the folder the command runs from, or the scanned
