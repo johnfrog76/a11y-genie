@@ -297,10 +297,16 @@ as axe-core's own `--tags` runs them, so a list without `best-practice` leaves t
 
 ## One scan, end to end (`src/run-scan.ts`, `src/cli.ts`)
 
-`a11y-genie scan <url>` launches the browser (`withChosenBrowser`, which may fall back to Playwright's Chromium), makes a new context with the hostile-page rules
-(`src/context.ts`, below), loads the page, runs `scanPage`, and builds the record (`src/scan-record.ts`). A
-page that answers and then breaks one of those rules is not scanned: the record says why, and the run still
-writes its files and exits 1. The CLI then makes the scan folder
+`a11y-genie scan <url>` plans what to scan (`src/scan-plan.ts`: the pages, and the states of each, from the
+`--states` flags or the `--config` file, `src/config.ts`), launches the browser (`withChosenBrowser`, which may
+fall back to Playwright's Chromium), and then, for each page and for each of its states, `default` first, makes a
+new context with the hostile-page rules (`src/context.ts`, below), sets the state's media, loads the page, runs
+the state's steps (`src/drive.ts`), runs `scanPage`, and closes the context, so no state sees another's cookies,
+storage or page. The states of a page are merged into one finding per rule (`src/merge-states.ts`), and the record
+is built (`src/scan-record.ts`). A page or state that answers and then breaks one of those rules, or whose step
+fails, is not scanned: the record says why, and the run goes on with the rest, still writes its files and exits 1.
+Only the first page's first load that does not answer is a refusal. `--timeout` sets the limit for one state, and
+`--storage-state` is handed to each context's own storage and never copied. The CLI then makes the scan folder
 (`src/scans-folder.ts`), writes `scan.json`, and writes `report.md` from the record (`src/report.ts`). The
 report is a pure function of the record, so a stored `scan.json` can write it again later.
 
