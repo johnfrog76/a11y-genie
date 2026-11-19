@@ -86,15 +86,16 @@ characters JSON allows raw (DEL, the C1 controls, the bidirectional controls and
 separators) are written as `\u` escapes, so the file holds no raw control and parses to the same text.
 `report.md` and the terminal get the same text with every escape sequence and control stripped.
 
-It is versioned: `schema` is `"<major>.<minor>"`, now `"1.1"`. A field may be added in a minor version and is
+It is versioned: `schema` is `"<major>.<minor>"`, now `"1.2"`. A field may be added in a minor version and is
 never removed or renamed in one; a removal or a rename is a new major, and a new schema file. Readers must
 ignore fields they do not know, so the schema allows extra fields. 1.1 added `pages[].requestedUrl`,
 `pages[].redirects`, `pages[].stopped`, `limits` and `elementsCut`; a 1.0 record has none of them, and is
-still valid against `schema/scan-1.json`.
+still valid against `schema/scan-1.json`. 1.2 added `colorPair` on a `color-contrast` element; a 1.1 record has
+none, and is still valid too.
 
 | Field | What it holds |
 | --- | --- |
-| `schema` | The version, `"1.1"` |
+| `schema` | The version, `"1.2"` |
 | `tool` | `{ name, version }` of A11y Genie |
 | `command` | `"scan"` |
 | `exit` | The exit code the run ends with: `0` with no violations, `1` with any, or with a page that was not scanned |
@@ -127,15 +128,27 @@ its messages, separated by semicolons); where axe-core gave none, it is the rule
 finding always has a fix. `title` is the `help` and the page. `status` is `new` until a scan is compared
 with the one before it. Each element's `failure` stays as axe-core wrote it, newlines included.
 
-`summary` counts findings (one per rule per page), not elements. `toolkit` and `colorPair` are not written
-yet.
+`summary` counts findings (one per rule per page), not elements. `toolkit` is not written yet.
+
+**`colorPair`.** On an element of a `color-contrast` (or `color-contrast-enhanced`) violation, read from axe-core's
+own check data (*Where the colour data is*, below). It is absent on every other element, and on a *needs review*
+element: where axe-core could not measure the colours (a gradient, an image) there is no pair, and the element
+reads *needs review* with axe-core's reason. A pair is never guessed.
+
+| Field | What it holds |
+| --- | --- |
+| `foreground`, `background` | `fgColor` and `bgColor`, such as `#9a9a9a` |
+| `ratio` | `contrastRatio`: the number axe-core measured, such as `2.81` |
+| `required` | `expectedContrastRatio` read as a number: `"4.5:1"` is `4.5` |
+| `fontSize`, `fontWeight` | As axe-core wrote them, such as `12.0pt (16px)` and `normal` |
 
 ## `report.md` (`src/report.ts`)
 
 Made from the record and nothing else. It holds, in order: what was scanned and with what, and where a
 redirect ended (saying so when that is another origin); a summary (the empty-scan sentence when nothing was
 found, and each page not scanned with its reason); the findings worst first, each with its rule, WCAG
-criteria, page, fix and elements (with how many are not listed, when some were cut); *Needs review*, when
+criteria, page, fix and elements (with how many are not listed, when some were cut; a contrast element also
+has a `Colours:` line naming the pair, such as `#9a9a9a on #ffffff, 2.81, needs 4.5`, from the record's numbers); *Needs review*, when
 axe-core could not decide something; *What the page tried, and was stopped*, when it opened dialogs or
 pop-ups or started downloads, with the first few quoted; and *What this scan cannot see*, the same fixed
 list in every report, last.
@@ -223,7 +236,7 @@ frames, and whether a part stays the same between two runs (V9, with the rescan)
 
 ### Where the colour data is
 
-For the later colour pair. The data is on the node's `any` check whose `id` is `color-contrast`, in `data`:
+`colorPair` is filled from this. The data is on the node's `any` check whose `id` is `color-contrast`, in `data`:
 
 | Field | On a violation (`contrast.html`) | On *needs review* (`needs-review.html`) |
 | --- | --- | --- |
