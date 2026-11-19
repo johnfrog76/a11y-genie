@@ -288,7 +288,7 @@ async function scan(args: string[]): Promise<void> {
       say(`Stopped what the page tried: ${tried.join(", ")}. The report lists them.`);
     }
   }
-  if (found > 0 && missed === undefined && record.exit === 0) {
+  if (found > 0 && record.summary.notScanned === 0 && record.exit === 0) {
     say(`None is ${failOn} or worse, so the exit is 0 (--fail-on ${failOn}).`);
   }
   const review = record.summary.needsReview;
@@ -299,11 +299,14 @@ async function scan(args: string[]): Promise<void> {
 }
 
 async function main(args: string[]): Promise<void> {
-  if (args[0] === "scan") return scan(args.slice(1));
-  if (args[0] === "rules") return rulesCommand(args.slice(1), HELP_HINT);
+  // `--version` anywhere on the line wins, before any command reads its arguments (docs/EXIT-CODES.md).
   if (args.includes("--version")) {
     console.log(packageInfo().version);
-  } else if (args.length === 0 || args.includes("--help")) {
+    return;
+  }
+  if (args[0] === "scan") return scan(args.slice(1));
+  if (args[0] === "rules") return rulesCommand(args.slice(1), HELP_HINT);
+  if (args.length === 0 || args.includes("--help")) {
     process.stdout.write(HELP);
   } else {
     throw new Refusal(`unknown command or flag: ${args[0]}`, HELP_HINT);

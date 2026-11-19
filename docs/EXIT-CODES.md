@@ -34,6 +34,10 @@ Not built yet, with a place waiting in `src/exit-codes.ts`:
 
 - **Exit 4**, a refusal after something was already written. Only a later command (`cards --toolkit`) can reach it.
 
+`--version` wins anywhere on the line: `a11y-genie rules --version` and `a11y-genie scan <url> --version` print the
+version and exit 0, before the command reads its other arguments. (It is not only a top-level flag, so a
+person who adds it to any command line gets the answer, not a refusal.)
+
 ## Refusals the command can reach
 
 Every refusal is exit 2 and happens before anything is written: the scans folder and `--out` are left as they were.
