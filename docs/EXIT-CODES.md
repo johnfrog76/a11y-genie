@@ -18,7 +18,7 @@ Not built yet, with a place waiting in `src/exit-codes.ts`:
 - **Exit 1 for "not scanned"**, when a page, state or flow could not be scanned. It comes with the scans that can
   fail part-way. Today a scan loads its one page or refuses.
 
-## Refusals M1 can reach
+## Refusals the command can reach
 
 Every refusal is exit 2 and happens before anything is written: the scans folder and `--out` are left as they were.
 
@@ -31,10 +31,19 @@ Every refusal is exit 2 and happens before anything is written: the scans folder
 | A target that is not `http:` or `https:` | `only http: and https: addresses can be scanned, and this one is file:` (or `javascript:`, `data:`) | `give a full address that starts with http:// or https://. To scan a built site, serve it first, for example: npx serve dist` |
 | A target that is not an address | `not a web address: "example"` | the same hint |
 | A target that does not answer | `http://127.0.0.1:5173 did not answer: the connection was refused.`, `... the host name was not found.`, `... no answer within 30 seconds.`, or `... the browser reported ERR_<NAME>.` | `check the address, and that the server is running.` |
-| No Chrome | `Chrome was not found on this machine, and A11y Genie cannot download a browser yet.` (Microsoft Edge for `--browser-channel msedge`) | `Install Chrome, or run with --browser-channel msedge if that one is installed.` |
+| No Chrome, with `--no-download` | `Chrome was not found on this machine, and --no-download stops A11y Genie from downloading Playwright's Chromium.` | `Install Chrome, or run with --browser-channel msedge if that one is installed, or download Playwright's Chromium yourself: npx playwright-core@1.65.1 install --no-shell chromium` |
+| `--browser-channel chromium --no-download`, with no Chromium in Playwright's cache | `Playwright's Chromium is not installed on this machine, and --no-download stops A11y Genie from downloading it.` | `download it yourself: npx playwright-core@1.65.1 install --no-shell chromium, or run with another --browser-channel.` |
+| A named `--browser-channel chrome` that is not installed (never replaced) | `Chrome was not found on this machine.` | `Install Chrome, or run with --browser-channel chromium to use Playwright's Chromium (downloaded once), or msedge if that one is installed.` |
+| A `--browser-channel msedge` that is not installed (never replaced) | `Microsoft Edge was not found on this machine.` | `Install Microsoft Edge, or run with --browser-channel chrome, or chromium to use Playwright's Chromium (downloaded once).` |
+| The Chromium download did not finish | `the download of Playwright's Chromium did not finish: the installer exited with code <n>.` (or `... was stopped by <signal>`) | `check the network and run again, or download it yourself: npx playwright-core@1.65.1 install --no-shell chromium` |
 | An `--out` that is a file | `--out is not a folder: <path>` | `give a folder, or a new name inside a folder that exists.` |
 | An `--out` whose parent is missing, or a file | `--out cannot be made, because the folder above it does not exist: <path>` (or `the path above it is not a folder`) | `make the folder above it first, or choose another --out.` |
 | An `--out` with no permission | `--out cannot be written to: <path>` (or `... because the folder above it cannot be written to`) | `choose a folder you may write to.` |
+
+With no Chrome and no `--browser-channel`, the run does not refuse: it says so in one line on stderr and downloads
+Playwright's Chromium once (docs/ARCHITECTURE.md). That line comes before the download, so a download that then
+fails prints it, and then its `Error:` and `Hint:`: three lines on stderr. Every other refusal prints two.
+The version in the hints is the installed playwright-core's.
 
 `--out` may name a folder that exists, or a new folder whose parent exists. A scan folder that turns out not to be
 writable when the write is tried (a race, or the default scans folder) is the same refusal, `cannot write the

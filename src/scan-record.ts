@@ -90,6 +90,8 @@ export interface ScanRecord {
 export interface RecordInput {
   tool: { name: string; version: string };
   browser: string;
+  /** True when Chrome was missing and Playwright's Chromium ran in its place. */
+  fallback: boolean;
   url: string;
   pageKey: string;
   startedAt: string;
@@ -169,7 +171,7 @@ export function buildScanRecord(input: RecordInput): ScanRecord {
     engine: {
       axeCore: input.axe.axeCore,
       browser: input.browser,
-      fallback: false,
+      fallback: input.fallback,
       tags: null,
       rulesRun: input.axe.rulesRun,
     },

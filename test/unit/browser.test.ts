@@ -1,6 +1,12 @@
 import type { Browser, LaunchOptions } from "playwright-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { NO_BROWSER_ENV, isNotInstalledError, withBrowser, type Launcher } from "../../src/browser.js";
+import {
+  BrowserNotFound,
+  NO_BROWSER_ENV,
+  isNotInstalledError,
+  withBrowser,
+  type Launcher,
+} from "../../src/browser.js";
 import { Refusal } from "../../src/refusal.js";
 
 // No browser runs here: the launcher is a stand-in.
@@ -48,8 +54,21 @@ describe("withBrowser", () => {
     };
     const refusal = await withBrowser("chrome", async () => undefined, launcher).catch((e: unknown) => e);
     expect(refusal).toBeInstanceOf(Refusal);
-    expect((refusal as Refusal).message).toContain("Chrome was not found");
-    expect((refusal as Refusal).hint).toContain("--browser-channel msedge");
+    expect(refusal).toBeInstanceOf(BrowserNotFound);
+    expect((refusal as Refusal).message).toBe("Chrome was not found on this machine.");
+    expect((refusal as Refusal).hint).toContain("--browser-channel chromium");
+    expect((refusal as Refusal).hint).toContain("msedge");
+  });
+
+  it("turns a missing Playwright's Chromium into a refusal, and never downloads it", async () => {
+    const launcher: Launcher = async () => {
+      throw new Error(
+        "browserType.launch: Executable doesn't exist at /cache/chromium-1255/chrome-linux64/chrome",
+      );
+    };
+    const refusal = await withBrowser("chromium", async () => undefined, launcher).catch((e: unknown) => e);
+    expect(refusal).toBeInstanceOf(BrowserNotFound);
+    expect((refusal as Refusal).message).toBe("Playwright's Chromium is not installed on this machine.");
   });
 
   it("passes other launch errors through unchanged", async () => {
@@ -69,9 +88,12 @@ describe("withBrowser", () => {
 });
 
 describe("isNotInstalledError", () => {
-  it("knows both of playwright-core's not-installed messages", () => {
+  it("knows playwright-core's not-installed messages", () => {
     expect(isNotInstalledError(new Error("Chromium distribution 'msedge' is not found at /x"))).toBe(true);
     expect(isNotInstalledError(new Error("Chromium distribution 'msedge' is not supported on linux"))).toBe(
+      true,
+    );
+    expect(isNotInstalledError(new Error("browserType.launch: Executable doesn't exist at /x/chrome"))).toBe(
       true,
     );
     expect(isNotInstalledError(new Error("Timeout 180000ms exceeded."))).toBe(false);

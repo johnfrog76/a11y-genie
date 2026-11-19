@@ -14,6 +14,7 @@ function recordFrom(name: string): ScanRecord {
   return buildScanRecord({
     tool: { name: "a11y-genie", version: "0.0.0" },
     browser: "chrome 1",
+    fallback: false,
     url: `http://127.0.0.1:4173/${name}.html`,
     pageKey: `${name}.html`,
     startedAt: "2000-01-01T00:00:00Z",

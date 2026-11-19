@@ -35,7 +35,8 @@ Chrome and writes `scan.json` and `report.md`, worst first; [docs/JSON.md](docs/
 
 A11y Genie uses the Chrome already installed on your machine, or Microsoft Edge with
 `--browser-channel msedge`. Each run gets a new, empty browser profile, deleted afterwards; your own profile,
-cookies and sign-ins are never opened. If the browser is not installed, it stops and says so.
+cookies and sign-ins are never opened. With no Chrome, it says so and downloads Playwright's Chromium once
+(about 200 MB); `--no-download` refuses instead, and `--browser-channel chromium` uses that Chromium directly.
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) says how.
 
 ## Build it from a clone

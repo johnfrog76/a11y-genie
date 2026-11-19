@@ -1,6 +1,7 @@
 import type { BrowserContext } from "playwright-core";
 import { scanPage } from "./axe.js";
-import { withBrowser, type BrowserChannel } from "./browser.js";
+import type { BrowserChannel } from "./browser.js";
+import { withChosenBrowser, type BrowserChoiceDeps } from "./browser-choice.js";
 import { pageKeyOf } from "./map-axe.js";
 import { packageInfo } from "./package-info.js";
 import { Refusal } from "./refusal.js";
@@ -45,6 +46,15 @@ export function noAnswerRefusal(error: unknown, url: string, timeoutMs: number):
 export interface RunScanOptions {
   url: string;
   channel: BrowserChannel;
+  /**
+   * Whether `--browser-channel` named the channel. Unless it is `false`, a missing browser is refused and
+   * nothing falls back: only the command's default Chrome falls back to Playwright's Chromium.
+   */
+  named?: boolean;
+  /** Whether Playwright's Chromium may be downloaded when it is needed. Default false: only the command opts in. */
+  download?: boolean;
+  /** For tests: stand-ins for the launch and the download. */
+  browserDeps?: Partial<BrowserChoiceDeps>;
   /** Called with the new browser context before the page loads. Tests use it to install the no-network guard. */
   onContext?: (context: BrowserContext) => Promise<void>;
 }
@@ -57,7 +67,13 @@ function stamp(): string {
 /** Loads one URL in a new context of a browser with a new, empty profile, scans it, and returns the record. */
 export async function runScan(options: RunScanOptions): Promise<ScanRecord> {
   const startedAt = stamp();
-  return withBrowser(options.channel, async (browser) => {
+  const choice = {
+    channel: options.channel,
+    named: options.named ?? true,
+    download: options.download ?? false,
+    deps: options.browserDeps,
+  };
+  return withChosenBrowser(choice, async (browser, used) => {
     const context = await browser.newContext();
     await options.onContext?.(context);
     const tab = await context.newPage();
@@ -70,7 +86,8 @@ export async function runScan(options: RunScanOptions): Promise<ScanRecord> {
     const axe = await scanPage(tab);
     return buildScanRecord({
       tool: packageInfo(),
-      browser: `${options.channel} ${browser.version()}`,
+      browser: `${used.channel} ${browser.version()}`,
+      fallback: used.fallback,
       url: tab.url(),
       pageKey: pageKeyOf(tab.url()),
       startedAt,
