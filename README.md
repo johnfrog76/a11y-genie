@@ -26,7 +26,7 @@ is laid out and the rules a change must keep.
 
 ## Licence
 
-The licence is not chosen yet. The third-party code it uses is listed in
+[MIT](LICENSE). The third-party code it uses, and those licences, are listed in
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 ## Contributing

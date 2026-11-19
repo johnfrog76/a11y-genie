@@ -2,13 +2,15 @@
   "name": "a11y-genie",
   "version": "0.0.0",
   "description": "An accessibility scanner for agents and people. It never says a site is accessible.",
+  "license": "MIT",
   "type": "module",
   "bin": {
     "a11y-genie": "dist/cli.js"
   },
   "files": [
     "dist",
-    "THIRD-PARTY-NOTICES.md"
+    "THIRD-PARTY-NOTICES.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=24"
