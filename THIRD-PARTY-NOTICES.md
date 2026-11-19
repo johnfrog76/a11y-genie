@@ -1,6 +1,6 @@
 # Third-party notices
 
-What ships with A11y Genie, and under which licence. A11y Genie's own licence is not chosen yet.
+What ships with A11y Genie, and under which licence. A11y Genie's own licence is MIT, in [LICENSE](LICENSE).
 
 ## Runtime dependencies
 
