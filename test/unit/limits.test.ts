@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { LIMITS } from "../../src/context.js";
+import { isAllowedScheme, LIMITS } from "../../src/context.js";
 import { mapAxeResults } from "../../src/map-axe.js";
 import { renderReport } from "../../src/report.js";
+import { answeredButNotScanned } from "../../src/run-scan.js";
 import { buildScanRecord, fitToSize, scanJson, type RecordInput } from "../../src/scan-record.js";
 import { readGoldenRecord } from "../helpers/goldens.js";
 import { validate } from "../helpers/json-schema.js";
@@ -102,5 +103,47 @@ describe("the record's limits", () => {
     }
     expect(validate(schema, old)).toEqual([]);
     expect(() => renderReport(old as never)).not.toThrow();
+  });
+});
+
+describe("which loads read not scanned rather than refused", () => {
+  const guard = { redirectCapReached: false };
+  const error = (message: string) => new Error(`page.goto: ${message} at http://127.0.0.1:1/`);
+
+  it("a redirect the browser stops, or a download, reads not scanned", () => {
+    expect(answeredButNotScanned(error("net::ERR_UNSAFE_REDIRECT"), guard, LIMITS)).toMatch(
+      /not http: or https:/,
+    );
+    expect(answeredButNotScanned(error("net::ERR_TOO_MANY_REDIRECTS"), guard, LIMITS)).toMatch(/redirected/);
+    expect(answeredButNotScanned(error("net::ERR_ABORTED"), guard, LIMITS)).toMatch(/javascript:/);
+    expect(answeredButNotScanned(new Error("page.goto: Download is starting"), guard, LIMITS)).toMatch(
+      /downloads are refused/,
+    );
+  });
+
+  it("the redirect cap wins over whatever error the closed page gave", () => {
+    expect(answeredButNotScanned(new Error("Target closed"), { redirectCapReached: true }, LIMITS)).toBe(
+      "it redirected more than 10 times, so the scan stopped following it",
+    );
+  });
+
+  it("a page that did not answer is left to the refusal", () => {
+    expect(answeredButNotScanned(error("net::ERR_CONNECTION_REFUSED"), guard, LIMITS)).toBeUndefined();
+    expect(answeredButNotScanned(new Error("something else"), guard, LIMITS)).toBeUndefined();
+  });
+
+  it("only http: and https: are allowed schemes", () => {
+    expect(isAllowedScheme("https://example.test/")).toBe(true);
+    expect(isAllowedScheme("http://127.0.0.1:1/")).toBe(true);
+    for (const url of [
+      "file:///etc/hosts",
+      "chrome://version",
+      "data:text/html,x",
+      "about:blank",
+      "blob:x",
+    ]) {
+      expect(isAllowedScheme(url), url).toBe(false);
+    }
+    expect(isAllowedScheme("not an address")).toBe(false);
   });
 });

@@ -1,0 +1,27 @@
+<!doctype html>
+<!--
+  Hostile fixture: loads, then runs a loop that never ends, so axe-core never gets to run.
+  Must: past the time limit the page reads not scanned, and the scan ends.
+  Test: test/browser/hostile.test.ts
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hostile fixture: busy-after-load</title>
+  </head>
+  <body>
+    <main>
+      <h1>Hostile fixture</h1>
+      <p>busy-after-load</p>
+    </main>
+    <script>
+      addEventListener("load", () =>
+        setTimeout(() => {
+          for (;;) {
+            // Never ends.
+          }
+        }, 0),
+      );
+    </script>
+  </body>
+</html>

@@ -236,12 +236,15 @@ axe-core's result shape at the pinned version, and how its `target` reads for sh
 
 ## One scan, end to end (`src/run-scan.ts`, `src/cli.ts`)
 
-`a11y-genie scan <url>` launches the browser (`withBrowser`), makes a new context, loads the page, runs
-`scanPage`, and builds the record (`src/scan-record.ts`). The CLI then makes the scan folder
+`a11y-genie scan <url>` launches the browser (`withBrowser`), makes a new context with the hostile-page rules
+(`src/context.ts`, below), loads the page, runs `scanPage`, and builds the record (`src/scan-record.ts`). A
+page that answers and then breaks one of those rules is not scanned: the record says why, and the run still
+writes its files and exits 1. The CLI then makes the scan folder
 (`src/scans-folder.ts`), writes `scan.json`, and writes `report.md` from the record (`src/report.ts`). The
 report is a pure function of the record, so a stored `scan.json` can write it again later.
 
-- **Exit code.** 0 when there is no violation, 1 when there is any. The record's `exit` says the same.
+- **Exit code.** 0 when there is no violation, 1 when there is any or the page was not scanned. The record's
+  `exit` says the same.
   Refusals (exit 2), Ctrl-C (130) and the unexpected (3) are in `docs/EXIT-CODES.md`.
 - **`--json`.** stdout holds the document and nothing else; every line meant for a person goes to stderr.
   Without it, the summary goes to stdout.
@@ -254,3 +257,58 @@ report is a pure function of the record, so a stored `scan.json` can write it ag
   by `test/browser/goldens.test.ts` in the real Chrome, after the port, the times and the versions of this
   tool, axe-core and the browser are replaced by fixed values (`test/helpers/goldens.ts`). The rule count is
   kept, so an axe-core upgrade shows in the diff. `UPDATE_GOLDENS=1 npm test` rewrites them.
+
+## Hostile pages (`src/context.ts`)
+
+Every page is assumed to be written by someone who wants the tool to misbehave (the spec's 8A.1). The browser
+context's defences are all set in `src/context.ts`, so they can be read together: `CONTEXT_OPTIONS` (the
+options the context is made with), `LIMITS` (the caps), `ALLOWED_SCHEMES`, and `armContext()`, which watches
+the context before any page opens. `src/run-scan.ts` applies them to the one page it loads. Each defence has a
+fixture page in `test/fixtures/site/hostile/` and a test in `test/browser/hostile.test.ts`, which scans the
+fixture in the real Chrome, from `127.0.0.1`, with every request off the fixture servers aborted.
+
+| Defence | How | Fixture | Test (`hostile.test.ts`) |
+| --- | --- | --- | --- |
+| Downloads refused | `acceptDownloads: false`. A download the page starts is cancelled and noted under `stopped`; a page that answers with a file to download reads *not scanned* | `download.html`, `payload.bin` | *downloads are refused* |
+| Permissions denied | `permissions: []`: nothing is granted. Geolocation, camera, microphone and notifications all read `denied`, and a request for one is refused or never answered | `permissions.html` | *permissions are denied* |
+| Service workers blocked | `serviceWorkers: "block"`: none is registered, so none can answer the page's requests | `service-worker.html`, `sw.js` | *service workers are blocked* |
+| Pop-ups closed | every page in the context with an opener (`window.open`, `target="_blank"`, with or without `noopener`) is closed at once and noted. axe-core's own page has no opener and is left alone | `popup.html` | *pop-ups are closed* |
+| Dialogs dismissed | `alert`, `confirm`, `prompt` and `beforeunload` are dismissed on every page and noted: `confirm` answers false, `prompt` answers nothing. An alert loop is dismissed each time and counted, until the time limit | `dialogs.html`, `alert-loop.html`, `beforeunload.html` | *dialogs are dismissed and noted* |
+| Only `http:` and `https:` | a redirect to `file:`, `chrome:`, `data:`, `about:` or `javascript:` reads *not scanned* with why; so does a page whose address is not `http:` or `https:` when it has loaded or when axe-core is done | `moves-to-blank.html`, `script-moves.html`, and redirects the test's fixture server makes | *only http: and https: are loaded* |
+| Redirects to a cap | the main frame's redirects are counted from its `request` events; past 10 the page is closed, which stops the chain, and reads *not scanned*. The address asked for (`requestedUrl`), where it ended (`url`) and the count (`redirects`) are recorded; a redirect to another origin is scanned there, and the report says it is another origin | redirects the test's fixture server makes | *redirects are followed to a cap* |
+| The time limit | 60 seconds a page, from the first request to the end of axe-core. The answer is waited for first (30 seconds; no answer is a refusal), then the load and axe-core within what is left. Past it, *not scanned* | `busy-load.html`, `busy-after-load.html` | *the time, element and size caps* |
+| The element and excerpt caps | at most 500 elements per finding, the rest counted in `elementsCut`; each element's quoted HTML cut at 160 characters in `scan.json` as well as in the report | `many-elements.html` | *the time, element and size caps* |
+| The size cap | `scan.json` at most 50 MB. Over it, elements are dropped, least severe first and never a finding's last one, and counted; if that is not enough, *not scanned* | `many-elements.html`, with the limit lowered | *the time, element and size caps* |
+
+What was stopped is recorded per page in `scan.json` (`pages[].stopped`: the kind, a count, and the first five,
+cut at 160 characters) and listed in `report.md` under *What the page tried, and was stopped*, quoted as data.
+The command line prints only the counts, never the page's own words.
+
+**The caps.** The spec gives the time limit (60 s, per state, which `--timeout` will set in M3), 500 elements
+a finding, 160 characters an excerpt, and 50 MB for `scan.json`. It gives no redirect cap: Chrome's own is 20,
+and A11y Genie stops at 10. Five examples are kept of each kind of thing stopped. `scan.json` records the caps
+the run used under `limits`.
+
+**What the browser already does, checked with playwright-core 1.65.1 and Chrome 158 on macOS.**
+
+- A redirect to `file:`, `chrome:`, `data:` or `about:` fails with `net::ERR_UNSAFE_REDIRECT`, and one to
+  `javascript:` with `net::ERR_ABORTED`; the page is never loaded. The browser does not report where the
+  redirect pointed, so the reason names the kind of address, not the address.
+- A page's own script cannot move the top frame to `file:`, `chrome:` or `data:`. Chrome refuses it in the
+  console ("Not allowed to load local resource", "Not allowed to navigate top frame to data URL") and the page
+  stays where it is, so it is scanned as itself and nothing is noted. A move to `about:blank` is allowed, and
+  reads *not scanned*.
+- Playwright denies every permission by default too; `permissions: []` says so where a reviewer reads it.
+- With `serviceWorkers: "block"`, `navigator.serviceWorker.register()` resolves, but nothing is registered.
+- Only the first request of a redirect chain goes through `context.route()`: the hops after it do not. That
+  is why the redirect cap counts `request` events. It matters for the private-network rule too (below).
+
+**Not done here: issue #9.** The private-network rule (a public page's requests to loopback, link-local and
+private addresses aborted and noted, unless `--allow-private`), and stripping terminal escape sequences from
+everything printed, are the next slice. Their place is in `armContext()`, and `stopped` can take a new kind for
+them. Because redirect hops skip `route`, that rule cannot rest on `route` alone; WebSockets need
+`routeWebSocket`. Both are V12, which #9 settles.
+
+**What a scan does not defend against.** A page shares its document with axe-core, and can change what
+axe-core reads (gap G6 in the spec): a scan describes the page as the page presents itself, and is never a
+security boundary.

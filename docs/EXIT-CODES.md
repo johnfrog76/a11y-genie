@@ -5,7 +5,7 @@ What `a11y-genie` exits with, and what it says when it refuses. The codes are in
 | Code | Meaning for `scan` |
 | --- | --- |
 | 0 | Scanned, and no findings. |
-| 1 | Scanned, and at least one finding. |
+| 1 | Scanned, and at least one finding; or the page answered and was **not scanned** (below). |
 | 2 | A stated refusal: one `Error:` line and one `Hint:` line on stderr, nothing on stdout, nothing scanned or written. |
 | 3 | Something unexpected: one `Error:` line and one `Hint:` line saying where to report it. The stack trace prints only when `A11Y_GENIE_DEBUG` is set. |
 | 130 | Ctrl-C. |
@@ -15,8 +15,6 @@ A scan with no findings says how much it checked. It never says a site is access
 Not built yet, with a place waiting in `src/exit-codes.ts`:
 
 - **Exit 4**, a refusal after something was already written. Only a later command (`cards --toolkit`) can reach it.
-- **Exit 1 for "not scanned"**, when a page, state or flow could not be scanned. It comes with the scans that can
-  fail part-way. Today a scan loads its one page or refuses.
 
 ## Refusals the command can reach
 
@@ -51,11 +49,33 @@ scan under <folder>: <code>`.
 
 ## How a page that does not answer is decided
 
-The browser gets 30 seconds (`NAVIGATION_TIMEOUT_MS` in `src/run-scan.ts`) to load the first page. A refused
-connection, a host name that does not resolve, any other `net::ERR_*` error and a timeout are all a refusal. A page that
-answers with an error status, such as 404, is scanned: the server did answer.
-A `--timeout` flag comes in a later milestone. Tests shorten the wait with `A11Y_GENIE_TEST_NAV_TIMEOUT_MS`, which
-can only make the wait shorter.
+The browser gets 30 seconds (`NAVIGATION_TIMEOUT_MS` in `src/run-scan.ts`) for the first page to answer. A refused
+connection, a host name that does not resolve, a timeout, and any other `net::ERR_*` error not listed below are all a
+refusal. A page that answers with an error status, such as 404, is scanned: the server did answer.
+Tests shorten the wait with `A11Y_GENIE_TEST_NAV_TIMEOUT_MS`, which can only make the wait shorter.
+
+## Not scanned: a page that answered, and then could not be scanned
+
+A page that answers and then breaks one of the hostile-page rules (`src/context.ts`, listed in
+`docs/ARCHITECTURE.md` under *Hostile pages*) is not a refusal. The scan still writes `scan.json` and `report.md`,
+the page's `notScanned` says why, the summary says so in place of any count of problems, and the exit is 1. A
+page nobody saw never exits 0. The reasons, in the scan's own words:
+
+| When | Reason |
+| --- | --- |
+| a redirect to `file:`, `chrome:`, `data:`, `about:` or another scheme the browser refuses (`net::ERR_UNSAFE_REDIRECT`) | `it redirected to an address that is not http: or https: (such as file:, chrome: or data:), and the browser stopped it` |
+| a redirect to `javascript:`, or an empty answer (`net::ERR_ABORTED`) | `the browser stopped loading it (net::ERR_ABORTED), as it does for a redirect to javascript: or an empty answer` |
+| an invalid redirect, or an unknown scheme (`ERR_INVALID_REDIRECT`, `ERR_UNKNOWN_URL_SCHEME`, `ERR_DISALLOWED_URL_SCHEME`) | `it redirected to an address that is not valid ...`, or `it went to an address that is not http: or https: ...` |
+| more than 10 redirects | `it redirected more than 10 times, so the scan stopped following it` |
+| the page answers with a file to download | `it answered with a file to download, and downloads are refused` |
+| the page moves itself to a scheme that is not `http:` or `https:`, such as `about:blank` | `it went to an about: address, which is not http: or https:` |
+| the page has not finished loading 60 seconds after the first request | `it did not finish loading within 60 seconds` |
+| axe-core has not finished 60 seconds after the first request | `the scan did not finish within 60 seconds` |
+| the page moves to another address while axe-core reads it | `it went to another address while it was being scanned` |
+| `scan.json` would be over 50 MB even with one element per finding | `its results were larger than the 52428800 byte limit on scan.json, even cut down` |
+
+The 60 seconds are the spec's limit for one state, which `--timeout` will set in a later milestone. On the command
+line the line reads `<address> was not scanned: <reason>.`
 
 ## Ctrl-C
 

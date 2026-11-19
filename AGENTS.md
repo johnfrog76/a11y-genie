@@ -21,6 +21,9 @@ Run all five before you ask for a review. CI runs the same five in that order, o
 - `src/browser.ts` launches the installed browser; `src/browser-choice.ts` picks it, falling back to
   Playwright's Chromium when Chrome is missing; `src/chromium-download.ts` downloads that Chromium with
   playwright-core's own installer. `src/refusal.ts` is the exit-2 refusal.
+- `src/context.ts` holds every hostile-page defence of the browser context and the limits, in one place;
+  docs/ARCHITECTURE.md (*Hostile pages*) lists each one with its fixture in `test/fixtures/site/hostile/` and
+  its test in `test/browser/hostile.test.ts`.
 - `src/axe.ts` runs axe-core on a loaded page; `src/map-axe.ts` maps its results to findings (`src/finding.ts`), and
   `src/order.ts` orders them worst first.
 - `src/banner.ts` holds the genie and his bottle, the drawing for a person at a terminal. Nothing prints it

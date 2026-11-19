@@ -1,0 +1,21 @@
+<!doctype html>
+<!--
+  Hostile fixture: replaces itself with about:blank as it loads, a scheme that is not http: or https:.
+  Must: the page reads not scanned, and the scan says why.
+  Test: test/browser/hostile.test.ts
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hostile fixture: moves-to-blank</title>
+  </head>
+  <body>
+    <main>
+      <h1>Hostile fixture</h1>
+      <p>moves-to-blank</p>
+    </main>
+    <script>
+      location.replace("about:blank");
+    </script>
+  </body>
+</html>
