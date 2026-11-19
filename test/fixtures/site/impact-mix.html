@@ -1,0 +1,27 @@
+<!doctype html>
+<!--
+  Fixture: one bug of each of four impacts, so ordering can be tested.
+  Must fire:     image-alt (critical), color-contrast (serious),
+                 heading-order (moderate), empty-heading (minor)
+  Must not fire: any other rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Impact mix fixture</title>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <main>
+      <h1>Impact mix fixture</h1>
+      <!-- image-alt: an image with no alt attribute -->
+      <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" width="40" height="40" />
+      <!-- color-contrast: pale grey text on white -->
+      <p style="color: #9a9a9a; background: #ffffff">This sentence is pale grey on white.</p>
+      <!-- heading-order: an h3 straight after the h1 -->
+      <h3>Skipped a level</h3>
+      <!-- empty-heading: a heading with no text -->
+      <h2></h2>
+    </main>
+  </body>
+</html>

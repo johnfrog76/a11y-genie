@@ -19,6 +19,7 @@ Run all five before you ask for a review. CI runs the same five in that order, o
 
 - `src/` holds the command. `src/cli.ts` is the entry point (`bin` points at `dist/cli.js`).
 - `test/` holds the tests, in folders by kind. `test/cli/` runs the built `dist/`, so `npm test` builds first.
+- `test/fixtures/site/` holds the fixture pages, each with a comment naming the axe-core rule that must fire. `test/helpers/` holds the loopback fixture server and the no-network guard; `test/setup/` installs the guard for every test file.
 - `THIRD-PARTY-NOTICES.md` ships in the package, and so does `dist/`. Nothing else does: `files` in
   `package.json` is an allow-list. Check it with `npm pack --dry-run` before changing it.
 
