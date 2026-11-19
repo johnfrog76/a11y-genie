@@ -24,6 +24,8 @@ moderate exits 0: the findings are still in `scan.json` and `report.md`, and the
 
 `scan.json` records the floor in `options.failOn`, and its `exit` is the code the run ends with.
 
+`rules` exits 0 on success and 2 on a refusal; it scans nothing.
+
 Not built yet, with a place waiting in `src/exit-codes.ts`:
 
 - **Exit 4**, a refusal after something was already written. Only a later command (`cards --toolkit`) can reach it.
@@ -35,6 +37,8 @@ Every refusal is exit 2 and happens before anything is written: the scans folder
 | Refused | `Error:` | `Hint:` |
 | --- | --- | --- |
 | An unknown command | `unknown command or flag: scna` | `run a11y-genie --help to see what exists so far.` |
+| An unknown flag after `rules` (or `--tags` with an unknown or empty tag, as for `scan`) | the words of Node's argument parser, such as `Unknown option '--nope'. ...` | `run a11y-genie --help to see what exists so far.` (for `--tags`, the hints below) |
+| An argument after `rules` | `rules takes no argument, and got: "extra"` | the same hint |
 | An unknown flag after `scan` | the words of Node's argument parser, such as `Unknown option '--nope'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- "--nope"` | the same hint |
 | An extra argument | `scan takes one page, and got more: two` | the same hint |
 | No address | `scan needs a page address to scan.` | `run: a11y-genie scan <url>` |

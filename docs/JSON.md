@@ -144,6 +144,47 @@ reads *needs review* with axe-core's reason. A pair is never guessed.
 | `required` | `expectedContrastRatio` read as a number: `"4.5:1"` is `4.5` |
 | `fontSize`, `fontWeight` | As axe-core wrote them, such as `12.0pt (16px)` and `normal` |
 
+## `rules --json` (`src/rules-command.ts`)
+
+`a11y-genie rules --json` prints one document on stdout, and nothing on stderr. It needs no browser and no network.
+
+```json
+{
+  "engine": { "axeCore": "4.14.1" },
+  "tags": null,
+  "rules": [
+    {
+      "source": "axe",
+      "id": "color-contrast",
+      "impact": "serious",
+      "wcag": ["1.4.3"],
+      "tags": ["cat.color", "wcag2aa", "wcag143"],
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/color-contrast?application=axeAPI"
+    }
+  ]
+}
+```
+
+| Field | What it holds |
+| --- | --- |
+| `engine.axeCore` | The installed axe-core's version |
+| `tags` | The `--tags` list that was given, in the order given, or `null` for every rule |
+| `rules` | axe-core's rules from `axe.getRules()`, by id, then the product's own, by id |
+| `rules[].source` | `axe` or `genie`. A finding's rule id is `<source>/<id>`, such as `genie/no-landmarks` |
+| `rules[].id` | The rule's id, without the source |
+| `rules[].impact` | `critical`, `serious`, `moderate` or `minor`: the rule's own impact. A finding can carry another, from the check that failed. `null` if axe-core states none (none does at the pinned version) |
+| `rules[].wcag` | WCAG success criteria, such as `1.4.3`, from the rule's tags. Empty for a best-practice rule |
+| `rules[].tags` | All of the rule's tags. A rule runs under `scan --tags` when it carries one of them |
+| `rules[].help`, `rules[].helpUrl` | The rule's one-line help and its page; `helpUrl` is empty for a `genie` rule |
+
+The fields are never renamed or removed; a field may be added, and readers ignore fields they do not know. Without
+`--json` the same rules print as one aligned line each (`RULE`, `IMPACT`, `WCAG`, `TAGS`) under a sentence that
+says how many there are and from which axe-core.
+
+The product's own rules are the ones registered in `src/genie-rules.ts`. A check registers its rule when its
+module loads, and `rules` lists what is registered, so a rule not built yet is not listed.
+
 ## `report.md` (`src/report.ts`)
 
 Made from the record and nothing else. It holds, in order: what was scanned and with what, and where a
