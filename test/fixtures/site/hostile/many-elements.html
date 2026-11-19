@@ -1,0 +1,31 @@
+<!doctype html>
+<!--
+  Hostile fixture: has 600 images with no alt text, each with twelve long attributes.
+  Must: the image-alt finding keeps 500 elements and counts the other 100, and each element's quoted HTML
+  is cut to 160 characters.
+  Test: test/browser/hostile.test.ts
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hostile fixture: many-elements</title>
+  </head>
+  <body>
+    <main>
+      <h1>Hostile fixture</h1>
+      <p>many-elements</p>
+    </main>
+    <script>
+      const main = document.querySelector("main");
+      for (let i = 0; i < 600; i += 1) {
+        const image = document.createElement("img");
+        image.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+        image.width = 1;
+        image.height = 1;
+        image.id = `image-${i}`;
+        for (let k = 0; k < 12; k += 1) image.setAttribute(`data-filler-${k}`, "x".repeat(40));
+        main.append(image);
+      }
+    </script>
+  </body>
+</html>

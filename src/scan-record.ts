@@ -6,8 +6,10 @@
 
 import type { AxeScan, Finding, FindingElement, Impact, NeedsReview, Rule } from "./finding.js";
 import { IMPACTS } from "./finding.js";
+import { LIMITS, type Limits, type Stopped } from "./context.js";
 
-export const SCHEMA_VERSION = "1.0";
+/** 1.1 added `pages[].requestedUrl`, `redirects` and `stopped`, `limits`, and `elementsCut` on findings. */
+export const SCHEMA_VERSION = "1.1";
 
 /**
  * What a scan cannot see: the questions a person has to answer, because automated rules cannot. Fixed
@@ -45,19 +47,38 @@ export interface RecordFinding {
   /** Until plain-language fixes are written, axe-core's `failureSummary`. Never empty. */
   fix: string;
   elements: RecordElement[];
+  /** How many of the finding's elements are not listed: past the limit per finding, or cut to fit. */
+  elementsCut?: number;
   /** Always `new` until a scan is compared with the one before it. */
   status: "new";
 }
 
 export interface RecordNeedsReview extends Omit<NeedsReview, "elements"> {
   elements: (RecordElement & { reason: string })[];
+  elementsCut?: number;
 }
 
 export interface RecordPage {
   key: string;
+  /** The address the page ended on, after redirects; the address asked for when it was not scanned. */
   url: string;
+  /** The address asked for. Added in 1.1, like `redirects` and `stopped`: a 1.0 record has none of them. */
+  requestedUrl?: string;
+  /** How many redirects were followed from `requestedUrl` to `url`. */
+  redirects?: number;
   states: string[];
   notScanned: { state: string; reason: string }[];
+  /** What the page tried that the scan stopped: dialogs, pop-ups and downloads (src/context.ts). */
+  stopped?: Stopped[];
+}
+
+/** The limits the scan held the page to, as `scan.json` records them. */
+export interface RecordLimits {
+  pageSeconds: number;
+  redirects: number;
+  elementsPerFinding: number;
+  excerptChars: number;
+  scanJsonBytes: number;
 }
 
 export interface ScanRecord {
@@ -85,6 +106,8 @@ export interface ScanRecord {
   workflows: unknown[];
   checklist: null;
   cannotSee: string[];
+  /** Added in 1.1: a 1.0 record has none. */
+  limits?: RecordLimits;
 }
 
 export interface RecordInput {
@@ -92,11 +115,22 @@ export interface RecordInput {
   browser: string;
   /** True when Chrome was missing and Playwright's Chromium ran in its place. */
   fallback: boolean;
+  /** The address the page ended on. */
   url: string;
+  /** The address asked for; `url` when not given. */
+  requestedUrl?: string;
+  redirects?: number;
   pageKey: string;
   startedAt: string;
   finishedAt: string;
-  axe: AxeScan;
+  /** axe-core's results, or null when the page was not scanned. */
+  axe: AxeScan | null;
+  /** axe-core's version when `axe` is null; otherwise the one axe-core reported is used. */
+  axeCore?: string;
+  /** Why the page was not scanned. */
+  notScanned?: string;
+  stopped?: Stopped[];
+  limits?: Limits;
 }
 
 /** One line: whitespace runs, newlines included, become a single space. */
@@ -133,8 +167,28 @@ export function fixOf(finding: Finding): string {
   return finding.rule.helpUrl === "" ? `${base}.` : `${base}. See ${finding.rule.helpUrl}`;
 }
 
-function toRecordFinding(finding: Finding): RecordFinding {
+/** The first `limit` characters of `text`, with `…` when there were more. */
+export function cutText(text: string, limit: number): string {
+  const chars = [...text];
+  return chars.length <= limit ? text : `${chars.slice(0, limit).join("")}…`;
+}
+
+/** Elements kept to the limit per finding, each element's HTML cut to the excerpt limit. */
+function keptElements<E extends FindingElement>(
+  elements: E[],
+  limits: Limits,
+): { elements: (E & RecordElement)[]; cut: number } {
+  const kept = elements.slice(0, limits.elementsPerFinding).map((element) => ({
+    ...element,
+    html: cutText(element.html, limits.excerptChars),
+    states: ["default"],
+  }));
+  return { elements: kept, cut: elements.length - kept.length };
+}
+
+function toRecordFinding(finding: Finding, limits: Limits): RecordFinding {
   const help = oneLine(finding.rule.help);
+  const { elements, cut } = keptElements(finding.elements, limits);
   return {
     id: finding.id,
     rule: finding.rule,
@@ -144,7 +198,8 @@ function toRecordFinding(finding: Finding): RecordFinding {
     title: `${help === "" ? finding.rule.id : help} on ${finding.page}`,
     plain: help === "" ? finding.rule.id : help,
     fix: fixOf(finding),
-    elements: finding.elements.map((element) => ({ ...element, states: ["default"] })),
+    elements,
+    ...(cut > 0 ? { elementsCut: cut } : {}),
     status: "new",
   };
 }
@@ -154,31 +209,117 @@ export function originOf(url: string): string {
   return new URL(url).origin;
 }
 
+/** `scan.json` as it is written: two-space JSON and a newline. */
+export function scanJson(record: ScanRecord): string {
+  return `${JSON.stringify(record, null, 2)}\n`;
+}
+
+function bytesOf(record: ScanRecord): number {
+  return Buffer.byteLength(scanJson(record), "utf8");
+}
+
+/** An element's bytes in `scan.json`, where it sits eight spaces in and is followed by a comma and newline. */
+function elementBytes(element: unknown): number {
+  const text = JSON.stringify(element, null, 2);
+  return Buffer.byteLength(text, "utf8") + text.split("\n").length * 8 + 2;
+}
+
+/**
+ * Holds `scan.json` under the size limit. Elements are dropped from the end, least severe first (the
+ * needs-review items, then the findings from the last up), each kept to at least one element and every
+ * dropped one counted in `elementsCut`. If even that is too big, the page reads *not scanned*.
+ */
+export function fitToSize(record: ScanRecord, maxBytes: number): ScanRecord {
+  let size = bytesOf(record);
+  if (size <= maxBytes) return record;
+  const fitted = structuredClone(record);
+  const items: { elements: unknown[]; elementsCut?: number }[] = [
+    ...[...fitted.needsReview].reverse(),
+    ...[...fitted.findings].reverse(),
+  ];
+  const dropOne = (item: (typeof items)[number]): number => {
+    const bytes = elementBytes(item.elements.pop());
+    // The `"elementsCut": n,` line is added the first time.
+    const added = item.elementsCut === undefined ? 32 : 0;
+    item.elementsCut = (item.elementsCut ?? 0) + 1;
+    return bytes - added;
+  };
+  for (const item of items) {
+    while (item.elements.length > 1 && size > maxBytes) size -= dropOne(item);
+    if (size <= maxBytes) break;
+  }
+  // The running count is close, not exact: finish against the real size.
+  for (const item of items) {
+    while (item.elements.length > 1 && bytesOf(fitted) > maxBytes) dropOne(item);
+  }
+  if (bytesOf(fitted) <= maxBytes) return fitted;
+
+  const page = fitted.pages[0];
+  if (page !== undefined) {
+    page.notScanned = [
+      {
+        state: "default",
+        reason: `its results were larger than the ${maxBytes} byte limit on scan.json, even cut down`,
+      },
+    ];
+  }
+  fitted.findings = [];
+  fitted.needsReview = [];
+  fitted.engine.rulesRun = 0;
+  fitted.summary = {
+    ...fitted.summary,
+    critical: 0,
+    serious: 0,
+    moderate: 0,
+    minor: 0,
+    advice: 0,
+    needsReview: 0,
+    notScanned: 1,
+  };
+  fitted.exit = 1;
+  return fitted;
+}
+
 export function buildScanRecord(input: RecordInput): ScanRecord {
-  const findings = input.axe.findings.map(toRecordFinding);
-  const needsReview: RecordNeedsReview[] = input.axe.needsReview.map((item) => ({
-    ...item,
-    elements: item.elements.map((element) => ({ ...element, states: ["default"] })),
-  }));
+  const limits = input.limits ?? LIMITS;
+  const axe = input.axe;
+  const findings = (axe?.findings ?? []).map((finding) => toRecordFinding(finding, limits));
+  const needsReview: RecordNeedsReview[] = (axe?.needsReview ?? []).map((item) => {
+    const { elements, cut } = keptElements(item.elements, limits);
+    return { ...item, elements, ...(cut > 0 ? { elementsCut: cut } : {}) };
+  });
+  const notScanned = input.notScanned === undefined ? [] : [{ state: "default", reason: input.notScanned }];
+  const requestedUrl = input.requestedUrl ?? input.url;
   const violations = findings.filter((f) => f.kind === "violation");
   const count = (impact: Impact): number => violations.filter((f) => f.impact === impact).length;
   const [critical, serious, moderate, minor] = IMPACTS.map(count) as [number, number, number, number];
-  return {
+  const record: ScanRecord = {
     schema: SCHEMA_VERSION,
     tool: input.tool,
     command: "scan",
-    exit: violations.length > 0 ? 1 : 0,
+    exit: violations.length > 0 || notScanned.length > 0 ? 1 : 0,
     engine: {
-      axeCore: input.axe.axeCore,
+      axeCore: axe?.axeCore ?? input.axeCore ?? "",
       browser: input.browser,
       fallback: input.fallback,
       tags: null,
-      rulesRun: input.axe.rulesRun,
+      rulesRun: axe?.rulesRun ?? 0,
     },
-    target: { origin: originOf(input.url), commit: null },
+    // The target is the origin asked for, so a scan that is redirected elsewhere is filed under it.
+    target: { origin: originOf(requestedUrl), commit: null },
     startedAt: input.startedAt,
     finishedAt: input.finishedAt,
-    pages: [{ key: input.pageKey, url: input.url, states: ["default"], notScanned: [] }],
+    pages: [
+      {
+        key: input.pageKey,
+        url: input.url,
+        requestedUrl,
+        redirects: input.redirects ?? 0,
+        states: ["default"],
+        notScanned,
+        stopped: input.stopped ?? [],
+      },
+    ],
     summary: {
       critical,
       serious,
@@ -186,7 +327,7 @@ export function buildScanRecord(input: RecordInput): ScanRecord {
       minor,
       advice: findings.filter((f) => f.kind === "advice").length,
       needsReview: needsReview.length,
-      notScanned: 0,
+      notScanned: notScanned.length,
     },
     findings,
     needsReview,
@@ -194,5 +335,13 @@ export function buildScanRecord(input: RecordInput): ScanRecord {
     workflows: [],
     checklist: null,
     cannotSee: [...CANNOT_SEE],
+    limits: {
+      pageSeconds: limits.pageMs / 1000,
+      redirects: limits.redirects,
+      elementsPerFinding: limits.elementsPerFinding,
+      excerptChars: limits.excerptChars,
+      scanJsonBytes: limits.scanJsonBytes,
+    },
   };
+  return fitToSize(record, limits.scanJsonBytes);
 }

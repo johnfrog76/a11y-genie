@@ -52,7 +52,7 @@ describe.skipIf(!hasChrome)("a11y-genie scan <url> (skipped where Chrome is not 
   let server: FixtureServer;
   const made: string[] = [];
   beforeAll(async () => {
-    server = await startFixtureServer();
+    server = await startFixtureServer(undefined, { redirects: { "/to-file": "file:///etc/hosts" } });
   });
   afterAll(async () => {
     await server.close();
@@ -132,6 +132,30 @@ describe.skipIf(!hasChrome)("a11y-genie scan <url> (skipped where Chrome is not 
     expect(result.stderr.trim().split("\n")).toHaveLength(2);
     expect(result.stderr).toMatch(/^Error: unknown --format: html\nHint: /);
     expect(readdirSync(root)).toEqual([]);
+  });
+
+  it("a page that redirects to file: exits 1, says it was not scanned and why, and still writes scan.json", async () => {
+    const root = fresh();
+    const result = await run(["scan", server.url("to-file")], root);
+    expect(result.status).toBe(1);
+    expect(result.stdout).toMatch(
+      / was not scanned: it redirected to an address that is not http: or https:/,
+    );
+    expect(result.stdout).not.toContain("No problems found");
+    expect(result.stderr).toBe("");
+    const record = JSON.parse(readFileSync(join(scanFolder(root), "scan.json"), "utf8"));
+    expect(record.exit).toBe(1);
+    expect(record.summary.notScanned).toBe(1);
+    expect(validate(schema, record)).toEqual([]);
+    expect(readFileSync(join(scanFolder(root), "report.md"), "utf8")).toContain("was not scanned");
+  });
+
+  it("says what the page tried and was stopped, by count only: no page text reaches the terminal", async () => {
+    const result = await run(["scan", server.url("hostile/dialogs.html")], fresh());
+    expect(result.stdout).toContain(
+      "Stopped what the page tried: 5 dialogs dismissed. The report lists them.",
+    );
+    expect(result.stdout).not.toContain("Your password?");
   });
 
   it("writes nothing into the folder it was run from", async () => {

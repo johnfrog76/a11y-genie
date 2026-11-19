@@ -1,0 +1,28 @@
+<!doctype html>
+<!--
+  Hostile fixture: opens two windows: window.open, and a target=_blank link with rel=noopener.
+  Must: both are closed and noted under stopped, and the page is still scanned.
+  Test: test/browser/hostile.test.ts
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hostile fixture: popup</title>
+  </head>
+  <body>
+    <main>
+      <h1>Hostile fixture</h1>
+      <p>popup</p>
+    </main>
+    <script>
+      window.open("../clean.html", "_blank");
+      const link = document.createElement("a");
+      link.href = "../contrast.html";
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.textContent = "Elsewhere";
+      document.querySelector("main").append(link);
+      link.click();
+    </script>
+  </body>
+</html>

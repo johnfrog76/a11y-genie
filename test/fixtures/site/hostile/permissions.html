@@ -1,0 +1,46 @@
+<!doctype html>
+<!--
+  Hostile fixture: asks for geolocation, the camera, the microphone and notifications.
+  Must: nothing is granted. The answers are left in window.permissionAnswers for the test to read.
+  Test: test/browser/hostile.test.ts
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hostile fixture: permissions</title>
+  </head>
+  <body>
+    <main>
+      <h1>Hostile fixture</h1>
+      <p>permissions</p>
+    </main>
+    <script>
+      const answers = {};
+      window.permissionAnswers = answers;
+      // Each ask gets a second to answer; one that never answers is not a grant.
+      const settle = (name, promise) =>
+        Promise.race([promise, new Promise((resolve) => setTimeout(() => resolve("no answer"), 1000))]).then(
+          (value) => (answers[name] = value),
+          (error) => (answers[name] = error.name),
+        );
+      const asks = ["geolocation", "camera", "microphone", "notifications"].map((name) =>
+        settle(`query ${name}`, navigator.permissions.query({ name }).then((status) => status.state)),
+      );
+      asks.push(settle("notification request", Notification.requestPermission()));
+      asks.push(
+        settle(
+          "position",
+          new Promise((resolve) =>
+            navigator.geolocation.getCurrentPosition(
+              () => resolve("granted"),
+              (error) => resolve(`error ${error.code}`),
+            ),
+          ),
+        ),
+      );
+      asks.push(settle("camera", navigator.mediaDevices.getUserMedia({ video: true }).then(() => "granted")));
+      asks.push(settle("microphone", navigator.mediaDevices.getUserMedia({ audio: true }).then(() => "granted")));
+      window.permissionsDone = Promise.all(asks);
+    </script>
+  </body>
+</html>

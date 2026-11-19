@@ -1,0 +1,24 @@
+<!doctype html>
+<!--
+  Hostile fixture: registers a service worker (sw.js) that would answer every request.
+  Must: no service worker is registered, and none controls the page.
+  Test: test/browser/hostile.test.ts
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hostile fixture: service-worker</title>
+  </head>
+  <body>
+    <main>
+      <h1>Hostile fixture</h1>
+      <p>service-worker</p>
+    </main>
+    <script>
+      window.registration = navigator.serviceWorker.register("sw.js").then(
+        () => "resolved",
+        (error) => error.name,
+      );
+    </script>
+  </body>
+</html>

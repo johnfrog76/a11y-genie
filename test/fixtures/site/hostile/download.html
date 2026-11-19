@@ -1,0 +1,26 @@
+<!doctype html>
+<!--
+  Hostile fixture: starts a download of payload.bin as it loads.
+  Must: the download is cancelled and noted under stopped, and the page is still scanned.
+  Test: test/browser/hostile.test.ts
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hostile fixture: download</title>
+  </head>
+  <body>
+    <main>
+      <h1>Hostile fixture</h1>
+      <p>download</p>
+    </main>
+    <script>
+      const link = document.createElement("a");
+      link.href = "payload.bin";
+      link.download = "payload.bin";
+      link.textContent = "Payload";
+      document.querySelector("main").append(link);
+      link.click();
+    </script>
+  </body>
+</html>

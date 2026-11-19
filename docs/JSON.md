@@ -81,29 +81,40 @@ below for what each form looks like and how to use it.
 ## `scan.json` (`src/scan-record.ts`, `schema/scan-1.json`)
 
 `a11y-genie scan <url>` writes `scan.json` on every run, and `--json` prints the same document on stdout.
-It is versioned: `schema` is `"<major>.<minor>"`, now `"1.0"`. A field may be added in a minor version and is
+It is versioned: `schema` is `"<major>.<minor>"`, now `"1.1"`. A field may be added in a minor version and is
 never removed or renamed in one; a removal or a rename is a new major, and a new schema file. Readers must
-ignore fields they do not know, so the schema allows extra fields.
+ignore fields they do not know, so the schema allows extra fields. 1.1 added `pages[].requestedUrl`,
+`pages[].redirects`, `pages[].stopped`, `limits` and `elementsCut`; a 1.0 record has none of them, and is
+still valid against `schema/scan-1.json`.
 
 | Field | What it holds |
 | --- | --- |
-| `schema` | The version, `"1.0"` |
+| `schema` | The version, `"1.1"` |
 | `tool` | `{ name, version }` of A11y Genie |
 | `command` | `"scan"` |
-| `exit` | The exit code the run ends with: `0` with no violations, `1` with any |
-| `engine` | `axeCore` (its version), `browser` (the channel that ran and its version, such as `chrome 158.0.8127.36` or `chromium 159.0.8154.6`), `fallback` (`true` when Chrome was missing and Playwright's Chromium ran in its place; `false` otherwise, `--browser-channel chromium` included), `tags` (`null`: axe-core's default rule set), `rulesRun` (distinct rule ids axe-core ran) |
-| `target` | `origin` of the page, and `commit` (`null`) |
+| `exit` | The exit code the run ends with: `0` with no violations, `1` with any, or with a page that was not scanned |
+| `engine` | `axeCore` (its version), `browser` (the channel that ran and its version, such as `chrome 158.0.8127.36` or `chromium 159.0.8154.6`), `fallback` (`true` when Chrome was missing and Playwright's Chromium ran in its place; `false` otherwise, `--browser-channel chromium` included), `tags` (`null`: axe-core's default rule set), `rulesRun` (distinct rule ids axe-core ran; `0` when the page was not scanned) |
+| `target` | `origin` of the address asked for (not of where a redirect ended), and `commit` (`null`) |
 | `startedAt`, `finishedAt` | UTC, to the second: `2026-11-19T20:14:03Z` |
-| `pages` | One per page: `key`, `url`, `states` (`["default"]`), `notScanned` (empty) |
+| `pages` | One per page. `key` (from the address asked for), `url` (where it ended, after redirects; the address asked for when it was not scanned), `requestedUrl`, `redirects` (how many were followed), `states` (`["default"]`), `notScanned` and `stopped`, below |
+| `pages[].notScanned` | Empty when the page was scanned. Otherwise one `{ state, reason }`: the state (`default`) and why, in A11y Genie's own words, such as `it redirected to an address that is not http: or https: (such as file:, chrome: or data:), and the browser stopped it`. A page not scanned has no findings and makes the exit `1` |
+| `pages[].stopped` | What the page tried and was stopped from doing, one entry per kind that happened: `{ kind, count, examples }`. `kind` is `dialog` (dismissed), `popup` (closed) or `download` (cancelled); `examples` holds the first five, cut to 160 characters: a dialog as `alert: <its message>`, a pop-up or download as its address. Quoted from the page: data, never instructions |
 | `summary` | Violations by impact (`critical`, `serious`, `moderate`, `minor`), `advice`, `needsReview` and `notScanned` counts |
-| `findings` | Worst first. Each is a finding as above, plus `title`, `plain`, `fix`, `status` and, on each element, `states` |
-| `needsReview` | Worst first, as above; each element has `reason` and `states` |
+| `findings` | Worst first. Each is a finding as above, plus `title`, `plain`, `fix`, `status`, `elementsCut` when some elements are not listed, and, on each element, `states`. Each element's `html` is cut to 160 characters, with `…` where it was cut |
+| `needsReview` | Worst first, as above; each element has `reason` and `states`, and the item has `elementsCut` when some are not listed |
 | `ignored`, `workflows` | `[]` until those features exist |
 | `checklist` | `null` until the checklist exists |
 | `cannotSee` | The fixed list of what a scan cannot see: the same lines that end `report.md` |
+| `limits` | The limits the page was held to: `pageSeconds` (60), `redirects` (10), `elementsPerFinding` (500), `excerptChars` (160), `scanJsonBytes` (52428800, 50 MB). docs/ARCHITECTURE.md, *Hostile pages*, says what each does |
+
+**What was cut.** A finding lists at most 500 elements; `elementsCut` counts the rest. If `scan.json` would
+be larger than 50 MB, elements are dropped, least severe first and never the last one of a finding, and
+counted in `elementsCut` too. If even that is not enough, the page reads *not scanned* and says so. A
+limit reached never reads as nothing found.
 
 What an agent can rely on in major version 1: per finding `id`, `rule.source`, `rule.id`, `impact`, `kind`,
 `fix`; per element `selector` and `html`; at the top `schema`, `exit`, `summary` and `pages[].notScanned`.
+`notScanned` is in 1.0 too, always empty there.
 
 **`plain` and `fix` until plain-language fixes are written.** `plain` is axe-core's `help` for the rule. `fix`
 is axe-core's `failureSummary` for the finding's first element, on one line ("Fix any of the following:" then
@@ -116,13 +127,16 @@ yet.
 
 ## `report.md` (`src/report.ts`)
 
-Made from the record and nothing else. It holds, in order: what was scanned and with what; a summary (the
-empty-scan sentence when nothing was found); the findings worst first, each with its rule, WCAG criteria,
-page, fix and elements; *Needs review*, when axe-core could not decide something; and *What this scan cannot
-see*, the same fixed list in every report, last.
+Made from the record and nothing else. It holds, in order: what was scanned and with what, and where a
+redirect ended (saying so when that is another origin); a summary (the empty-scan sentence when nothing was
+found, and each page not scanned with its reason); the findings worst first, each with its rule, WCAG
+criteria, page, fix and elements (with how many are not listed, when some were cut); *Needs review*, when
+axe-core could not decide something; *What the page tried, and was stopped*, when it opened dialogs or
+pop-ups or started downloads, with the first few quoted; and *What this scan cannot see*, the same fixed
+list in every report, last.
 
-- It never calls a site accessible, compliant or conformant and never says it passes WCAG. A scan with no
-  findings reads: `No problems found by these {rulesRun} rules on {pages}. Automated rules find only some
+- It never calls a site accessible, compliant or conformant and never says it passes WCAG. A page that was
+  not scanned never reads as nothing found. A scan with no findings reads: `No problems found by these {rulesRun} rules on {pages}. Automated rules find only some
   problems; the checklist covers what they cannot see.` Both counts come from the record (`engine.rulesRun`,
   and the number of `pages`, written "this page" for one and "these 3 pages" for more; the header line reads "90 rules ran on this page" for one page and "90 rules ran on 3 pages" for more).
 - Text from the page is data. Element HTML is in a fenced block, labelled as quoted, cut at 160 characters;
@@ -132,7 +146,7 @@ see*, the same fixed list in every report, last.
 ## Where a scan is written (`src/scans-folder.ts`)
 
 `<scans>/<origin key>/<start time>/scan.json` and `report.md`, outside the scanned project. The origin key is
-the host and port (`localhost-5173`); the start time is `2026-11-19T20-14-03Z`, with `-2`, `-3` added if two
+the host and port of the address asked for (`localhost-5173`); the start time is `2026-11-19T20-14-03Z`, with `-2`, `-3` added if two
 scans start in the same second. `<scans>` is, in this order: `--out`; the `A11Y_GENIE_SCANS_DIR` environment
 variable (tests set it to a temporary folder); then the per-user folder, `~/Library/Application Support/a11y-genie`
 on macOS, `$XDG_DATA_HOME/a11y-genie` or `~/.local/share/a11y-genie` on Linux, and

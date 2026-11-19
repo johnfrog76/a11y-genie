@@ -1,0 +1,24 @@
+<!doctype html>
+<!--
+  Hostile fixture: asks to stay when it is closed or left, with a beforeunload handler.
+  Must: the beforeunload dialog is dismissed and noted, as every dialog is.
+  Test: test/browser/hostile.test.ts
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hostile fixture: beforeunload</title>
+  </head>
+  <body>
+    <main>
+      <h1>Hostile fixture</h1>
+      <p>beforeunload</p>
+    </main>
+    <script>
+      addEventListener("beforeunload", (event) => {
+        event.preventDefault();
+        event.returnValue = "Stay on this page?";
+      });
+    </script>
+  </body>
+</html>

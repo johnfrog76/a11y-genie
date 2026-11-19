@@ -1,0 +1,27 @@
+<!doctype html>
+<!--
+  Hostile fixture: tries to move itself to file:, chrome: and data: addresses from its own script.
+  Must: the browser refuses each, the page stays at its own address, and it is scanned as itself.
+  Test: test/browser/hostile.test.ts
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hostile fixture: script-moves</title>
+  </head>
+  <body>
+    <main>
+      <h1>Hostile fixture</h1>
+      <p>script-moves</p>
+    </main>
+    <script>
+      for (const address of ["file:///etc/hosts", "chrome://version", "data:text/html,<p>moved</p>"]) {
+        try {
+          location.href = address;
+        } catch {
+          // Refused: the page stays.
+        }
+      }
+    </script>
+  </body>
+</html>

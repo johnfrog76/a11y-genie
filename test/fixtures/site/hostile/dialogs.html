@@ -1,0 +1,25 @@
+<!doctype html>
+<!--
+  Hostile fixture: opens three alerts, a confirm and a prompt while it loads.
+  Must: each is dismissed and noted under stopped, and the page is still scanned.
+  Test: test/browser/hostile.test.ts
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hostile fixture: dialogs</title>
+  </head>
+  <body>
+    <main>
+      <h1>Hostile fixture</h1>
+      <p>dialogs</p>
+    </main>
+    <script>
+      alert("first alert");
+      alert("second alert");
+      alert("third alert");
+      window.confirmed = confirm("Delete everything?");
+      window.prompted = prompt("Your password?", "hunter2");
+    </script>
+  </body>
+</html>

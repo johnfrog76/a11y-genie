@@ -8,6 +8,7 @@ import { checkOutFolder } from "./out-folder.js";
 import { Refusal } from "./refusal.js";
 import { emptyScanSentence, renderReport } from "./report.js";
 import { runScan } from "./run-scan.js";
+import { scanJson } from "./scan-record.js";
 import { defaultScansDir, makeScanFolder, writeScanFile } from "./scans-folder.js";
 
 const HELP = `A11y Genie: an accessibility scanner for agents and people.
@@ -32,10 +33,11 @@ With no Chrome, and no --browser-channel, A11y Genie says so and downloads Playw
 
 Commands:
   scan       load one page in a browser with a new, empty profile, run axe-core on it, and write
-             scan.json and report.md. Exit 0: no findings. Exit 1: findings.
+             scan.json and report.md. Exit 0: no findings. Exit 1: findings, or the page
+             could not be scanned (the scan says why).
 
-Exit codes: 0 no findings, 1 findings, 2 a refusal (one Error: line and one Hint: line, nothing written),
-3 something unexpected, 130 Ctrl-C.
+Exit codes: 0 no findings, 1 findings or not scanned, 2 a refusal (one Error: line and one Hint: line,
+nothing written), 3 something unexpected, 130 Ctrl-C.
 
 Commands (coming, none works yet):
   check      scan again and say what is new and what is fixed
@@ -54,6 +56,13 @@ const SERVE_HINT =
   "give a full address that starts with http:// or https://. To scan a built site, serve it first, for example: npx serve dist";
 
 const FORMATS = ["md", "json"] as const;
+
+/** What a page tried, in the CLI's one line. Counts only: page text is never printed here. */
+const STOPPED_WORDS = {
+  dialog: ["dialog", "dialogs", "dismissed"],
+  popup: ["pop-up window", "pop-up windows", "closed"],
+  download: ["download", "downloads", "cancelled"],
+} as const;
 
 /** `--format md,json`, repeatable: each value is a comma-separated list. */
 function parseFormats(values: string[] | undefined): Set<(typeof FORMATS)[number]> {
@@ -147,7 +156,7 @@ async function scan(args: string[]): Promise<void> {
   });
 
   const root = values.out ?? defaultScansDir();
-  const json = `${JSON.stringify(record, null, 2)}\n`;
+  const json = scanJson(record);
   let folder: string;
   try {
     folder = makeScanFolder(root, record.target.origin, record.startedAt);
@@ -162,13 +171,31 @@ async function scan(args: string[]): Promise<void> {
   const say = values.json ? console.error : console.log;
   const found =
     record.summary.critical + record.summary.serious + record.summary.moderate + record.summary.minor;
-  say(
-    found === 0
-      ? emptyScanSentence(record)
-      : `Found ${found} ${found === 1 ? "problem" : "problems"} on ${record.pages[0]?.url ?? url}, worst first: ` +
-          `${record.summary.critical} critical, ${record.summary.serious} serious, ` +
-          `${record.summary.moderate} moderate, ${record.summary.minor} minor.`,
-  );
+  const page = record.pages[0];
+  const missed = page?.notScanned[0];
+  if (missed !== undefined) {
+    // The reason is the scan's own words; the address is the one asked for.
+    say(`${page?.url ?? url} was not scanned: ${missed.reason}.`);
+  } else {
+    say(
+      found === 0
+        ? emptyScanSentence(record)
+        : `Found ${found} ${found === 1 ? "problem" : "problems"} on ${page?.url ?? url}, worst first: ` +
+            `${record.summary.critical} critical, ${record.summary.serious} serious, ` +
+            `${record.summary.moderate} moderate, ${record.summary.minor} minor.`,
+    );
+  }
+  if (page?.requestedUrl !== undefined && page.url !== page.requestedUrl) {
+    say(`It was redirected from ${page.requestedUrl} to ${page.url}.`);
+  }
+  const stopped = page?.stopped ?? [];
+  if (stopped.length > 0) {
+    const tried = stopped.map((entry) => {
+      const [one, many, done] = STOPPED_WORDS[entry.kind];
+      return `${entry.count} ${entry.count === 1 ? one : many} ${done}`;
+    });
+    say(`Stopped what the page tried: ${tried.join(", ")}. The report lists them.`);
+  }
   const review = record.summary.needsReview;
   if (review > 0) say(`${review} more ${review === 1 ? "needs" : "need"} a person to look.`);
   say(`Wrote ${folder}`);

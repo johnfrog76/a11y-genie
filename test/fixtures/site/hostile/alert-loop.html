@@ -1,0 +1,22 @@
+<!doctype html>
+<!--
+  Hostile fixture: opens alerts for ever, so its load never ends.
+  Must: every alert is dismissed and counted, only the first five are kept, and past the time limit the page
+  reads not scanned. The scan ends.
+  Test: test/browser/hostile.test.ts
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hostile fixture: alert-loop</title>
+  </head>
+  <body>
+    <main>
+      <h1>Hostile fixture</h1>
+      <p>alert-loop</p>
+    </main>
+    <script>
+      for (;;) alert("again");
+    </script>
+  </body>
+</html>

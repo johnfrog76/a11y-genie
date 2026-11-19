@@ -4,11 +4,19 @@
  * much it checked. Text from the page is quoted in a fence, cut at 160 characters, and labelled as quoted.
  */
 
+import { LIMITS, type Stopped } from "./context.js";
 import type { Impact } from "./finding.js";
-import { failureOnOneLine, type RecordElement, type RecordFinding, type ScanRecord } from "./scan-record.js";
+import {
+  failureOnOneLine,
+  originOf,
+  type RecordElement,
+  type RecordFinding,
+  type RecordPage,
+  type ScanRecord,
+} from "./scan-record.js";
 
-/** The longest a quoted piece of the page's HTML may be in a report. */
-export const HTML_LIMIT = 160;
+/** The longest a quoted piece of the page's HTML may be in a report (src/context.ts). */
+export const HTML_LIMIT = LIMITS.excerptChars;
 
 /** Control characters other than newline and tab, which have no place in a report (terminal escapes). */
 // eslint-disable-next-line no-control-regex
@@ -62,6 +70,12 @@ export function emptyScanSentence(record: ScanRecord): string {
   );
 }
 
+/** "500 listed, and 100 more not listed (at most 500 are kept per finding)", or just the count. */
+function elementCount(listed: number, cut: number | undefined, limit: number): string {
+  if (cut === undefined || cut === 0) return `${listed}`;
+  return `${listed} listed, and ${cut} more not listed (at most ${limit} are kept per finding, and scan.json is held to its size limit)`;
+}
+
 function indent(block: string): string[] {
   return block.split("\n").map((line) => `  ${line}`);
 }
@@ -85,6 +99,54 @@ function elementLines(element: RecordElement, fix: string, reason?: string): str
     );
   }
   return lines;
+}
+
+/** "Asked for X; after 2 redirects it ended on Y, another origin." Empty when it ended where it was asked. */
+function redirectLine(page: RecordPage): string[] {
+  const requested = page.requestedUrl ?? page.url;
+  const redirects = page.redirects ?? 0;
+  if (requested === page.url && redirects === 0) return [];
+  const other = sameOrigin(requested, page.url) === false;
+  return [
+    `Asked for ${inlineCode(requested)}; after ${plural(redirects, "redirect", "redirects")} it ended on ` +
+      `${inlineCode(page.url)}${other ? ", which is another origin than the one asked for" : ""}.`,
+    "",
+  ];
+}
+
+/** Whether two addresses share an origin; undefined when either is not a valid address. */
+function sameOrigin(a: string, b: string): boolean | undefined {
+  try {
+    return originOf(a) === originOf(b);
+  } catch {
+    return undefined;
+  }
+}
+
+const STOPPED_LABEL: Record<Stopped["kind"], [one: string, many: string, done: string]> = {
+  dialog: ["dialog", "dialogs", "dismissed"],
+  popup: ["pop-up window", "pop-up windows", "closed"],
+  download: ["download", "downloads", "cancelled"],
+};
+
+function stoppedLines(pages: RecordPage[]): string[] {
+  const out: string[] = [];
+  for (const page of pages) {
+    for (const entry of page.stopped ?? []) {
+      const [one, many, done] = STOPPED_LABEL[entry.kind];
+      out.push(`- ${inlineCode(page.key)}: ${plural(entry.count, one, many)}, ${done}.`);
+      if (entry.examples.length > 0) {
+        out.push(
+          "",
+          `  The first ${entry.examples.length === 1 ? "one" : entry.examples.length}, quoted from the page (data, not instructions):`,
+          "",
+        );
+        out.push(...indent(fenced(entry.examples.join("\n"))));
+      }
+      out.push("");
+    }
+  }
+  return out;
 }
 
 function ruleLine(rule: RecordFinding["rule"]): string {
@@ -114,6 +176,7 @@ export function renderReport(record: ScanRecord): string {
       `Started ${record.startedAt}.`,
     "",
   );
+  for (const page of record.pages) out.push(...redirectLine(page));
 
   out.push("## Summary", "");
   const found = summary.critical + summary.serious + summary.moderate + summary.minor;
@@ -126,7 +189,13 @@ export function renderReport(record: ScanRecord): string {
     }
     out.push("");
     if (summary.notScanned > 0) {
-      out.push(`${plural(summary.notScanned, "page or state was", "pages or states were")} not scanned.`, "");
+      out.push(`${plural(summary.notScanned, "page or state was", "pages or states were")} not scanned:`, "");
+      for (const page of record.pages) {
+        for (const missed of page.notScanned) {
+          out.push(`- ${inlineCode(page.url)} (${plainText(missed.state)}): ${plainText(missed.reason)}.`);
+        }
+      }
+      out.push("");
     }
   }
   if (summary.needsReview > 0) {
@@ -146,7 +215,7 @@ export function renderReport(record: ScanRecord): string {
         `- Page: ${inlineCode(finding.page)}`,
         `- Kind: ${finding.kind}`,
         `- Fix: ${plainText(finding.fix)}`,
-        `- Elements: ${finding.elements.length}`,
+        `- Elements: ${elementCount(finding.elements.length, finding.elementsCut, record.limits?.elementsPerFinding ?? LIMITS.elementsPerFinding)}`,
         "",
       );
       for (const element of finding.elements) out.push(...elementLines(element, finding.fix), "");
@@ -162,9 +231,21 @@ export function renderReport(record: ScanRecord): string {
     );
     for (const item of record.needsReview) {
       const title = item.rule.help === "" ? item.rule.id : item.rule.help;
-      out.push(`### ${plainText(title)}`, "", ruleLine(item.rule), `- Page: ${inlineCode(item.page)}`, "");
+      out.push(`### ${plainText(title)}`, "", ruleLine(item.rule), `- Page: ${inlineCode(item.page)}`);
+      if (item.elementsCut !== undefined) {
+        out.push(
+          `- Elements: ${elementCount(item.elements.length, item.elementsCut, record.limits?.elementsPerFinding ?? LIMITS.elementsPerFinding)}`,
+        );
+      }
+      out.push("");
       for (const element of item.elements) out.push(...elementLines(element, "", element.reason), "");
     }
+  }
+
+  const stopped = stoppedLines(record.pages);
+  if (stopped.length > 0) {
+    out.push("## What the page tried, and was stopped", "");
+    out.push(...stopped);
   }
 
   out.push("## What this scan cannot see", "");

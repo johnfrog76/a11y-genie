@@ -1,5 +1,5 @@
 {
-  "schema": "1.0",
+  "schema": "1.1",
   "tool": {
     "name": "a11y-genie",
     "version": "0.0.0"
@@ -23,10 +23,13 @@
     {
       "key": "icon-button.html",
       "url": "http://127.0.0.1:0000/icon-button.html",
+      "requestedUrl": "http://127.0.0.1:0000/icon-button.html",
+      "redirects": 0,
       "states": [
         "default"
       ],
-      "notScanned": []
+      "notScanned": [],
+      "stopped": []
     }
   ],
   "summary": {
@@ -62,7 +65,7 @@
           "target": [
             "button"
           ],
-          "html": "<button type=\"button\">\n        <svg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" aria-hidden=\"true\" focusable=\"false\">\n          <path d=\"M2 2h12v12H2z\" fill=\"#000000\"></path>\n        </svg>\n      </button>",
+          "html": "<button type=\"button\">\n        <svg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" aria-hidden=\"true\" focusable=\"false\">\n          <path d=\"M2 2h12v12H2z\" fill=\"#00…",
           "failure": "Fix any of the following:\n  Element does not have inner text that is visible to screen readers\n  aria-label attribute does not exist or is empty\n  aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty\n  Element has no title attribute\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  Element's default semantics were not overridden with role=\"none\" or role=\"presentation\"",
           "states": [
             "default"
@@ -88,5 +91,12 @@
     "Whether video and audio have captions or a transcript (WCAG 1.2.2, 1.2.3).",
     "Whether moving content pauses, and whether motion respects the reduced-motion setting (WCAG 2.2.2).",
     "Whether a person using a real screen reader can finish the page's main task (WCAG 4.1.2)."
-  ]
+  ],
+  "limits": {
+    "pageSeconds": 60,
+    "redirects": 10,
+    "elementsPerFinding": 500,
+    "excerptChars": 160,
+    "scanJsonBytes": 52428800
+  }
 }

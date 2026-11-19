@@ -1,0 +1,23 @@
+<!doctype html>
+<!--
+  Hostile fixture: runs a loop that never ends while it loads, so its load event never fires.
+  Must: past the time limit the page reads not scanned, and the scan ends.
+  Test: test/browser/hostile.test.ts
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hostile fixture: busy-load</title>
+  </head>
+  <body>
+    <main>
+      <h1>Hostile fixture</h1>
+      <p>busy-load</p>
+    </main>
+    <script>
+      for (;;) {
+        // Never ends.
+      }
+    </script>
+  </body>
+</html>

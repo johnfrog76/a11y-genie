@@ -1,5 +1,5 @@
 {
-  "schema": "1.0",
+  "schema": "1.1",
   "tool": {
     "name": "a11y-genie",
     "version": "0.0.0"
@@ -23,10 +23,13 @@
     {
       "key": "contrast.html",
       "url": "http://127.0.0.1:0000/contrast.html",
+      "requestedUrl": "http://127.0.0.1:0000/contrast.html",
+      "redirects": 0,
       "states": [
         "default"
       ],
-      "notScanned": []
+      "notScanned": [],
+      "stopped": []
     }
   ],
   "summary": {
@@ -88,5 +91,12 @@
     "Whether video and audio have captions or a transcript (WCAG 1.2.2, 1.2.3).",
     "Whether moving content pauses, and whether motion respects the reduced-motion setting (WCAG 2.2.2).",
     "Whether a person using a real screen reader can finish the page's main task (WCAG 4.1.2)."
-  ]
+  ],
+  "limits": {
+    "pageSeconds": 60,
+    "redirects": 10,
+    "elementsPerFinding": 500,
+    "excerptChars": 160,
+    "scanJsonBytes": 52428800
+  }
 }

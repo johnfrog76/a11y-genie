@@ -17,15 +17,21 @@ export async function chromeIsInstalled(): Promise<boolean> {
 /**
  * The browser-side half of the no-network guard (test/helpers/no-network.ts covers Node only).
  *
- * Routes every request the context makes: a request to `origin` (the fixture server) goes on, and any
- * other is aborted before it leaves the browser and recorded. A test asserts the record is empty, so a
- * fixture or a library that reaches out is caught. `data:` URLs are not requests and are not routed.
+ * Routes every request the context makes: a request to `origin` (the fixture server, or each of several)
+ * goes on, and any other is aborted before it leaves the browser and recorded. A test asserts the record is
+ * empty, so a fixture or a library that reaches out is caught. `data:` URLs are not requests and are not
+ * routed. Only the first request of a redirect chain is routed (playwright-core 1.65.1), so a redirect
+ * from a fixture server must point at another fixture server.
  */
-export async function guardContext(context: BrowserContext, origin: string): Promise<string[]> {
+export async function guardContext(
+  context: BrowserContext,
+  origin: string | readonly string[],
+): Promise<string[]> {
+  const allowed: readonly string[] = typeof origin === "string" ? [origin] : origin;
   const attempted: string[] = [];
   await context.route("**/*", async (route) => {
     const url = route.request().url();
-    if (new URL(url).origin === origin) {
+    if (allowed.includes(new URL(url).origin)) {
       await route.continue();
     } else {
       attempted.push(url);
