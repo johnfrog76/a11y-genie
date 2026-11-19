@@ -37,13 +37,13 @@ export function parseTags(value: string): string[] {
     if (tag === "") {
       throw new Refusal(
         "--tags needs one or more axe-core tags, separated by commas, and one is empty.",
-        `use tags such as wcag2a,wcag2aa,${BEST_PRACTICE_TAG}. axe-core knows: ${known.join(", ")}.`,
+        `use axe-core tags separated by commas, such as wcag2a,wcag2aa,${BEST_PRACTICE_TAG}.`,
       );
     }
     if (!known.includes(tag)) {
       throw new Refusal(
         `unknown --tags value: ${JSON.stringify(tag.slice(0, 80))}`,
-        `use tags axe-core knows, separated by commas: ${known.join(", ")}. The landmark rules need ${BEST_PRACTICE_TAG}.`,
+        `use axe-core tags separated by commas, such as wcag2a, wcag2aa, wcag21aa or ${BEST_PRACTICE_TAG}. The landmark rules need ${BEST_PRACTICE_TAG}.`,
       );
     }
     if (!tags.includes(tag)) tags.push(tag);

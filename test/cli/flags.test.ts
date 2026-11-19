@@ -4,7 +4,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { NO_BROWSER_ENV } from "../../src/browser.js";
-import { axeTags } from "../../src/rule-flags.js";
 import { SCANS_DIR_ENV } from "../../src/scans-folder.js";
 import { chromeIsInstalled } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
@@ -78,11 +77,7 @@ describe("refusals that need no browser", () => {
       result,
       scans,
       'unknown --tags value: "nope"',
-      new RegExp(
-        `^Hint: use tags axe-core knows, separated by commas: ${axeTags()
-          .join(", ")
-          .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\. The landmark rules need best-practice\\.$`,
-      ),
+      "use axe-core tags separated by commas, such as wcag2a, wcag2aa, wcag21aa or best-practice. The landmark rules need best-practice.",
     );
   });
 
@@ -92,7 +87,7 @@ describe("refusals that need no browser", () => {
       await run(["scan", LOOPBACK, "--tags", "wcag2a,"], scans),
       scans,
       "--tags needs one or more axe-core tags, separated by commas, and one is empty.",
-      /^Hint: use tags such as wcag2a,wcag2aa,best-practice\. axe-core knows: /,
+      "use axe-core tags separated by commas, such as wcag2a,wcag2aa,best-practice.",
     );
   });
 

@@ -40,8 +40,8 @@ Every refusal is exit 2 and happens before anything is written: the scans folder
 | No address | `scan needs a page address to scan.` | `run: a11y-genie scan <url>` |
 | A target that is not `http:` or `https:` | `only http: and https: addresses can be scanned, and this one is file:` (or `javascript:`, `data:`) | `give a full address that starts with http:// or https://. To scan a built site, serve it first, for example: npx serve dist` |
 | An unknown `--fail-on` impact | `unknown --fail-on impact: "severe"` | `use one of: critical, serious, moderate, minor.` |
-| An unknown `--tags` tag | `unknown --tags value: "nope"` | `use tags axe-core knows, separated by commas: <every tag of axe-core's rules, sorted>. The landmark rules need best-practice.` |
-| An empty part of `--tags` (`--tags wcag2a,` or `--tags ""`) | `--tags needs one or more axe-core tags, separated by commas, and one is empty.` | `use tags such as wcag2a,wcag2aa,best-practice. axe-core knows: <every tag>.` |
+| An unknown `--tags` tag | `unknown --tags value: "nope"` | `use axe-core tags separated by commas, such as wcag2a, wcag2aa, wcag21aa or best-practice. The landmark rules need best-practice.` |
+| An empty part of `--tags` (`--tags wcag2a,` or `--tags ""`) | `--tags needs one or more axe-core tags, separated by commas, and one is empty.` | `use axe-core tags separated by commas, such as wcag2a,wcag2aa,best-practice.` |
 | `--offline` with a target that is not loopback (`127.0.0.0/8`, `::1`, `localhost`, `*.localhost`) | `--offline allows only a page on this machine, and http://example.com is not one.` | `serve the page on localhost, 127.0.0.1 or [::1], or run without --offline.` |
 | A target that is not an address | `not a web address: "example"` | the same hint |
 | A target that does not answer | `http://127.0.0.1:5173 did not answer: the connection was refused.`, `... the host name was not found.`, `... no answer within 30 seconds.`, or `... the browser reported ERR_<NAME>.` | `check the address, and that the server is running.` |
