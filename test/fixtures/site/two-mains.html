@@ -1,0 +1,22 @@
+<!doctype html>
+<!--
+  Fixture: a page with two main landmarks, each named, so only the second is the problem.
+  Must fire:     landmark-no-duplicate-main (moderate)
+  Must not fire: landmark-unique (the two are named differently), region, genie/no-landmarks, or any other rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Two mains fixture</title>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <main aria-label="First">
+      <h1>Two mains fixture</h1>
+      <p>The first main landmark.</p>
+    </main>
+    <main aria-label="Second">
+      <p>The second main landmark.</p>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,20 @@
+<!doctype html>
+<!--
+  Fixture: a page with a main landmark and one paragraph after it, outside every landmark.
+  Must fire:     region (moderate), on the stray paragraph only
+  Must not fire: landmark-one-main, genie/no-landmarks (the page has a main), or any other rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Content outside landmarks fixture</title>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <main>
+      <h1>Content outside landmarks fixture</h1>
+      <p>This sentence is inside the main landmark.</p>
+    </main>
+    <p>This sentence is after it, outside every landmark.</p>
+  </body>
+</html>
