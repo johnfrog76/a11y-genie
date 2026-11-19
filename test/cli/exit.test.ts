@@ -120,10 +120,12 @@ describe("refusals that need no browser", () => {
     expect(readdirSync(scans)).toEqual([]);
   });
 
-  it("no Chrome", async () => {
+  it("no Chrome and --no-download", async () => {
     const scans = temp();
-    const result = await run(["scan", "http://127.0.0.1:1/"], scans, { [NO_BROWSER_ENV]: "1" });
-    expectRefusal(result, /^Error: Chrome was not found on this machine, and A11y Genie cannot download/);
+    const result = await run(["scan", "http://127.0.0.1:1/", "--no-download"], scans, {
+      [NO_BROWSER_ENV]: "1",
+    });
+    expectRefusal(result, /^Error: Chrome was not found on this machine, and --no-download stops/);
     expect(readdirSync(scans)).toEqual([]);
   });
 

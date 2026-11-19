@@ -18,7 +18,9 @@ Run all five before you ask for a review. CI runs the same five in that order, o
 ## Layout
 
 - `src/` holds the command. `src/cli.ts` is the entry point (`bin` points at `dist/cli.js`).
-- `src/browser.ts` launches the installed browser; `src/refusal.ts` is the exit-2 refusal.
+- `src/browser.ts` launches the installed browser; `src/browser-choice.ts` picks it, falling back to
+  Playwright's Chromium when Chrome is missing; `src/chromium-download.ts` downloads that Chromium with
+  playwright-core's own installer. `src/refusal.ts` is the exit-2 refusal.
 - `src/axe.ts` runs axe-core on a loaded page; `src/map-axe.ts` maps its results to findings (`src/finding.ts`), and
   `src/order.ts` orders them worst first.
 - `src/banner.ts` holds the genie and his bottle, the drawing for a person at a terminal. Nothing prints it

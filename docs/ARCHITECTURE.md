@@ -5,8 +5,9 @@ How A11y Genie is put together, and why. Each section names the source file it d
 ## The browser (`src/browser.ts`)
 
 A11y Genie drives a real browser through `playwright-core`. It launches the browser already installed on the
-machine: Chrome by default, or Microsoft Edge with `--browser-channel msedge`. Playwright's own Chromium, and
-the download of it when Chrome is missing, come later. Until then, a missing browser is a refusal.
+machine: Chrome by default, or Microsoft Edge with `--browser-channel msedge`. With no Chrome, it downloads
+Playwright's own Chromium once and uses that (see "Playwright's Chromium, when Chrome is missing" below);
+`--browser-channel chromium` asks for it directly.
 
 ### A new, empty profile for every run
 
@@ -33,11 +34,13 @@ delete the folder, and it stays in the temp folder until the system clears it. O
 `handleSIGINT: false`, so playwright-core's own handler does not race it. On a normal `SIGTERM`,
 playwright-core closes the browser and deletes the folder.
 
-### No browser is a refusal
+### A browser that is not installed
 
-When the channel asked for is not installed, the run exits 2 with one `Error:` line and one `Hint:` line, and
-nothing is scanned. playwright-core reports a missing channel by throwing
-`Chromium distribution '<channel>' is not found at <path>` (or `... is not supported on <platform>`);
+`withBrowser()` launches exactly the channel it is given. When that browser is not installed it throws a
+`BrowserNotFound` refusal (exit 2, one `Error:` line and one `Hint:` line) and never downloads or picks
+another; choosing and falling back are `withChosenBrowser()`, below. playwright-core reports a missing
+`chrome` or `msedge` by throwing `Chromium distribution '<channel>' is not found at <path>` (or `... is not
+supported on <platform>`), and a missing Playwright's Chromium with `Executable doesn't exist at <path>`;
 `isNotInstalledError()` matches those words, checked at the pinned version. Any other launch error is not a
 refusal and is passed on.
 
@@ -47,9 +50,58 @@ So after any failed launch, `withBrowser()` removes the folders with those two n
 launch. It removes them with `rmdir`, which deletes only an empty folder, so a folder another browser is
 already using is never touched.
 
-**For tests only:** setting `A11Y_GENIE_TEST_NO_BROWSER=1` makes every channel read as not installed, so the
-refusal can be tested on a machine that has Chrome. It can only make a run refuse; it never changes which
-browser is launched.
+**For tests only:** setting `A11Y_GENIE_TEST_NO_BROWSER=1` makes every channel read as not installed,
+Playwright's Chromium included, and turns the download into a refusal, so the no-browser paths can be tested on
+a machine that has Chrome. It can only make a run refuse; it never launches or downloads anything.
+
+### Playwright's Chromium, when Chrome is missing (`src/browser-choice.ts`, `src/chromium-download.ts`)
+
+`withChosenBrowser()` decides which browser runs:
+
+1. `chrome` or `msedge` is launched as it is. If it is installed, that is the browser, and nothing else happens.
+2. The default `chrome`, not named with `--browser-channel`, that is not installed falls back to Playwright's
+   Chromium. A named `--browser-channel chrome`, and any `msedge`, that is not installed is refused, never
+   replaced.
+3. Playwright's Chromium, by that fallback or by `--browser-channel chromium`, is used from Playwright's cache
+   if it is installed there. If it is not, one line on stderr says so, and then playwright-core's installer
+   downloads it, once. With `--no-download` the run refuses instead (docs/EXIT-CODES.md has the words).
+4. It is launched like any other browser, by `withBrowser("chromium")`: `channel: "chromium"`, headless, a new,
+   empty profile deleted after the run.
+
+`scan.json` records what ran: `engine.browser` is `chromium <version>` and `engine.fallback` is `true` when
+Chrome was missing and Playwright's Chromium ran in its place. `--browser-channel chromium` is not a fallback:
+it is `chromium <version>` with `fallback: false`.
+
+The line said before the download, with the size and the cache folder filled in:
+
+> Chrome was not found, so A11y Genie is downloading Playwright's Chromium (about 200 MB) once, into
+> /home/someone/.cache/ms-playwright. --browser-channel names another browser.
+
+A later run with Chrome still missing downloads nothing and says
+`Chrome was not found, so A11y Genie is using Playwright's Chromium, from <cache>. --browser-channel names
+another browser.` With `--browser-channel chromium` and nothing in the cache, the line is
+`Playwright's Chromium is not installed yet, so A11y Genie is downloading it (<size>) once, into <cache>.`
+
+Playwright's Chromium is read as installed only when its executable exists **and** playwright-core's
+`INSTALLATION_COMPLETE` marker is in the build's folder. playwright-core writes the marker after unpacking, so
+a download stopped part-way (Ctrl-C, a lost connection) reads as not installed, and the next run downloads it
+again. Ctrl-C during the download stops the installer and exits 130.
+
+The installer's output (its "Downloading ..." lines, and a progress bar at a terminal) goes to stderr, never
+stdout, so `--json` keeps stdout for the one document. A download that fails is a refusal:
+`the download of Playwright's Chromium did not finish: the installer exited with code <n>.`
+
+On Linux, Playwright's Chromium needs some system libraries the installer does not add (that is
+`install --with-deps`, which needs `sudo`, and A11y Genie never runs it). Where they are missing, the launch
+fails and the error is passed on as it is.
+
+**Tests never download.** The installer, the cache check and the launch are stand-ins in
+`test/unit/browser-choice.test.ts`, which proves the decision, the line, one download and none on the second
+run, and the `--no-download` refusal. The built command's tests use `A11Y_GENIE_TEST_NO_BROWSER=1`, which
+turns the download into a refusal. And `vitest.config.ts` sets `PLAYWRIGHT_DOWNLOAD_HOST` and
+`PLAYWRIGHT_CHROMIUM_DOWNLOAD_HOST` to a dead loopback port for every test and every child it starts, so a test
+that reached the real installer by mistake would fail at once rather than download. The real installer runs
+in tests only with `--dry-run`, which prints what it would fetch and fetches nothing.
 
 ### playwright-core's installer (V10)
 

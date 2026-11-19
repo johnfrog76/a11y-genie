@@ -17,13 +17,18 @@ It never says a site is "accessible" or "compliant". Automated checks find some 
 Usage:
   a11y-genie --version
   a11y-genie --help
-  a11y-genie scan <url> [--json] [--out <folder>] [--format md,json] [--browser-channel chrome|msedge]
+  a11y-genie scan <url> [--json] [--out <folder>] [--format md,json]
+                  [--browser-channel chrome|msedge|chromium] [--no-download]
 
 Flags:
   --json             print scan.json on stdout; everything else goes to stderr
   --out <folder>     where the scan folder goes; default is the per-user scans folder
   --format           which reports to write beside scan.json: md, json, or md,json (the default)
-  --browser-channel  which installed browser to launch: chrome (the default) or msedge
+  --browser-channel  which browser to launch: chrome (the default) or msedge, installed on this machine,
+                     or chromium, Playwright's own, downloaded once if it is not there yet
+  --no-download      never download Playwright's Chromium: with no Chrome, refuse instead
+
+With no Chrome, and no --browser-channel, A11y Genie says so and downloads Playwright's Chromium once.
 
 Commands:
   scan       load one page in a browser with a new, empty profile, run axe-core on it, and write
@@ -102,6 +107,7 @@ async function scan(args: string[]): Promise<void> {
     out?: string | undefined;
     format?: string[] | undefined;
     json?: boolean | undefined;
+    "no-download"?: boolean | undefined;
   };
   let positionals: string[];
   try {
@@ -112,6 +118,7 @@ async function scan(args: string[]): Promise<void> {
         out: { type: "string" },
         format: { type: "string", multiple: true },
         json: { type: "boolean" },
+        "no-download": { type: "boolean" },
       },
       allowPositionals: true,
       strict: true,
@@ -132,7 +139,12 @@ async function scan(args: string[]): Promise<void> {
   checkTarget(url);
   if (values.out !== undefined) checkOutFolder(values.out);
 
-  const record = await runScan({ url, channel });
+  const record = await runScan({
+    url,
+    channel,
+    named: values["browser-channel"] !== undefined,
+    download: values["no-download"] !== true,
+  });
 
   const root = values.out ?? defaultScansDir();
   const json = `${JSON.stringify(record, null, 2)}\n`;

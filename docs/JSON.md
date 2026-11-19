@@ -91,7 +91,7 @@ ignore fields they do not know, so the schema allows extra fields.
 | `tool` | `{ name, version }` of A11y Genie |
 | `command` | `"scan"` |
 | `exit` | The exit code the run ends with: `0` with no violations, `1` with any |
-| `engine` | `axeCore` (its version), `browser` (such as `chrome 158.0.8127.36`), `fallback` (`false` until the browser fallback), `tags` (`null`: axe-core's default rule set), `rulesRun` (distinct rule ids axe-core ran) |
+| `engine` | `axeCore` (its version), `browser` (the channel that ran and its version, such as `chrome 158.0.8127.36` or `chromium 159.0.8154.6`), `fallback` (`true` when Chrome was missing and Playwright's Chromium ran in its place; `false` otherwise, `--browser-channel chromium` included), `tags` (`null`: axe-core's default rule set), `rulesRun` (distinct rule ids axe-core ran) |
 | `target` | `origin` of the page, and `commit` (`null`) |
 | `startedAt`, `finishedAt` | UTC, to the second: `2026-11-19T20:14:03Z` |
 | `pages` | One per page: `key`, `url`, `states` (`["default"]`), `notScanned` (empty) |
