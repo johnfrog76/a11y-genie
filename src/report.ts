@@ -122,6 +122,7 @@ const STOPPED_LABEL: Record<Stopped["kind"], [one: string, many: string, done: s
   dialog: ["dialog", "dialogs", "dismissed"],
   popup: ["pop-up window", "pop-up windows", "closed"],
   download: ["download", "downloads", "cancelled"],
+  "private-network": ["request to a private address", "requests to private addresses", "blocked"],
 };
 
 function stoppedLines(pages: RecordPage[]): string[] {

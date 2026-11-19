@@ -84,7 +84,7 @@
               "type": "object",
               "required": ["kind", "count", "examples"],
               "properties": {
-                "kind": { "enum": ["dialog", "popup", "download"] },
+                "kind": { "enum": ["dialog", "popup", "download", "private-network"] },
                 "count": { "type": "integer", "minimum": 1 },
                 "examples": { "type": "array", "items": { "type": "string" } }
               }

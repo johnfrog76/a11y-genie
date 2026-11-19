@@ -11,12 +11,13 @@
  *   ("Not allowed to load local resource", "Not allowed to navigate top frame to data URL") and the page
  *   stays where it is, to be scanned as itself.
  * - Only the first request of a redirect chain goes through `context.route()`; the hops after it do not.
- *   So the redirect cap below counts hops from the page's `request` events, not from a route.
- *
- * The private-network rule (issue #9) is the next defence and belongs here too: see `armContext`.
+ *   So the redirect cap below counts hops from the page's `request` events, not from a route, and the
+ *   private-network rule stops hops with the DevTools Protocol's `Fetch` domain (`FetchGuard`, below).
+ * - WebSockets do not go through `context.route()` either: `context.routeWebSocket()` sees them.
  */
 
-import type { BrowserContext, BrowserContextOptions, Page, Request } from "playwright-core";
+import type { BrowserContext, BrowserContextOptions, CDPSession, Page, Request } from "playwright-core";
+import { addressKindOfUrl } from "./private-address.js";
 
 /** The limits a scan holds a page to. The spec's numbers (8A.1) where it gives one. */
 export interface Limits {
@@ -76,15 +77,97 @@ export const CONTEXT_OPTIONS: Readonly<BrowserContextOptions> = Object.freeze({
 });
 
 /** What a page tried that the scan stopped. Listed in `scan.json` under `pages[].stopped`. */
-export const STOPPED_KINDS = ["dialog", "popup", "download"] as const;
+export const STOPPED_KINDS = ["dialog", "popup", "download", "private-network"] as const;
 export type StoppedKind = (typeof STOPPED_KINDS)[number];
 
 export interface Stopped {
   kind: StoppedKind;
   /** How many times the page tried it. */
   count: number;
-  /** The first few, quoted from the page and cut short: a dialog's type and message, or an address. */
+  /**
+   * The first few, quoted from the page and cut short: a dialog's type and message, or an address (a
+   * pop-up's, a download's, or the private address a request was going to).
+   */
   examples: string[];
+}
+
+/**
+ * For tests only: a comma-separated list of origins to read as public, so the private-network rule can be
+ * proved on loopback servers. It is used only when the address scanned is on one of those origins, and then
+ * only those origins read public: it can turn the rule on for a loopback target, never off for a public
+ * one.
+ */
+export const TEST_PUBLIC_ORIGINS_ENV = "A11Y_GENIE_TEST_PUBLIC_ORIGINS";
+
+/** The origins `TEST_PUBLIC_ORIGINS_ENV` names, or none. */
+export function testPublicOrigins(env: NodeJS.ProcessEnv = process.env): string[] {
+  return (env[TEST_PUBLIC_ORIGINS_ENV] ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter((origin) => origin !== "");
+}
+
+/** What the private-network rule needs to know about a scan. */
+export interface NetworkOptions {
+  /** The address the scan loads. The rule holds only when its host is public. */
+  target?: string;
+  /** `--allow-private`: a public page may reach loopback, link-local and private addresses. */
+  allowPrivate?: boolean;
+  /** For tests only: origins read as public, as `TEST_PUBLIC_ORIGINS_ENV` says. */
+  publicOrigins?: readonly string[];
+}
+
+/** The schemes a request leaves the browser by, so the only ones the rule judges. `data:` and `blob:` do not. */
+const NETWORK_SCHEMES = ["http:", "https:", "ws:", "wss:"];
+
+function originOf(url: string): string | undefined {
+  try {
+    const parsed = new URL(url);
+    // A WebSocket's origin is read as the http one it shares a host and port with.
+    const scheme =
+      parsed.protocol === "ws:" ? "http:" : parsed.protocol === "wss:" ? "https:" : parsed.protocol;
+    return `${scheme}//${parsed.host}`;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The private-network rule (spec 8A.1): when the address scanned is public, a request to a loopback,
+ * link-local, private or unspecified address (src/private-address.ts) is aborted. The host is judged as
+ * written, never looked up (gap G7).
+ */
+export interface PrivateNetworkRule {
+  /** Whether a request to `url` is stopped. */
+  blocks(url: string): boolean;
+}
+
+/**
+ * The rule for one scan, or undefined when it does not hold: the target is itself loopback or private (the
+ * usual dev server, not limited), or `--allow-private` was given.
+ */
+export function privateNetworkRule(options: NetworkOptions): PrivateNetworkRule | undefined {
+  if (options.target === undefined || options.allowPrivate === true) return undefined;
+  const targetOrigin = originOf(options.target);
+  const declared = (options.publicOrigins ?? []).map(originOf);
+  const publicOrigins = (
+    targetOrigin !== undefined && declared.includes(targetOrigin) ? declared : []
+  ).filter((origin): origin is string => origin !== undefined);
+  const blocks = (url: string): boolean => {
+    let scheme: string;
+    try {
+      scheme = new URL(url).protocol;
+    } catch {
+      return false;
+    }
+    if (!NETWORK_SCHEMES.includes(scheme)) return false;
+    const origin = originOf(url);
+    if (origin !== undefined && publicOrigins.includes(origin)) return false;
+    const kind = addressKindOfUrl(url);
+    return kind !== undefined && kind !== "public";
+  };
+  if (blocks(options.target)) return undefined;
+  return { blocks };
 }
 
 function cut(text: string, limit: number): string {
@@ -99,6 +182,126 @@ function hopsBefore(request: Request): number {
   return hops;
 }
 
+/** A DevTools Protocol session, or one below it reached through `Target.sendMessageToTarget`. */
+type SessionPath = readonly string[];
+
+/** `Fetch.requestPaused`'s fields this guard reads (DevTools Protocol, Chrome 158). */
+interface PausedRequest {
+  requestId: string;
+  request: { url: string };
+  frameId?: string;
+  resourceType?: string;
+}
+
+function isPausedRequest(value: unknown): value is PausedRequest {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  const request = v.request as Record<string, unknown> | undefined;
+  return typeof v.requestId === "string" && typeof request?.url === "string";
+}
+
+/**
+ * The private-network rule for every request of one page, redirect hops included, by the DevTools
+ * Protocol's `Fetch` domain. Playwright's `route()` sees only the first request of a redirect chain
+ * (checked at playwright-core 1.65.1), so the hops after it are judged here, in a session of our own beside
+ * Playwright's: Chrome pauses each request for both, and a request this session fails never leaves.
+ *
+ * A frame on another site runs in a process of its own (site isolation) with its own target, and a
+ * dedicated worker has one too. The page's session attaches to each as it starts, held until it is armed
+ * (`waitForDebuggerOnStart`), and each attaches to its own in turn. They are reached through
+ * `Target.sendMessageToTarget`, because Playwright's session object cannot send to a flattened child.
+ */
+class FetchGuard {
+  private nextId = 1_000_000;
+  private mainFrameId: string | undefined;
+
+  constructor(
+    private readonly session: CDPSession,
+    private readonly rule: PrivateNetworkRule,
+    private readonly onBlocked: (url: string, mainFrame: boolean) => void,
+  ) {}
+
+  async start(): Promise<void> {
+    this.session.on("Fetch.requestPaused", (event) => this.paused([], event));
+    this.session.on("Target.attachedToTarget", (event) => this.attached([], event));
+    this.session.on("Target.receivedMessageFromTarget", (event) => this.received([], event));
+    const { frameTree } = await this.session.send("Page.getFrameTree");
+    this.mainFrameId = frameTree.frame.id;
+    await this.session.send("Fetch.enable", { patterns: [{ urlPattern: "*", requestStage: "Request" }] });
+    await this.session.send("Target.setAutoAttach", {
+      autoAttach: true,
+      waitForDebuggerOnStart: true,
+      flatten: false,
+    });
+  }
+
+  /** Sends a command to the session at `path`. Answers are not waited for; a failure is ignored. */
+  private send(path: SessionPath, method: string, params: object = {}): void {
+    if (path.length === 0) {
+      this.session.send(method as "Fetch.continueRequest", params as never).catch(() => undefined);
+      return;
+    }
+    let message: { id: number; method: string; params: object } = { id: this.nextId++, method, params };
+    for (let i = path.length - 1; i >= 1; i -= 1) {
+      message = {
+        id: this.nextId++,
+        method: "Target.sendMessageToTarget",
+        params: { sessionId: path[i], message: JSON.stringify(message) },
+      };
+    }
+    this.session
+      .send("Target.sendMessageToTarget", { sessionId: path[0] as string, message: JSON.stringify(message) })
+      .catch(() => undefined);
+  }
+
+  private paused(path: SessionPath, event: unknown): void {
+    if (!isPausedRequest(event)) return;
+    const url = event.request.url;
+    if (this.rule.blocks(url)) {
+      const mainFrame =
+        path.length === 0 && event.resourceType === "Document" && event.frameId === this.mainFrameId;
+      this.onBlocked(url, mainFrame);
+      this.send(path, "Fetch.failRequest", { requestId: event.requestId, errorReason: "BlockedByClient" });
+    } else {
+      this.send(path, "Fetch.continueRequest", { requestId: event.requestId });
+    }
+  }
+
+  /**
+   * A new target below `path`: a frame on another site, or a dedicated worker. Armed, then let run. A
+   * worker has no `Fetch` domain (its requests are paused in its page's session) and says so; the rest
+   * still apply.
+   */
+  private attached(path: SessionPath, event: unknown): void {
+    const sessionId = (event as { sessionId?: unknown }).sessionId;
+    if (typeof sessionId !== "string") return;
+    const child = [...path, sessionId];
+    this.send(child, "Fetch.enable", { patterns: [{ urlPattern: "*", requestStage: "Request" }] });
+    this.send(child, "Target.setAutoAttach", {
+      autoAttach: true,
+      waitForDebuggerOnStart: true,
+      flatten: false,
+    });
+    this.send(child, "Runtime.runIfWaitingForDebugger");
+  }
+
+  /** An event from a target below `path`, wrapped once for each level. */
+  private received(path: SessionPath, event: unknown): void {
+    const { sessionId, message } = event as { sessionId?: unknown; message?: unknown };
+    if (typeof sessionId !== "string" || typeof message !== "string") return;
+    let inner: { method?: unknown; params?: unknown };
+    try {
+      inner = JSON.parse(message) as typeof inner;
+    } catch {
+      return;
+    }
+    const at = [...path, sessionId];
+    if (inner.method === "Fetch.requestPaused") this.paused(at, inner.params);
+    else if (inner.method === "Target.attachedToTarget") this.attached(at, inner.params);
+    else if (inner.method === "Target.receivedMessageFromTarget") this.received(at, inner.params);
+  }
+}
+
 /**
  * Watches one browser context for what a hostile page tries, stops it, and keeps the record. Made by
  * `armContext`, before any page opens.
@@ -106,8 +309,14 @@ function hopsBefore(request: Request): number {
 export class ContextGuard {
   private readonly tried = new Map<StoppedKind, Stopped>();
   private tooManyRedirects = false;
+  private privateNavigation = false;
+  private mainPage: Page | undefined;
 
-  constructor(private readonly limits: Limits) {}
+  /** `rule` is the private-network rule, or undefined when it does not hold for this scan. */
+  constructor(
+    private readonly limits: Limits,
+    readonly rule?: PrivateNetworkRule,
+  ) {}
 
   /** What the page tried and was stopped from doing, in a fixed order, only the kinds it tried. */
   stopped(): Stopped[] {
@@ -120,6 +329,29 @@ export class ContextGuard {
   /** Whether the page asked for went past the redirect cap, so the scan stopped following it. */
   get redirectCapReached(): boolean {
     return this.tooManyRedirects;
+  }
+
+  /** Whether the scanned page's own frame was stopped going to a private address. */
+  get privateNavigationBlocked(): boolean {
+    return this.privateNavigation;
+  }
+
+  /** A request to a private address, stopped. */
+  blocked(url: string, mainFrame: boolean): void {
+    this.note("private-network", url);
+    if (mainFrame) this.privateNavigation = true;
+  }
+
+  /**
+   * Whether a request comes from the scanned page: any of its frames, or its workers. A navigation whose
+   * frame does not exist yet is a new page's, a pop-up's (playwright-core 1.65.1 has no frame for it).
+   */
+  fromMainPage(request: Request): boolean {
+    try {
+      return request.frame().page() === this.mainPage;
+    } catch {
+      return !request.isNavigationRequest();
+    }
   }
 
   note(kind: StoppedKind, example: string): void {
@@ -145,9 +377,17 @@ export class ContextGuard {
 
   /**
    * The page the scan loads. Every redirect of its main frame is counted, and past the cap the page is
-   * closed, which stops the browser following the chain.
+   * closed, which stops the browser following the chain. When the private-network rule holds, every request
+   * of the page, its frames and its workers, redirect hops included, is judged by it (`FetchGuard`).
+   * Awaited before the page loads anything.
    */
-  watchMainPage(page: Page): void {
+  async watchMainPage(page: Page): Promise<void> {
+    this.mainPage = page;
+    const rule = this.rule;
+    if (rule !== undefined) {
+      const session = await page.context().newCDPSession(page);
+      await new FetchGuard(session, rule, (url, mainFrame) => this.blocked(url, mainFrame)).start();
+    }
     page.on("request", (request) => {
       if (this.tooManyRedirects || !request.isNavigationRequest()) return;
       let mainFrame: boolean;
@@ -168,14 +408,21 @@ export class ContextGuard {
  * Sets the defences on a new context, before any page opens:
  * - every page (the scanned page, axe-core's own, and any pop-up) gets the dialog and download rules;
  * - a pop-up (any page with an opener: `window.open`, `target="_blank"`, with or without `noopener`) is
- *   closed at once and noted. axe-core's own page has no opener and is left alone.
- *
- * Issue #9 adds the private-network rule here: a context route that aborts requests from a public target
- * to loopback, link-local and private addresses, and `routeWebSocket` for WebSockets, which `route` does
- * not see. Remember, when it does, that redirect hops after the first request do not go through `route`.
+ *   closed at once and noted. axe-core's own page has no opener and is left alone;
+ * - when the private-network rule holds (a public target, no `--allow-private`): a context route aborts the
+ *   first request of every chain to a private address, from any page, frame or worker, and
+ *   `routeWebSocket` closes every WebSocket to one before it connects, since WebSockets do not pass
+ *   through `route`. Both are noted. Redirect hops do not pass through `route` either: `watchMainPage`
+ *   stops those of the scanned page, and the route lets no other page (a pop-up) load anything at all, so a
+ *   pop-up's chain never starts.
  */
-export function armContext(context: BrowserContext, limits: Limits = LIMITS): ContextGuard {
-  const guard = new ContextGuard(limits);
+export async function armContext(
+  context: BrowserContext,
+  limits: Limits = LIMITS,
+  network: NetworkOptions = {},
+): Promise<ContextGuard> {
+  const rule = privateNetworkRule(network);
+  const guard = new ContextGuard(limits, rule);
   context.on("page", (page) => {
     guard.armPage(page);
     page
@@ -187,6 +434,32 @@ export function armContext(context: BrowserContext, limits: Limits = LIMITS): Co
       })
       .catch(() => undefined);
   });
+  if (rule !== undefined) {
+    await context.route("**/*", async (route) => {
+      const request = route.request();
+      if (rule.blocks(request.url())) {
+        let mainFrame = false;
+        try {
+          mainFrame = request.isNavigationRequest() && request.frame() === request.frame().page().mainFrame();
+        } catch {
+          // a request with no frame is not a navigation of the page
+        }
+        guard.blocked(request.url(), mainFrame && guard.fromMainPage(request));
+        await route.abort("blockedbyclient");
+      } else if (!guard.fromMainPage(request)) {
+        await route.abort("blockedbyclient");
+      } else {
+        await route.fallback();
+      }
+    });
+    await context.routeWebSocket(
+      (url) => rule.blocks(url.href),
+      async (socket) => {
+        guard.note("private-network", socket.url());
+        await socket.close();
+      },
+    );
+  }
   return guard;
 }
 

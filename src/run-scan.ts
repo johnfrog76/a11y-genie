@@ -9,6 +9,7 @@ import {
   isAllowedScheme,
   LIMITS,
   redirectsOf,
+  testPublicOrigins,
   type ContextGuard,
   type Limits,
 } from "./context.js";
@@ -78,11 +79,16 @@ const DOWNLOAD_STARTED = /Download is starting/;
  * Why a page that answered reads *not scanned*, from the error its load ended with, or undefined when the
  * error is not one of these.
  */
+/** Why a page reads *not scanned* when its own frame was stopped going to a private address. */
+export const PRIVATE_NAVIGATION =
+  "it went to a loopback, link-local or private address, which a public page may not reach, and the scan stopped it (--allow-private lets it through)";
+
 export function answeredButNotScanned(
   error: unknown,
-  guard: Pick<ContextGuard, "redirectCapReached">,
+  guard: Pick<ContextGuard, "redirectCapReached" | "privateNavigationBlocked">,
   limits: Limits,
 ): string | undefined {
+  if (guard.privateNavigationBlocked) return PRIVATE_NAVIGATION;
   if (guard.redirectCapReached) {
     return `it redirected more than ${limits.redirects} times, so the scan stopped following it`;
   }
@@ -112,6 +118,13 @@ export interface RunScanOptions {
   onLoaded?: (page: Page) => Promise<void>;
   /** The limits the page is held to (src/context.ts). Tests shorten them; `--timeout` will set `pageMs`. */
   limits?: Partial<Limits>;
+  /** `--allow-private`: a public page may reach loopback, link-local and private addresses. */
+  allowPrivate?: boolean;
+  /**
+   * For tests only: origins read as public (src/context.ts, `TEST_PUBLIC_ORIGINS_ENV`, which is read when
+   * this is not given). It can only turn the private-network rule on for a loopback target.
+   */
+  publicOrigins?: readonly string[];
 }
 
 /** The time as `2026-11-19T20:14:03Z`: ISO 8601, to the second, in UTC. */
@@ -185,6 +198,7 @@ async function loadAndScan(
     if ((error as Error).name !== "TimeoutError") throw error;
     return notScanned(`it did not finish loading within ${seconds} seconds`, redirects);
   }
+  if (guard.privateNavigationBlocked) return notScanned(PRIVATE_NAVIGATION, redirects);
   const loadedUrl = tab.url();
   if (!isAllowedScheme(loadedUrl)) {
     return notScanned(`it went to ${schemeOf(loadedUrl)}, which is not http: or https:`, redirects);
@@ -207,6 +221,7 @@ async function loadAndScan(
     throw error;
   }
   if (axe === TIMED_OUT) return notScanned(`the scan did not finish within ${seconds} seconds`, redirects);
+  if (guard.privateNavigationBlocked) return notScanned(PRIVATE_NAVIGATION, redirects);
   const finalUrl = tab.url();
   if (!isAllowedScheme(finalUrl)) {
     return notScanned(`it went to ${schemeOf(finalUrl)}, which is not http: or https:`, redirects);
@@ -238,10 +253,14 @@ export async function runScan(options: RunScanOptions): Promise<ScanRecord> {
   };
   return withChosenBrowser(choice, async (browser, used) => {
     const context = await browser.newContext(CONTEXT_OPTIONS);
-    const guard = armContext(context, limits);
+    const guard = await armContext(context, limits, {
+      target: options.url,
+      allowPrivate: options.allowPrivate ?? false,
+      publicOrigins: options.publicOrigins ?? testPublicOrigins(),
+    });
     await options.onContext?.(context);
     const tab = await context.newPage();
-    guard.watchMainPage(tab);
+    await guard.watchMainPage(tab);
     const loaded = await loadAndScan(tab, guard, options, limits);
     return buildScanRecord({
       tool: packageInfo(),

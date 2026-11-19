@@ -20,7 +20,7 @@ Usage:
   a11y-genie --version
   a11y-genie --help
   a11y-genie scan <url> [--json] [--out <folder>] [--format md,json]
-                  [--browser-channel chrome|msedge|chromium] [--no-download]
+                  [--browser-channel chrome|msedge|chromium] [--no-download] [--allow-private]
 
 Flags:
   --json             print scan.json on stdout; everything else goes to stderr
@@ -29,6 +29,8 @@ Flags:
   --browser-channel  which browser to launch: chrome (the default) or msedge, installed on this machine,
                      or chromium, Playwright's own, downloaded once if it is not there yet
   --no-download      never download Playwright's Chromium: with no Chrome, refuse instead
+  --allow-private    let a public page reach loopback, link-local and private addresses, which
+                     are blocked by default. A target that is itself one of them is never limited
 
 With no Chrome, and no --browser-channel, A11y Genie says so and downloads Playwright's Chromium once.
 
@@ -63,6 +65,7 @@ const STOPPED_WORDS = {
   dialog: ["dialog", "dialogs", "dismissed"],
   popup: ["pop-up window", "pop-up windows", "closed"],
   download: ["download", "downloads", "cancelled"],
+  "private-network": ["request to a private address", "requests to private addresses", "blocked"],
 } as const;
 
 /** `--format md,json`, repeatable: each value is a comma-separated list. */
@@ -118,6 +121,7 @@ async function scan(args: string[]): Promise<void> {
     format?: string[] | undefined;
     json?: boolean | undefined;
     "no-download"?: boolean | undefined;
+    "allow-private"?: boolean | undefined;
   };
   let positionals: string[];
   try {
@@ -129,6 +133,7 @@ async function scan(args: string[]): Promise<void> {
         format: { type: "string", multiple: true },
         json: { type: "boolean" },
         "no-download": { type: "boolean" },
+        "allow-private": { type: "boolean" },
       },
       allowPositionals: true,
       strict: true,
@@ -154,6 +159,7 @@ async function scan(args: string[]): Promise<void> {
     channel,
     named: values["browser-channel"] !== undefined,
     download: values["no-download"] !== true,
+    allowPrivate: values["allow-private"] === true,
   });
 
   const root = values.out ?? defaultScansDir();
