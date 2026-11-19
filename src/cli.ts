@@ -10,6 +10,7 @@ import { Refusal } from "./refusal.js";
 import { emptyScanSentence, renderReport } from "./report.js";
 import { addressKindOfUrl } from "./private-address.js";
 import { DEFAULT_FAIL_ON, parseFailOn, parseTags } from "./rule-flags.js";
+import { rulesCommand } from "./rules-command.js";
 import { runScan } from "./run-scan.js";
 import { scanJson } from "./scan-record.js";
 import { defaultScansDir, makeScanFolder, writeScanFile } from "./scans-folder.js";
@@ -21,6 +22,7 @@ It never says a site is "accessible" or "compliant". Automated checks find some 
 Usage:
   a11y-genie --version
   a11y-genie --help
+  a11y-genie rules [--tags <list>] [--json]
   a11y-genie scan <url> [--json] [--out <folder>] [--format md,json]
                   [--browser-channel chrome|msedge|chromium] [--no-download] [--allow-private]
                   [--tags <list>] [--fail-on <impact>] [--same-origin] [--offline]
@@ -53,6 +55,11 @@ Commands:
              scan.json and report.md. Exit 0: no findings. Exit 1: findings, or the page
              could not be scanned (the scan says why).
 
+  rules      list every rule A11y Genie runs: axe-core's, at the version it pins, and its own genie/ rules,
+             with impact, WCAG criteria and tags. --tags <list> keeps the rules with one of those tags;
+             --json prints them as one JSON document (docs/JSON.md). It needs no browser and no network.
+             Exit 0.
+
 Exit codes: 0 no findings, 1 findings or not scanned, 2 a refusal (one Error: line and one Hint: line,
 nothing written), 3 something unexpected, 130 Ctrl-C.
 
@@ -60,7 +67,6 @@ Commands (coming, none works yet):
   check      scan again and say what is new and what is fixed
   narrate    describe a keyboard workflow step by step
   cards      turn findings into cards
-  rules      list the checks
   checklist  the questions a scan cannot answer
   ignore     set a finding aside, with a reason and a date
   report     write a report again from a stored scan
@@ -260,6 +266,7 @@ async function scan(args: string[]): Promise<void> {
 
 async function main(args: string[]): Promise<void> {
   if (args[0] === "scan") return scan(args.slice(1));
+  if (args[0] === "rules") return rulesCommand(args.slice(1), HELP_HINT);
   if (args.includes("--version")) {
     console.log(packageInfo().version);
   } else if (args.length === 0 || args.includes("--help")) {
