@@ -19,6 +19,7 @@ const CONTENT_TYPES: Record<string, string> = {
   ".png": "image/png",
   ".txt": "text/plain; charset=utf-8",
 };
+// Anything else, `.bin` among them, is served as application/octet-stream, which a browser downloads.
 
 export interface FixtureServer {
   /** The origin, such as `http://127.0.0.1:41234`, with no trailing slash. */
@@ -30,12 +31,24 @@ export interface FixtureServer {
   close(): Promise<void>;
 }
 
+export interface FixtureServerOptions {
+  /**
+   * Paths that answer with a `302` to the address given, such as `{ "/to-file": "file:///etc/hosts" }`.
+   * The hostile-page tests use them for redirects the static files cannot make.
+   */
+  redirects?: Record<string, string>;
+}
+
 /**
  * Serves a folder of static files from 127.0.0.1 on a random free port.
  * Start it in `beforeAll` and close it in `afterAll`, so each test file has its own.
  */
-export async function startFixtureServer(root: string = FIXTURE_SITE_DIR): Promise<FixtureServer> {
+export async function startFixtureServer(
+  root: string = FIXTURE_SITE_DIR,
+  options: FixtureServerOptions = {},
+): Promise<FixtureServer> {
   const rootDir = normalize(root.endsWith(sep) ? root : root + sep);
+  const redirects = new Map(Object.entries(options.redirects ?? {}));
 
   const server: Server = createServer((req, res) => {
     void (async () => {
@@ -48,6 +61,11 @@ export async function startFixtureServer(root: string = FIXTURE_SITE_DIR): Promi
         pathname = decodeURIComponent(new URL(req.url ?? "/", "http://fixture.invalid").pathname);
       } catch {
         res.writeHead(400).end();
+        return;
+      }
+      const location = redirects.get(pathname);
+      if (location !== undefined) {
+        res.writeHead(302, { location, "cache-control": "no-store" }).end();
         return;
       }
       const file = normalize(join(rootDir, pathname));
