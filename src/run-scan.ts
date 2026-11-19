@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import type { BrowserContext, Page } from "playwright-core";
 import { scanPage } from "./axe.js";
+import { actionSteps, applyMedia, runSteps, SETTLE_MS, StepFailure } from "./drive.js";
 import type { BrowserChannel } from "./browser.js";
 import { withChosenBrowser, type BrowserChoiceDeps } from "./browser-choice.js";
 import {
@@ -9,15 +10,22 @@ import {
   isAllowedScheme,
   LIMITS,
   redirectsOf,
+  STOPPED_KINDS,
   testPublicOrigins,
   type ContextGuard,
   type Limits,
+  type Stopped,
+  type StoppedKind,
 } from "./context.js";
 import type { AxeScan } from "./finding.js";
 import { pageKeyOf } from "./map-axe.js";
 import { packageInfo } from "./package-info.js";
 import { Refusal } from "./refusal.js";
-import { buildScanRecord, type ScanRecord } from "./scan-record.js";
+import type { NoDownloadFlag } from "./browser-choice.js";
+import type { Impact } from "./finding.js";
+import { DEFAULT_FAIL_ON } from "./rule-flags.js";
+import { buildPagesRecord, type PageResult, type ScanRecord, type StateResult } from "./scan-record.js";
+import type { State } from "./steps.js";
 
 /** How long the first page may take to answer before the scan refuses, in milliseconds. */
 export const NAVIGATION_TIMEOUT_MS = 30_000;
@@ -41,6 +49,16 @@ function navigationTimeoutMs(env: NodeJS.ProcessEnv = process.env): number {
  * `answeredButNotScanned`.
  */
 export function noAnswerRefusal(error: unknown, url: string, timeoutMs: number): Refusal | null {
+  const reason = noAnswerReason(error, timeoutMs);
+  if (reason === null) return null;
+  return new Refusal(
+    `${new URL(url).origin} did not answer: ${reason}.`,
+    "check the address, and that the server is running.",
+  );
+}
+
+/** Why a page did not answer, in this tool's words, or null when the error is something else. */
+export function noAnswerReason(error: unknown, timeoutMs: number): string | null {
   if (!(error instanceof Error)) return null;
   const code = /net::(ERR_[A-Z0-9_]+)/.exec(error.message)?.[1];
   const reasons: Record<string, string> = {
@@ -51,10 +69,7 @@ export function noAnswerRefusal(error: unknown, url: string, timeoutMs: number):
   if (error.name === "TimeoutError") reason = `no answer within ${timeoutMs / 1000} seconds`;
   else if (code !== undefined) reason = reasons[code] ?? `the browser reported ${code}`;
   else return null;
-  return new Refusal(
-    `${new URL(url).origin} did not answer: ${reason}.`,
-    "check the address, and that the server is running.",
-  );
+  return reason;
 }
 
 /**
@@ -83,12 +98,29 @@ const DOWNLOAD_STARTED = /Download is starting/;
 export const PRIVATE_NAVIGATION =
   "it went to a loopback, link-local or private address, which a public page may not reach, and the scan stopped it (--allow-private lets it through)";
 
+export const OFFLINE_NAVIGATION =
+  "it went to an address that is not on this machine, and --offline stopped it";
+export const OTHER_ORIGIN_NAVIGATION = "it went to another origin, and --same-origin stopped it";
+
+/** Why a page reads *not scanned* when a network rule stopped its own frame, by the rule that did. */
+const NAVIGATION_REASONS: Partial<Record<StoppedKind, string>> = {
+  "private-network": PRIVATE_NAVIGATION,
+  offline: OFFLINE_NAVIGATION,
+  "other-origin": OTHER_ORIGIN_NAVIGATION,
+};
+
+function navigationReason(guard: Pick<ContextGuard, "blockedNavigation">): string | undefined {
+  const kind = guard.blockedNavigation;
+  return kind === undefined ? undefined : NAVIGATION_REASONS[kind];
+}
+
 export function answeredButNotScanned(
   error: unknown,
-  guard: Pick<ContextGuard, "redirectCapReached" | "privateNavigationBlocked">,
+  guard: Pick<ContextGuard, "redirectCapReached" | "blockedNavigation">,
   limits: Limits,
 ): string | undefined {
-  if (guard.privateNavigationBlocked) return PRIVATE_NAVIGATION;
+  const stopped = navigationReason(guard);
+  if (stopped !== undefined) return stopped;
   if (guard.redirectCapReached) {
     return `it redirected more than ${limits.redirects} times, so the scan stopped following it`;
   }
@@ -100,8 +132,22 @@ export function answeredButNotScanned(
   return code === undefined ? undefined : ANSWERED_BUT_STOPPED[code];
 }
 
-export interface RunScanOptions {
+/** One page to scan, and the states to scan it in beside `default`, which always runs first. */
+export interface PageSpec {
+  /** The full address. Every page of a run is on the first one's origin. */
   url: string;
+  /** The page's name in finding ids; without it, from the address's path (D6). */
+  key?: string;
+  states: State[];
+}
+
+export interface RunScanOptions {
+  /** The address the run is about: the first page's, and the origin the private-network rule judges. */
+  url: string;
+  /** The pages to scan, in order. Default: just `url`, in the default state. */
+  pages?: PageSpec[];
+  /** `--storage-state`: a Playwright storage state file, read for each state's context and never copied. */
+  storageState?: string;
   channel: BrowserChannel;
   /**
    * Whether `--browser-channel` named the channel. Unless it is `false`, a missing browser is refused and
@@ -120,6 +166,19 @@ export interface RunScanOptions {
   limits?: Partial<Limits>;
   /** `--allow-private`: a public page may reach loopback, link-local and private addresses. */
   allowPrivate?: boolean;
+  /** `--same-origin`: requests to any origin but the target's are aborted and noted. */
+  sameOrigin?: boolean;
+  /**
+   * `--offline`: only a loopback target, every request off loopback aborted and noted, and no browser
+   * download. The command has checked the target; this makes the download refuse.
+   */
+  offline?: boolean;
+  /** `--tags`: the axe-core tags to run, or none for axe-core's default rule set. */
+  tags?: readonly string[];
+  /** `--fail-on`: the lowest impact that makes the exit 1. Default `minor`. */
+  failOn?: Impact;
+  /** The flag a refused download names. Default: `--offline` when `offline`, else `--no-download`. */
+  noDownloadFlag?: NoDownloadFlag;
   /**
    * For tests only: origins read as public (src/context.ts, `TEST_PUBLIC_ORIGINS_ENV`, which is read when
    * this is not given). It can only turn the private-network rule on for a loopback target.
@@ -154,6 +213,15 @@ async function within<T>(work: Promise<T>, ms: number): Promise<T | typeof TIMED
   }
 }
 
+/** What one state of one page is: where it is, what it is called, and whether it is the run's first load. */
+interface Unit {
+  url: string;
+  key: string;
+  state: State;
+  /** The run's first load, the only one whose failure to answer is a refusal. */
+  first: boolean;
+}
+
 type Loaded =
   | { scanned: true; axe: AxeScan; url: string; redirects: number }
   | { scanned: false; reason: string; url: string; redirects: number };
@@ -167,8 +235,9 @@ async function loadAndScan(
   guard: ContextGuard,
   options: RunScanOptions,
   limits: Limits,
+  unit: Unit,
 ): Promise<Loaded> {
-  const requested = options.url;
+  const requested = unit.url;
   const deadline = Date.now() + limits.pageMs;
   const left = () => Math.max(1, deadline - Date.now());
   const seconds = limits.pageMs / 1000;
@@ -188,6 +257,11 @@ async function loadAndScan(
   } catch (error) {
     const why = answeredButNotScanned(error, guard, limits);
     if (why !== undefined) return notScanned(why);
+    if (!unit.first) {
+      // Only the first page of a run must answer; a later one that does not reads *not scanned*.
+      const reason = noAnswerReason(error, timeout);
+      if (reason !== null) return notScanned(`it did not answer: ${reason}`);
+    }
     throw noAnswerRefusal(error, requested, timeout) ?? error;
   }
 
@@ -198,7 +272,8 @@ async function loadAndScan(
     if ((error as Error).name !== "TimeoutError") throw error;
     return notScanned(`it did not finish loading within ${seconds} seconds`, redirects);
   }
-  if (guard.privateNavigationBlocked) return notScanned(PRIVATE_NAVIGATION, redirects);
+  const stoppedGoing = navigationReason(guard);
+  if (stoppedGoing !== undefined) return notScanned(stoppedGoing, redirects);
   const loadedUrl = tab.url();
   if (!isAllowedScheme(loadedUrl)) {
     return notScanned(`it went to ${schemeOf(loadedUrl)}, which is not http: or https:`, redirects);
@@ -206,13 +281,33 @@ async function loadAndScan(
 
   await options.onLoaded?.(tab);
 
+  if (actionSteps(unit.state.steps).length > 0) {
+    let done: unknown;
+    try {
+      done = await within(runSteps(tab, unit.state.steps, left), left());
+    } catch (error) {
+      if (error instanceof StepFailure) return notScanned(error.message, redirects);
+      if (tab.isClosed()) return notScanned("the page closed itself while its steps ran", redirects);
+      throw error;
+    }
+    if (done === TIMED_OUT) {
+      return notScanned(`its steps did not finish within ${seconds} seconds`, redirects);
+    }
+    // Let what the steps started settle (spec 5.2): the network quiet, then a short wait.
+    await tab.waitForLoadState("networkidle", { timeout: Math.min(2_000, left()) }).catch(() => undefined);
+    await tab.waitForTimeout(Math.min(SETTLE_MS, left())).catch(() => undefined);
+    if (tab.isClosed()) return notScanned("the page closed itself while its steps ran", redirects);
+    const stoppedSteps = navigationReason(guard);
+    if (stoppedSteps !== undefined) return notScanned(stoppedSteps, redirects);
+  }
+
   let navigations = 0;
   tab.on("framenavigated", (frame) => {
     if (frame === tab.mainFrame()) navigations += 1;
   });
   let axe: AxeScan | typeof TIMED_OUT;
   try {
-    axe = await within(scanPage(tab, pageKeyOf(requested)), left());
+    axe = await within(scanPage(tab, unit.key, options.tags ?? null), left());
   } catch (error) {
     // A page that moves while axe-core reads it leaves nothing to read: say so rather than fail.
     if (navigations > 0 || tab.isClosed()) {
@@ -221,7 +316,8 @@ async function loadAndScan(
     throw error;
   }
   if (axe === TIMED_OUT) return notScanned(`the scan did not finish within ${seconds} seconds`, redirects);
-  if (guard.privateNavigationBlocked) return notScanned(PRIVATE_NAVIGATION, redirects);
+  const stoppedAfter = navigationReason(guard);
+  if (stoppedAfter !== undefined) return notScanned(stoppedAfter, redirects);
   const finalUrl = tab.url();
   if (!isAllowedScheme(finalUrl)) {
     return notScanned(`it went to ${schemeOf(finalUrl)}, which is not http: or https:`, redirects);
@@ -238,45 +334,106 @@ function schemeOf(url: string): string {
   }
 }
 
+/** The pages' `stopped` lists as one: counts added, the first few examples kept. */
+function mergeStopped(lists: Stopped[][], limits: Limits): Stopped[] {
+  const merged = new Map<Stopped["kind"], Stopped>();
+  for (const entry of lists.flat()) {
+    const into = merged.get(entry.kind) ?? { kind: entry.kind, count: 0, examples: [] };
+    into.count += entry.count;
+    for (const example of entry.examples) {
+      if (into.examples.length < limits.stoppedExamples) into.examples.push(example);
+    }
+    merged.set(entry.kind, into);
+  }
+  return STOPPED_KINDS.flatMap((kind) => merged.get(kind) ?? []);
+}
+
 /**
- * Loads one URL in a new context of a browser with a new, empty profile, scans it, and returns the record.
- * The context is made and guarded by src/context.ts.
+ * Scans each page in each of its states (spec 5.2): for every state, `default` first, a new browser context
+ * of a browser with a new, empty profile, guarded by src/context.ts, with a fresh load of the page, so no
+ * state leaks into another. The state's media is set, the page loads, its steps run, and axe-core reads it.
+ * Returns the record.
  */
 export async function runScan(options: RunScanOptions): Promise<ScanRecord> {
   const startedAt = stamp();
   const limits: Limits = { ...LIMITS, ...options.limits };
+  const specs = options.pages ?? [{ url: options.url, states: [] }];
   const choice = {
     channel: options.channel,
     named: options.named ?? true,
-    download: options.download ?? false,
+    // `--offline` downloads nothing, whatever `download` says.
+    download: options.offline === true ? false : (options.download ?? false),
+    noDownloadFlag: options.noDownloadFlag ?? (options.offline === true ? "--offline" : "--no-download"),
     deps: options.browserDeps,
   };
   return withChosenBrowser(choice, async (browser, used) => {
-    const context = await browser.newContext(CONTEXT_OPTIONS);
-    const guard = await armContext(context, limits, {
-      target: options.url,
-      allowPrivate: options.allowPrivate ?? false,
-      publicOrigins: options.publicOrigins ?? testPublicOrigins(),
-    });
-    await options.onContext?.(context);
-    const tab = await context.newPage();
-    await guard.watchMainPage(tab);
-    const loaded = await loadAndScan(tab, guard, options, limits);
-    return buildScanRecord({
+    const pages: PageResult[] = [];
+    let first = true;
+    for (const spec of specs) {
+      const key = spec.key ?? pageKeyOf(spec.url);
+      const states: StateResult[] = [];
+      const stopped: Stopped[][] = [];
+      let landed: { url: string; redirects: number } | undefined;
+      let defaultLoad: { url: string; redirects: number } | undefined;
+      for (const state of [DEFAULT_STATE, ...spec.states]) {
+        const context = await browser.newContext({
+          ...CONTEXT_OPTIONS,
+          ...(options.storageState === undefined ? {} : { storageState: options.storageState }),
+        });
+        try {
+          const guard = await armContext(context, limits, {
+            target: options.url,
+            allowPrivate: options.allowPrivate ?? false,
+            publicOrigins: options.publicOrigins ?? testPublicOrigins(),
+            sameOrigin: options.sameOrigin ?? false,
+            offline: options.offline ?? false,
+          });
+          await options.onContext?.(context);
+          const tab = await context.newPage();
+          await guard.watchMainPage(tab);
+          await applyMedia(tab, state.steps);
+          const loaded = await loadAndScan(tab, guard, options, limits, { url: spec.url, key, state, first });
+          first = false;
+          stopped.push(guard.stopped());
+          if (state === DEFAULT_STATE) defaultLoad = { url: loaded.url, redirects: loaded.redirects };
+          landed ??= loaded.scanned ? { url: loaded.url, redirects: loaded.redirects } : undefined;
+          states.push(
+            loaded.scanned
+              ? { name: state.name, axe: loaded.axe }
+              : { name: state.name, axe: null, notScanned: loaded.reason },
+          );
+        } finally {
+          await context.close().catch(() => undefined);
+        }
+      }
+      // The page is where its default state ended; failing that, where the first state that loaded did.
+      const where =
+        defaultLoad !== undefined && states[0]?.axe !== null ? defaultLoad : (landed ?? defaultLoad);
+      pages.push({
+        key,
+        url: where?.url ?? spec.url,
+        requestedUrl: spec.url,
+        redirects: where?.redirects ?? 0,
+        stopped: mergeStopped(stopped, limits),
+        states,
+      });
+    }
+    return buildPagesRecord({
       tool: packageInfo(),
       browser: `${used.channel} ${browser.version()}`,
       fallback: used.fallback,
-      requestedUrl: options.url,
-      url: loaded.url,
-      redirects: loaded.redirects,
-      pageKey: pageKeyOf(options.url),
       startedAt,
       finishedAt: stamp(),
-      axe: loaded.scanned ? loaded.axe : null,
-      axeCore: loaded.scanned ? loaded.axe.axeCore : installedAxeVersion(),
-      ...(loaded.scanned ? {} : { notScanned: loaded.reason }),
-      stopped: guard.stopped(),
+      axeCore: installedAxeVersion(),
+      pages,
       limits,
+      tags: options.tags ?? null,
+      failOn: options.failOn ?? DEFAULT_FAIL_ON,
+      sameOrigin: options.sameOrigin ?? false,
+      offline: options.offline ?? false,
     });
   });
 }
+
+/** The state every page is scanned in first: no steps. */
+const DEFAULT_STATE: State = { name: "default", steps: [] };

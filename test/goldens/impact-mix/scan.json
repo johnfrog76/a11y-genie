@@ -1,5 +1,5 @@
 {
-  "schema": "1.2",
+  "schema": "1.4",
   "tool": {
     "name": "a11y-genie",
     "version": "0.0.0"
@@ -198,5 +198,10 @@
     "elementsPerFinding": 500,
     "excerptChars": 160,
     "scanJsonBytes": 52428800
+  },
+  "options": {
+    "failOn": "minor",
+    "sameOrigin": false,
+    "offline": false
   }
 }

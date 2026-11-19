@@ -1,0 +1,18 @@
+# a11y-genie.yaml
+baseUrl: http://localhost:5173
+pages:
+  - key: home
+    path: /
+  - key: settings
+    path: /settings
+    states:
+      - name: menu-open
+        steps: ["click button 'Menu'", "wait menu"]
+      - name: dark
+        steps: ["colorScheme dark"]
+      - name: delete-dialog
+        steps: ["click button 'Delete account'", "wait dialog"]
+workflows:
+  - name: change-time-zone
+    page: settings
+    steps: ["Tab to combobox 'Time zone'", "ArrowDown", "Tab to button 'Save'", "Enter"]

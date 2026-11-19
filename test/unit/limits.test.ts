@@ -37,7 +37,11 @@ function withElements(n: number): RecordInput {
   const axe = base.axe!;
   const [first, ...rest] = axe.findings;
   const element = first!.elements[0]!;
-  const many = Array.from({ length: n }, (_, i) => ({ ...element, selector: `img:nth-of-type(${i + 1})` }));
+  const many = Array.from({ length: n }, (_, i) => ({
+    ...element,
+    selector: `img:nth-of-type(${i + 1})`,
+    target: [`img:nth-of-type(${i + 1})`],
+  }));
   return { ...base, axe: { ...axe, findings: [{ ...first!, elements: many }, ...rest] } };
 }
 
@@ -107,7 +111,7 @@ describe("the record's limits", () => {
 });
 
 describe("which loads read not scanned rather than refused", () => {
-  const guard = { redirectCapReached: false, privateNavigationBlocked: false };
+  const guard = { redirectCapReached: false, blockedNavigation: undefined };
   const error = (message: string) => new Error(`page.goto: ${message} at http://127.0.0.1:1/`);
 
   it("a redirect the browser stops, or a download, reads not scanned", () => {
@@ -128,7 +132,7 @@ describe("which loads read not scanned rather than refused", () => {
   });
 
   it("a page whose own frame was stopped going to a private address reads not scanned, and says so", () => {
-    const stopped = { ...guard, privateNavigationBlocked: true };
+    const stopped = { ...guard, blockedNavigation: "private-network" as const };
     expect(answeredButNotScanned(error("net::ERR_BLOCKED_BY_CLIENT"), stopped, LIMITS)).toMatch(
       /loopback, link-local or private address.*--allow-private/,
     );

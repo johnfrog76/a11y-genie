@@ -64,7 +64,9 @@ a machine that has Chrome. It can only make a run refuse; it never launches or d
    replaced.
 3. Playwright's Chromium, by that fallback or by `--browser-channel chromium`, is used from Playwright's cache
    if it is installed there. If it is not, one line on stderr says so, and then playwright-core's installer
-   downloads it, once. With `--no-download` the run refuses instead (docs/EXIT-CODES.md has the words).
+   downloads it, once. With `--no-download`, or `--offline` (nothing may leave the machine, a download included),
+   the run refuses instead; the refusal names the flag (docs/EXIT-CODES.md has the words). A Chromium already in
+   the cache is still used under `--offline`: nothing is fetched.
 4. It is launched like any other browser, by `withBrowser("chromium")`: `channel: "chromium"`, headless, a new,
    empty profile deleted after the run.
 
@@ -222,9 +224,9 @@ question.
 `scanPage(page)` runs axe-core on a page that is already loaded and returns its findings and *needs review*
 items (`src/finding.ts`), worst first. It is split in three so that only the first part needs a browser:
 
-- `src/axe.ts` runs `@axe-core/playwright` with axe-core's default rule set. There is no `withTags` until
-  `--tags` exists. `@axe-core/playwright` injects axe-core from the installed package into the page and each
-  of its frames; it fetches nothing.
+- `src/axe.ts` runs `@axe-core/playwright` with axe-core's default rule set, or, with `--tags`, with exactly
+  the tags given (`withTags`; see *The rule flags*, below). `@axe-core/playwright` injects axe-core from the
+  installed package into the page and each of its frames; it fetches nothing.
 - `src/map-axe.ts` turns axe-core's results into findings. axe-core runs inside the page, so its results
   come back through `page.evaluate`, and a page can tamper with them. They are read as `unknown` and checked
   field by field: a value of the wrong type is dropped. A result with no rule id, or with no element that
@@ -252,8 +254,9 @@ is `experimental`, and none needs to be turned on:
 | `landmark-no-duplicate-main` | `two-mains.html` |
 | `landmark-unique`, `landmark-no-duplicate-banner`, `landmark-no-duplicate-contentinfo`, `landmark-banner-is-top-level`, `landmark-main-is-top-level`, `landmark-contentinfo-is-top-level`, `landmark-complementary-is-top-level` | not fixtured; each carries the `best-practice` tag, and none is `experimental` (`landmark-complementary-is-top-level` is also tagged `deprecated`) |
 
-The spec (6.1.1) wants `region` and `landmark-one-main` on, so nothing is enabled. If `--tags` is given later,
-the `best-practice` tag has to stay in its list for these rules to run.
+The spec (6.1.1) wants `region` and `landmark-one-main` on, so nothing is enabled. A `--tags` list that leaves
+out `best-practice` runs none of the landmark rules, so `--help` and the unknown-tag hint both say the landmark
+rules need it, and `genie/no-landmarks`, which sums them up, is not run either.
 
 **What the product adds.** axe-core reports a page with no landmark at all as `region` on every element it can
 reach plus `landmark-one-main`. `genie/no-landmarks` says it once for the page (moderate, WCAG 1.3.1 and 2.4.1
@@ -265,12 +268,45 @@ do not count: a page with only those has none of the four. It runs on the page's
 it does not change `engine.rulesRun`, which stays axe-core's count. The report lists it as any other finding;
 no landmark map is drawn.
 
+### The list of rules (`src/rules-command.ts`, `src/genie-rules.ts`)
+
+`a11y-genie rules` prints axe-core's rules from `axe.getRules()` at the installed version and the product's own
+`genie/*` rules, each with impact, WCAG criteria and tags (`--json` is documented in `docs/JSON.md`). It runs
+in Node alone: no browser, no network. axe-core's `getRules()` leaves out each rule's impact, so it is read
+from `axe._audit.rules`, the one place axe-core keeps it, and shown as `null` if it is ever missing (a test
+fails when it is, at the pinned version). The own rules come from one registry, `src/genie-rules.ts`: a check
+calls `registerGenieRule` in its module (`src/landmarks.ts` does, for `genie/no-landmarks`, `moderate`, tagged
+`best-practice`), and `src/rules-command.ts` imports that module. A check added later registers itself and
+imports it there, and a rule not built yet is not listed. `--tags` keeps the rules that carry any of the tags,
+as axe-core's own `--tags` runs them, so a list without `best-practice` leaves the landmark rules out.
+
+### The rule flags (`src/rule-flags.ts`)
+
+- **`--tags <list>`** is comma-separated, in the order given, without repeats. The tags it accepts are the ones
+  axe-core's own rule metadata carries (`axe.getRules()` at the installed version, read in Node, nothing listed
+  by hand): `wcag2a`, `wcag21aa`, `best-practice`, `cat.aria`, `experimental` and the rest. An unknown or empty
+  one is a refusal that lists them. `axe.withTags()` then runs exactly those; a rule with none of them does not
+  run, which is how `engine.rulesRun` comes to differ. Without `--tags`, `engine.tags` is `null` and axe-core's
+  default rule set runs (docs/JSON.md). The tags go in as given: `wcag2a` alone does not also run `wcag2aa`.
+- **`--fail-on <impact>`** is `critical`, `serious`, `moderate` or `minor`, default `minor`. The exit is 1 when a
+  violation is at or above it (`atOrAbove`), or a page was not scanned; otherwise 0. A finding below it is still
+  in `scan.json` and `report.md`, so the summary can read *Found 1 problem* and the exit be 0; the command line
+  and the report say why. Advice and *needs review* items never change the exit, with any `--fail-on`: a
+  *needs review* item is something axe-core could not decide, and a person looks (spec 4.3). The floor is
+  recorded in `options.failOn`.
+
 ## One scan, end to end (`src/run-scan.ts`, `src/cli.ts`)
 
-`a11y-genie scan <url>` launches the browser (`withChosenBrowser`, which may fall back to Playwright's Chromium), makes a new context with the hostile-page rules
-(`src/context.ts`, below), loads the page, runs `scanPage`, and builds the record (`src/scan-record.ts`). A
-page that answers and then breaks one of those rules is not scanned: the record says why, and the run still
-writes its files and exits 1. The CLI then makes the scan folder
+`a11y-genie scan <url>` plans what to scan (`src/scan-plan.ts`: the pages, and the states of each, from the
+`--states` flags or the `--config` file, `src/config.ts`), launches the browser (`withChosenBrowser`, which may
+fall back to Playwright's Chromium), and then, for each page and for each of its states, `default` first, makes a
+new context with the hostile-page rules (`src/context.ts`, below), sets the state's media, loads the page, runs
+the state's steps (`src/drive.ts`), runs `scanPage`, and closes the context, so no state sees another's cookies,
+storage or page. The states of a page are merged into one finding per rule (`src/merge-states.ts`), and the record
+is built (`src/scan-record.ts`). A page or state that answers and then breaks one of those rules, or whose step
+fails, is not scanned: the record says why, and the run goes on with the rest, still writes its files and exits 1.
+Only the first page's first load that does not answer is a refusal. `--timeout` sets the limit for one state, and
+`--storage-state` is handed to each context's own storage and never copied. The CLI then makes the scan folder
 (`src/scans-folder.ts`), writes `scan.json`, and writes `report.md` from the record (`src/report.ts`). The
 report is a pure function of the record, so a stored `scan.json` can write it again later.
 
@@ -311,6 +347,8 @@ fixture in the real Chrome, from `127.0.0.1`, with every request off the fixture
 | The element and excerpt caps | at most 500 elements per finding, the rest counted in `elementsCut`; each element's quoted HTML cut at 160 characters in `scan.json` as well as in the report | `many-elements.html` | *the time, element and size caps* |
 | The size cap | `scan.json` at most 50 MB. Over it, elements are dropped, least severe first and never a finding's last one, and counted; if that is not enough, *not scanned* | `many-elements.html`, with the limit lowered | *the time, element and size caps* |
 | Private networks | when the address scanned is public, every request to a loopback, link-local, private or unspecified address is aborted before it leaves the browser and noted under `stopped` as `private-network`; a page whose own frame goes to one reads *not scanned*. `--allow-private` turns it off, and a target that is itself loopback or private is never limited. See *The private-network rule (V12)* below | `private-network.html`, and redirects the test's fixture server makes | *a public page cannot reach private addresses* |
+| `--same-origin` | every request to an origin other than the address scanned (scheme, host and port) is aborted and noted under `stopped` as `other-origin`; a page whose own frame goes to one reads *not scanned*. The report says so, and that some of the page's content may be missing. It is the private-network rule's mechanism, below, asked a second question: there is one interception layer, `networkRule()` in `src/context.ts` | `private-network.html`, and redirects the test's fixture server makes | `test/browser/network-flags.test.ts`, *--same-origin* |
+| `--offline` | the target must be loopback (`127.0.0.0/8`, `::1`, `localhost`, `*.localhost`), or the run is refused; every request to an address that is not loopback is aborted and noted as `offline`, a page whose own frame goes to one reads *not scanned*, and no browser is downloaded. Nothing else of A11y Genie's own leaves the machine either, so there is nothing more to switch off (no ToolKit probe exists yet; spec 8) | `private-network.html`, and redirects the test's fixture server makes | `network-flags.test.ts`, *--offline* |
 | Page text printed without its escapes | `printable()` (`src/printable.ts`) strips every terminal escape sequence whole (CSI, OSC with OSC 8 links and window titles, DCS, APC and the rest, in their 7-bit and 8-bit forms) and every control character but newline and tab (carriage return, DEL, C1 and the bidi overrides and isolates included) from every line the command prints and from all of `report.md`. `scan.json` keeps the page's text exactly, as data, and writes the controls `JSON.stringify` leaves raw (DEL, C1, bidi) as `\u` escapes, so `--json` on a terminal carries none either | `escapes.html` | *page text is printed without its escapes*; `test/cli/scan.test.ts` checks the real terminal output |
 
 What was stopped is recorded per page in `scan.json` (`pages[].stopped`: the kind, a count, and the first five,
@@ -368,7 +406,9 @@ against loopback servers; the two *not*s below are pinned by the test *V12, at p
   a private one reaches the private address with `route()` alone.
 - It does **not** see a WebSocket. `context.routeWebSocket()` does, from the page and from its frames.
 
-So the rule is held in three places, all set in `src/context.ts`:
+So the rules are held in three places, all set in `src/context.ts`, for the private-network rule and for
+`--same-origin` and `--offline` alike (`networkRule()` asks them in that order, `--offline` first, and the first
+that stops a request names its kind):
 
 1. A context route aborts every first request to a private address, from any page, frame or worker. With the
    rule on, it also aborts every request of any page but the scanned one: a pop-up loads nothing, so the redirect
@@ -383,12 +423,14 @@ So the rule is held in three places, all set in `src/context.ts`:
    Playwright's session object cannot send to a flattened child. A dedicated worker's requests are paused in its
    page's session.
 
-Each blocked attempt is noted under `pages[].stopped` (kind `private-network`, the count, and the first five
-addresses). A blocked navigation of the page's own frame, a redirect of the address asked for included, reads
+Each blocked attempt is noted under `pages[].stopped` (kind `private-network`, `other-origin` or `offline`, the
+count, and the first five addresses). A blocked navigation of the page's own frame, a redirect of the address asked for included, reads
 *not scanned*. The tests stand in for a public site with the fixture server, declared public as only a test can
 (`A11Y_GENIE_TEST_PUBLIC_ORIGINS`, which is read only when the address scanned is on one of its origins, so it
 can turn the rule on for a loopback target and never off), and for a private service with a second loopback
-server, which records every request it receives. Each way of reaching it is proved aborted before it arrives,
+server, which records every request it receives. For `--offline` the same declared origins read as off the
+machine (never the target's own), so a second loopback server stands in for a host out on the network; for
+`--same-origin` another port is already another origin, and nothing is declared. Each way of reaching it is proved aborted before it arrives,
 and arriving with `--allow-private`: a fetch, an iframe, an image, a WebSocket, a worker's fetch, the redirect hop
 of an image, a fetch, an iframe and a worker's fetch, a redirect hop inside a frame on another site, a pop-up
 that redirects, and the page moving itself or being redirected there. Each layer was also taken out once, by

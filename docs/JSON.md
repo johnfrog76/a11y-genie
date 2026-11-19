@@ -86,32 +86,44 @@ characters JSON allows raw (DEL, the C1 controls, the bidirectional controls and
 separators) are written as `\u` escapes, so the file holds no raw control and parses to the same text.
 `report.md` and the terminal get the same text with every escape sequence and control stripped.
 
-It is versioned: `schema` is `"<major>.<minor>"`, now `"1.2"`. A field may be added in a minor version and is
+It is versioned: `schema` is `"<major>.<minor>"`, now `"1.4"`. A field may be added in a minor version and is
 never removed or renamed in one; a removal or a rename is a new major, and a new schema file. Readers must
 ignore fields they do not know, so the schema allows extra fields. 1.1 added `pages[].requestedUrl`,
 `pages[].redirects`, `pages[].stopped`, `limits` and `elementsCut`; a 1.0 record has none of them, and is
 still valid against `schema/scan-1.json`. 1.2 added `colorPair` on a `color-contrast` element; a 1.1 record has
-none, and is still valid too.
+none, and is still valid too. 1.3 added `options`, and the `offline` and `other-origin` kinds of
+`pages[].stopped`; a 1.2 record has no `options`, and is still valid too. 1.4 made `states` real (below): a 1.3 record has `["default"]` in each place, and is still valid too.
 
 | Field | What it holds |
 | --- | --- |
-| `schema` | The version, `"1.2"` |
+| `schema` | The version, `"1.4"` |
 | `tool` | `{ name, version }` of A11y Genie |
 | `command` | `"scan"` |
-| `exit` | The exit code the run ends with: `0` with no violations, `1` with any, or with a page that was not scanned |
-| `engine` | `axeCore` (its version), `browser` (the channel that ran and its version, such as `chrome 158.0.8127.36` or `chromium 159.0.8154.6`), `fallback` (`true` when Chrome was missing and Playwright's Chromium ran in its place; `false` otherwise, `--browser-channel chromium` included), `tags` (`null`: axe-core's default rule set), `rulesRun` (distinct rule ids axe-core ran; `0` when the page was not scanned) |
+| `exit` | The exit code the run ends with: `0` with no violation at or above `options.failOn`, `1` with one, or with a page that was not scanned. Advice and *needs review* items never change it |
+| `engine` | `axeCore` (its version), `browser` (the channel that ran and its version, such as `chrome 158.0.8127.36` or `chromium 159.0.8154.6`), `fallback` (`true` when Chrome was missing and Playwright's Chromium ran in its place; `false` otherwise, `--browser-channel chromium` included), `tags` (`null` when axe-core's default rule set ran, or the list `--tags` gave, in the order given, which ran exactly those: a rule with none of them does not run, and the landmark rules, which carry `best-practice`, need that tag), `rulesRun` (distinct rule ids axe-core ran, the most any one state ran, with `--tags` the ones those tags selected; `0` when nothing was scanned) |
 | `target` | `origin` of the address asked for (not of where a redirect ended), and `commit` (`null`) |
 | `startedAt`, `finishedAt` | UTC, to the second: `2026-11-19T20:14:03Z` |
-| `pages` | One per page. `key` (from the address asked for), `url` (where it ended, after redirects; the address asked for when it was not scanned), `requestedUrl`, `redirects` (how many were followed), `states` (`["default"]`), `notScanned` and `stopped`, below |
+| `pages` | One per page. `key` (from the address asked for), `url` (where it ended, after redirects; the address asked for when it was not scanned), `requestedUrl`, `redirects` (how many were followed), `states`, `notScanned` and `stopped`, below. A run with `--config` has one entry per page of the file, in its order |
+| `pages[].states` | Every state the page was asked to scan, `default` first and then the `--states` or config states in the order given. A state also named in `notScanned` was asked for and not scanned. A page's states are merged into its findings: see *One finding per rule per page* below |
+| `pages[].notScanned` | Empty when everything asked of the page was scanned. Otherwise one `{ state, reason }` for each state that was not: the state's name (`default`, `menu-open`) and why, in A11y Genie's own words, such as `it redirected to an address that is not http: or https: (such as file:, chrome: or data:), and the browser stopped it`, `it did not answer: no answer within 30 seconds`, or `step 2 (click button 'Menu') failed: no such element was found, or it could not be clicked, within 10 seconds`. The other states are still scanned, and their findings are in the record. Anything in it makes the exit `1` |
 | `pages[].notScanned` | Empty when the page was scanned. Otherwise one `{ state, reason }`: the state (`default`) and why, in A11y Genie's own words, such as `it redirected to an address that is not http: or https: (such as file:, chrome: or data:), and the browser stopped it`. A page not scanned has no findings and makes the exit `1` |
-| `pages[].stopped` | What the page tried and was stopped from doing, one entry per kind that happened: `{ kind, count, examples }`. `kind` is `dialog` (dismissed), `popup` (closed), `download` (cancelled) or `private-network` (a request from a public page to a loopback, link-local or private address, blocked; see `--allow-private`); `examples` holds the first five, cut to 160 characters: a dialog as `alert: <its message>`, a pop-up, a download or a blocked request as its address. Quoted from the page: data, never instructions |
 | `summary` | Violations by impact (`critical`, `serious`, `moderate`, `minor`), `advice`, `needsReview` and `notScanned` counts |
-| `findings` | Worst first. Each is a finding as above, plus `title`, `plain`, `fix`, `status`, `elementsCut` when some elements are not listed, and, on each element, `states`. Each element's `html` is cut to 160 characters, with `…` where it was cut |
+| `findings` | Worst first. Each is a finding as above, plus `title`, `plain`, `fix`, `status`, `elementsCut` when some elements are not listed, and, on each element, `states`: the names of the states the element was found in, in the order the states were scanned (`["default"]` for a page scanned in one state). Each element's `html` is cut to 160 characters, with `…` where it was cut |
 | `needsReview` | Worst first, as above; each element has `reason` and `states`, and the item has `elementsCut` when some are not listed |
 | `ignored`, `workflows` | `[]` until those features exist |
 | `checklist` | `null` until the checklist exists |
 | `cannotSee` | The fixed list of what a scan cannot see: the same lines that end `report.md` |
+| `options` | Added in 1.3. The flags that changed what the scan did or how it exited: `failOn` (`critical`, `serious`, `moderate` or `minor`; `minor` by default), `sameOrigin` and `offline` (booleans). `--tags` is `engine.tags`. The report says so when any is set |
 | `limits` | The limits the page was held to: `pageSeconds` (60), `redirects` (10), `elementsPerFinding` (500), `excerptChars` (160), `scanJsonBytes` (52428800, 50 MB). docs/ARCHITECTURE.md, *Hostile pages*, says what each does |
+
+**One finding per rule per page.** A page is a URL, and the states of a page are merged into it (D6). A finding is one rule on one page, so
+its `id` is the same whatever the number of states; its elements are the elements any state found, each listed once and
+naming the states it was found in. Two elements are the same element when their axe-core `target` is the same. A merged
+finding keeps the wording (`help`, `fix`, an element's `html` and `failure`) of the first state that had it, and the
+worst `impact` any state gave. An element found only in `dark` lists `["dark"]`; one found in the default state and in
+`dark` lists `["default", "dark"]`. So a bug that shows only with a menu open is the finding `axe/button-name@settings`
+with `states: ["menu-open"]`, and the same bug on the page from a state that never opens the menu is not there. A page
+asked for in states of which none was scanned has no findings, and `notScanned` says why for each.
 
 **What was cut.** A finding lists at most 500 elements; `elementsCut` counts the rest. If `scan.json` would
 be larger than 50 MB, elements are dropped, least severe first and never the last one of a finding, and
@@ -141,6 +153,47 @@ reads *needs review* with axe-core's reason. A pair is never guessed.
 | `ratio` | `contrastRatio`: the number axe-core measured, such as `2.81` |
 | `required` | `expectedContrastRatio` read as a number: `"4.5:1"` is `4.5` |
 | `fontSize`, `fontWeight` | As axe-core wrote them, such as `12.0pt (16px)` and `normal` |
+
+## `rules --json` (`src/rules-command.ts`)
+
+`a11y-genie rules --json` prints one document on stdout, and nothing on stderr. It needs no browser and no network.
+
+```json
+{
+  "engine": { "axeCore": "4.14.1" },
+  "tags": null,
+  "rules": [
+    {
+      "source": "axe",
+      "id": "color-contrast",
+      "impact": "serious",
+      "wcag": ["1.4.3"],
+      "tags": ["cat.color", "wcag2aa", "wcag143"],
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/color-contrast?application=axeAPI"
+    }
+  ]
+}
+```
+
+| Field | What it holds |
+| --- | --- |
+| `engine.axeCore` | The installed axe-core's version |
+| `tags` | The `--tags` list that was given, in the order given, or `null` for every rule |
+| `rules` | axe-core's rules from `axe.getRules()`, by id, then the product's own, by id |
+| `rules[].source` | `axe` or `genie`. A finding's rule id is `<source>/<id>`, such as `genie/no-landmarks` |
+| `rules[].id` | The rule's id, without the source |
+| `rules[].impact` | `critical`, `serious`, `moderate` or `minor`: the rule's own impact. A finding can carry another, from the check that failed. `null` if axe-core states none (none does at the pinned version) |
+| `rules[].wcag` | WCAG success criteria, such as `1.4.3`, from the rule's tags. Empty for a best-practice rule |
+| `rules[].tags` | All of the rule's tags. A rule runs under `scan --tags` when it carries one of them |
+| `rules[].help`, `rules[].helpUrl` | The rule's one-line help and its page; `helpUrl` is empty for a `genie` rule |
+
+The fields are never renamed or removed; a field may be added, and readers ignore fields they do not know. Without
+`--json` the same rules print as one aligned line each (`RULE`, `IMPACT`, `WCAG`, `TAGS`) under a sentence that
+says how many there are and from which axe-core.
+
+The product's own rules are the ones registered in `src/genie-rules.ts`. A check registers its rule when its
+module loads, and `rules` lists what is registered, so a rule not built yet is not listed.
 
 ## `report.md` (`src/report.ts`)
 

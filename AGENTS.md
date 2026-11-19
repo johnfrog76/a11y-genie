@@ -24,12 +24,20 @@ Run all five before you ask for a review. CI runs the same five in that order, o
 - `src/context.ts` holds every hostile-page defence of the browser context and the limits, in one place;
   docs/ARCHITECTURE.md (*Hostile pages*) lists each one with its fixture in `test/fixtures/site/hostile/` and
   its test in `test/browser/hostile.test.ts`.
+- `src/rule-flags.ts` parses `--tags` (against axe-core's own rule tags) and `--fail-on`. `--same-origin` and
+  `--offline` are rules of `src/context.ts`, asked with the private-network rule by `networkRule()`.
 - `src/private-address.ts` says which hosts are loopback, link-local, private or unspecified, for the
   private-network rule in `src/context.ts`.
+- `src/steps.ts` parses the step grammar (`docs/STEPS.md`); `src/drive.ts` runs the steps in the browser;
+  `src/config.ts` reads the config file (`docs/CONFIG.md`) with `src/yaml-subset.ts`, a strict YAML subset
+  reader, so the config needs no dependency; `src/scan-plan.ts` makes the pages and states of a run from
+  `--states` or `--config`; `src/merge-states.ts` merges a page's states into one finding per rule.
 - `src/printable.ts` strips terminal escapes and control characters from page text before it is printed or
   written into `report.md`; every printed line and the whole report pass through it.
 - `src/axe.ts` runs axe-core on a loaded page; `src/map-axe.ts` maps its results to findings (`src/finding.ts`), and
   `src/order.ts` orders them worst first. `src/landmarks.ts` is the product's own `genie/no-landmarks` check.
+- `src/rules-command.ts` is `a11y-genie rules`; `src/genie-rules.ts` is the registry of the product's own
+  `genie/*` rules, which each check registers itself in.
 - `src/banner.ts` holds the genie and his bottle, the drawing for a person at a terminal. Nothing prints it
   yet, and the README's first block is the same drawing.
 - `src/scan-record.ts` builds `scan.json` (`schema/scan-1.json` is its JSON Schema, shipped in the package),

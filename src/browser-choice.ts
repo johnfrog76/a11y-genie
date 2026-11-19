@@ -25,8 +25,10 @@ export interface BrowserChoice {
    * Chromium; a named `chrome` or `msedge` that is not installed is refused, never replaced.
    */
   named: boolean;
-  /** False under `--no-download`: a Chromium that is not installed is refused instead of downloaded. */
+  /** False under `--no-download` or `--offline`: a Chromium that is not installed is refused instead of downloaded. */
   download: boolean;
+  /** The flag the refusal names when `download` is false. Default `--no-download`. */
+  noDownloadFlag?: NoDownloadFlag | undefined;
   /** For tests: stand-ins for the launch and the download. */
   deps?: Partial<BrowserChoiceDeps> | undefined;
 }
@@ -80,15 +82,21 @@ export function fallbackLines(size: string, cache: string) {
   };
 }
 
-/** No Chrome and `--no-download`, or `--browser-channel chromium --no-download` with no Chromium. */
-export function noDownloadRefusal(fallback: boolean): Refusal {
+/** The flags that stop the download, and so name themselves in its refusal. */
+export type NoDownloadFlag = "--no-download" | "--offline";
+
+/**
+ * No Chrome and `--no-download` (or `--offline`, which downloads nothing either), or
+ * `--browser-channel chromium` with no Chromium.
+ */
+export function noDownloadRefusal(fallback: boolean, flag: NoDownloadFlag = "--no-download"): Refusal {
   return fallback
     ? new Refusal(
-        "Chrome was not found on this machine, and --no-download stops A11y Genie from downloading Playwright's Chromium.",
+        `Chrome was not found on this machine, and ${flag} stops A11y Genie from downloading Playwright's Chromium.`,
         `Install Chrome, or run with --browser-channel msedge if that one is installed, or download Playwright's Chromium yourself: ${installerHint()}`,
       )
     : new Refusal(
-        "Playwright's Chromium is not installed on this machine, and --no-download stops A11y Genie from downloading it.",
+        `Playwright's Chromium is not installed on this machine, and ${flag} stops A11y Genie from downloading it.`,
         `download it yourself: ${installerHint()}, or run with another --browser-channel.`,
       );
 }
@@ -100,7 +108,7 @@ async function ensureChromium(choice: BrowserChoice, fallback: boolean, deps: Br
     if (fallback) deps.say(lines().using);
     return;
   }
-  if (!choice.download) throw noDownloadRefusal(fallback);
+  if (!choice.download) throw noDownloadRefusal(fallback, choice.noDownloadFlag);
   deps.say(fallback ? lines().downloading : lines().downloadingNamed);
   await deps.installChromium();
   if (!deps.chromiumInstalled()) {
