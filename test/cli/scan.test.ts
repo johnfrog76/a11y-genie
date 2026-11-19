@@ -50,7 +50,7 @@ function scanFolder(root: string): string {
 
 describe.skipIf(!hasChrome)("a11y-genie scan <url> (skipped where Chrome is not installed)", () => {
   let server: FixtureServer;
-  let scans: string;
+  const made: string[] = [];
   beforeAll(async () => {
     server = await startFixtureServer();
   });
@@ -58,11 +58,12 @@ describe.skipIf(!hasChrome)("a11y-genie scan <url> (skipped where Chrome is not 
     await server.close();
   });
   const fresh = () => {
-    scans = mkdtempSync(join(tmpdir(), "a11y-genie-test-"));
-    return scans;
+    const folder = mkdtempSync(join(tmpdir(), "a11y-genie-test-"));
+    made.push(folder);
+    return folder;
   };
   afterAll(() => {
-    if (scans) rmSync(scans, { recursive: true, force: true });
+    for (const folder of made) rmSync(folder, { recursive: true, force: true });
   });
 
   it("clean.html exits 0, says how much it checked, and writes scan.json and report.md", async () => {
