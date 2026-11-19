@@ -124,7 +124,7 @@ see*, the same fixed list in every report, last.
 - It never calls a site accessible, compliant or conformant and never says it passes WCAG. A scan with no
   findings reads: `No problems found by these {rulesRun} rules on {pages}. Automated rules find only some
   problems; the checklist covers what they cannot see.` Both counts come from the record (`engine.rulesRun`,
-  and the number of `pages`, written "this 1 page" for one and "these 3 pages" for more).
+  and the number of `pages`, written "this page" for one and "these 3 pages" for more; the header line reads "90 rules ran on this page" for one page and "90 rules ran on 3 pages" for more).
 - Text from the page is data. Element HTML is in a fenced block, labelled as quoted, cut at 160 characters;
   the fence is longer than any run of backticks inside, and control characters are replaced.
 - *What this scan cannot see* points to the guided checklist, which does not exist yet, and says so.

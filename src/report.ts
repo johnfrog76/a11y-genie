@@ -54,8 +54,8 @@ function plural(n: number, one: string, many: string): string {
 /** The sentence a scan with no findings reads, with both counts taken from the record. */
 export function emptyScanSentence(record: ScanRecord): string {
   const pages = record.pages.length;
-  // "these 3 pages", "this 1 page": the count stays in the sentence either way.
-  const where = pages === 1 ? "this 1 page" : `these ${pages} pages`;
+  // "this page" for one, "these 3 pages" for more.
+  const where = pages === 1 ? "this page" : `these ${pages} pages`;
   return (
     `No problems found by these ${record.engine.rulesRun} rules on ${where}. ` +
     "Automated rules find only some problems; the checklist covers what they cannot see."
@@ -110,7 +110,7 @@ export function renderReport(record: ScanRecord): string {
   out.push(
     `Scanned ${record.pages.map((p) => inlineCode(p.url)).join(", ")} with axe-core ${plainText(engine.axeCore)} ` +
       `in ${plainText(engine.browser)}, using ${engine.tags === null ? "its default rule set" : `the tags ${engine.tags.join(", ")}`}. ` +
-      `${plural(engine.rulesRun, "rule", "rules")} ran on ${plural(record.pages.length, "page", "pages")}. ` +
+      `${plural(engine.rulesRun, "rule", "rules")} ran on ${record.pages.length === 1 ? "this page" : `${record.pages.length} pages`}. ` +
       `Started ${record.startedAt}.`,
     "",
   );

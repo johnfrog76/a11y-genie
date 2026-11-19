@@ -69,7 +69,7 @@ describe.skipIf(!hasChrome)("a11y-genie scan <url> (skipped where Chrome is not 
     const root = fresh();
     const result = await run(["scan", server.url("clean.html")], root);
     expect(result.status).toBe(0);
-    expect(result.stdout).toMatch(/^No problems found by these \d+ rules on this 1 page\. /);
+    expect(result.stdout).toMatch(/^No problems found by these \d+ rules on this page\. /);
     expect(neverClaimViolations(result.stdout + result.stderr)).toEqual([]);
     const folder = scanFolder(root);
     expect(existsSync(join(folder, "scan.json"))).toBe(true);
