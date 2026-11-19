@@ -7,8 +7,8 @@ import type { ScanRecord } from "../../src/scan-record.js";
 /** `test/goldens/<fixture page, without .html>/scan.json` and `report.md`. */
 export const GOLDEN_DIR = fileURLToPath(new URL("../goldens/", import.meta.url));
 
-/** The four pages the goldens cover, in the order the spec lists them. */
-export const GOLDEN_PAGES = ["clean", "contrast", "icon-button", "impact-mix"] as const;
+/** The pages the goldens cover: the four first ones in the order the spec lists them, then `no-landmarks`. */
+export const GOLDEN_PAGES = ["clean", "contrast", "icon-button", "impact-mix", "no-landmarks"] as const;
 
 export function goldenPath(page: string, file: "scan.json" | "report.md"): string {
   return `${GOLDEN_DIR}${page}/${file}`;

@@ -1,0 +1,20 @@
+<!doctype html>
+<!--
+  Fixture: a page whose content sits in plain divs: no banner, navigation, main or contentinfo at all.
+  Must fire:     region (moderate), landmark-one-main (moderate), and the product's own genie/no-landmarks, once for the page
+  Must not fire: any other axe-core rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>No landmarks fixture</title>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <div>
+      <h1>No landmarks fixture</h1>
+      <p>Every piece of this page is a plain div or paragraph.</p>
+      <button type="button">Save</button>
+    </div>
+  </body>
+</html>

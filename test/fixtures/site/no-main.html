@@ -1,0 +1,24 @@
+<!doctype html>
+<!--
+  Fixture: a page with a banner, a navigation and a contentinfo, all its content inside them, and no main.
+  Must fire:     landmark-one-main (moderate)
+  Must not fire: region, genie/no-landmarks (the page has landmarks), or any other rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>No main fixture</title>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <header>
+      <h1>No main fixture</h1>
+    </header>
+    <nav aria-label="Primary">
+      <a href="/no-main.html">Home</a>
+    </nav>
+    <footer>
+      <p>The page content is in the footer, because there is no main.</p>
+    </footer>
+  </body>
+</html>

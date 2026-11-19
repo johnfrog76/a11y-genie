@@ -40,7 +40,7 @@ A finding is one rule on one page, with every element the rule hit on that page.
 | Field | What it holds |
 | --- | --- |
 | `id` | `<source>/<rule>@<page key>`. The key for cards, ignores and the rescan. |
-| `rule.source` | `axe` for axe-core's rules. `genie` (the product's own checks) and `manual` (the checklist) come later. |
+| `rule.source` | `axe` for axe-core's rules; `genie` for the product's own checks, so far `genie/no-landmarks`; `manual` (the checklist) comes later. A `genie` finding has an empty `helpUrl` and carries the WCAG criteria it bears on. |
 | `rule.id` | The rule's id. Never empty: an axe-core result with no rule id is dropped, never reported. |
 | `rule.help`, `rule.helpUrl` | axe-core's `help` and `helpUrl`, as it gave them. |
 | `rule.wcag` | The WCAG success criteria in the rule's tags: `wcag143` is `1.4.3`, `wcag1410` is `1.4.10`. Level tags such as `wcag2aa` are left out. Empty for a best-practice rule. |

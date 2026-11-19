@@ -239,6 +239,32 @@ refuses a second page, and the run fails with "Please use browser.newContext()".
 axe-core's result shape at the pinned version, and how its `target` reads for shadow roots and frames, are in
 `docs/JSON.md`.
 
+### Landmarks (`src/landmarks.ts`)
+
+**Which landmark rules run by default.** Checked at axe-core 4.14.1 by scanning the landmark fixture pages with
+no `withTags`, and by reading each rule's tags in `axe.getRules()`. All of these run in the default set; none
+is `experimental`, and none needs to be turned on:
+
+| Rule | Fired on |
+| --- | --- |
+| `region` (content outside landmarks) | `no-landmarks.html`, `content-outside-landmarks.html` |
+| `landmark-one-main` | `no-landmarks.html`, `no-main.html` |
+| `landmark-no-duplicate-main` | `two-mains.html` |
+| `landmark-unique`, `landmark-no-duplicate-banner`, `landmark-no-duplicate-contentinfo`, `landmark-banner-is-top-level`, `landmark-main-is-top-level`, `landmark-contentinfo-is-top-level`, `landmark-complementary-is-top-level` | not fixtured; each carries the `best-practice` tag, and none is `experimental` (`landmark-complementary-is-top-level` is also tagged `deprecated`) |
+
+The spec (6.1.1) wants `region` and `landmark-one-main` on, so nothing is enabled. If `--tags` is given later,
+the `best-practice` tag has to stay in its list for these rules to run.
+
+**What the product adds.** axe-core reports a page with no landmark at all as `region` on every element it can
+reach plus `landmark-one-main`. `genie/no-landmarks` says it once for the page (moderate, WCAG 1.3.1 and 2.4.1
+as context), on `body`. It is a violation, like the rules beside it, so it counts toward the exit code. The
+check asks the browser for elements of the roles `banner`, `navigation`, `main` and `contentinfo`
+(`page.getByRole`), so a `div role="main"` counts, a `header` inside an `article` does not, and an element
+hidden from the accessibility tree does not. Other landmark roles (`complementary`, `search`, `form`, `region`)
+do not count: a page with only those has none of the four. It runs on the page's own frame after axe-core, and
+it does not change `engine.rulesRun`, which stays axe-core's count. The report lists it as any other finding;
+no landmark map is drawn.
+
 ## One scan, end to end (`src/run-scan.ts`, `src/cli.ts`)
 
 `a11y-genie scan <url>` launches the browser (`withChosenBrowser`, which may fall back to Playwright's Chromium), makes a new context with the hostile-page rules
@@ -258,7 +284,7 @@ report is a pure function of the record, so a stored `scan.json` can write it ag
 - **The schema is checked without a validator dependency.** `test/helpers/json-schema.ts` is a small
   validator for exactly the keywords `schema/scan-1.json` uses, and throws on any other, so the schema cannot
   outgrow it. The schema test runs it over every golden and over a record the browser test has just made.
-- **Goldens.** `test/goldens/<page>/scan.json` and `report.md` for the four first fixture pages are written
+- **Goldens.** `test/goldens/<page>/scan.json` and `report.md` for the four first fixture pages and `no-landmarks` are written
   by `test/browser/goldens.test.ts` in the real Chrome, after the port, the times and the versions of this
   tool, axe-core and the browser are replaced by fixed values (`test/helpers/goldens.ts`). The rule count is
   kept, so an axe-core upgrade shows in the diff. `UPDATE_GOLDENS=1 npm test` rewrites them.
