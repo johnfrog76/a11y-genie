@@ -14,6 +14,17 @@ describe("a11y-genie --version", () => {
     expect(out.trim()).toBe(pkg.version);
   });
 
+  it("wins anywhere on the line: after a command, it prints the version and exits 0", () => {
+    for (const args of [
+      ["rules", "--version"],
+      ["scan", "--version"],
+      ["scan", "http://127.0.0.1:9", "--version"],
+    ]) {
+      const out = execFileSync(process.execPath, [cli, ...args], { encoding: "utf8" });
+      expect(out.trim()).toBe(pkg.version);
+    }
+  });
+
   it("--help names the verbs as coming", () => {
     const out = execFileSync(process.execPath, [cli, "--help"], { encoding: "utf8" });
     expect(out).toContain("coming");

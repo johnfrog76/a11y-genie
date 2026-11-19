@@ -25,7 +25,9 @@ workflows:
 ```
 
 The parser is `src/steps.ts`, and `test/unit/steps.test.ts` has a row for every form and every error below.
-The command does not read steps yet: `--states` and `--config` arrive with M3's next slice, `--flow` with M9.
+`scan` reads steps from `--states` and from the config file's `states` (`docs/CONFIG.md`), and `src/drive.ts` runs
+them in the browser. `--flow` and the config's `workflows` are checked by the same parser, but nothing runs them
+until `narrate` arrives (M9).
 
 ## The steps
 
@@ -42,6 +44,38 @@ The command does not read steps yet: `--states` and `--config` arrive with M3's 
 
 Steps are separated by `;` and run in the order written. A state's steps run after a fresh load of the page, so
 states never leak into each other.
+
+## What a step does in the browser
+
+`src/drive.ts` turns each step into Playwright calls, and nowhere else is a step turned into anything.
+
+| Step | Playwright |
+| --- | --- |
+| a key | `keyboard.press(key)` |
+| `Tab to <element>` | `keyboard.press("Tab")` until focus is on the element (checked first, so an element already focused needs no press); gives up after 200 presses |
+| `click <element>` | `locator.click()` |
+| `type '<text>'` | `keyboard.type(text)` |
+| `wait <element>` | `locator.first().waitFor({ state: "visible" })` |
+| `colorScheme`, `reducedMotion` | `page.emulateMedia(...)`, before the page loads |
+| `viewport <w>x<h>` | `page.setViewportSize(...)`, before the page loads |
+
+A step waits up to 10 seconds for its element, or less when the state's own limit (`--timeout`, default 60
+seconds) is nearer. After a state's steps run, the page gets up to 2 seconds for the network to go quiet and
+half a second to settle, and then axe-core reads it.
+
+A step that fails makes its state *not scanned*, with the step's number and text and why, in this tool's words:
+
+| Reason | When |
+| --- | --- |
+| `step 2 (click button 'Menu') failed: no such element was found, or it could not be clicked, within 10 seconds` | nothing matched, or what matched could not be clicked |
+| `step 2 (wait menu) failed: it did not become visible within 10 seconds` | `wait` timed out |
+| `step 2 (click menuitem) failed: more than one element matches it, so the step cannot tell which one is meant` | the element is not one |
+| `step 1 (Tab to button 'Save') failed: focus did not reach it within 200 Tab presses` | `Tab to` ran out of presses |
+| `step 1 (click css '[x') failed: the selector is not valid CSS` | a CSS selector the browser cannot read |
+| `its steps did not finish within 60 seconds` | the state's own limit passed |
+| `step 2 (...) failed: the page closed` | the page closed itself |
+
+The page's own words and Playwright's messages (which can quote the page) are never put in a reason.
 
 ### Keys
 
@@ -105,8 +139,11 @@ browser as a selector string it did not come from:
 - a role must be one of the roles `getByRole()` takes, so a step can only ever ask for an element by role;
 - a name or text is kept exactly as written and passed as data, whatever it looks like (`'); alert(1); ('` is a
   name like any other);
-- a CSS selector may not hold `>>`, which Playwright reads as a chain into another kind of selector (XPath, text,
-  or its own engines), so a `css '...'` step stays one CSS selector.
+- a CSS selector is read as CSS and nothing else, by two locks. The parser refuses a selector that holds `>>`
+  (Playwright's chain into another engine) and one that starts with a word and `=` (`^[a-z-]+=`, such as
+  `xpath=//a`, `text=Menu` or `id=foo`, which Playwright reads as another engine), each with an `Error:` and a
+  `Hint:`. And the driver never passes the selector bare: it is `page.locator("css=" + selector)`, so even one
+  the parser let through is read as CSS, where an engine prefix is only a syntax error.
 
 ## Errors
 
@@ -147,6 +184,7 @@ Every error, with an example of what causes it:
 | the wrong quotes | `click button "Save"`, `click button ‘Save’` | `names, text and selectors go in straight single quotes ('), and this one starts with ".` |
 | an empty name, text or selector | `click button ''`, `type ''`, `click css ''` | `the name is empty.` |
 | `>>` in a selector | `click css 'nav >> text=Menu'` | `a selector cannot hold ">>", which Playwright reads as a chain into another kind of selector.` |
+| an engine prefix at the start of a selector | `click css 'xpath=//a'`, `wait css 'text=Menu'`, `Tab to css 'id=foo'` | `a selector cannot start with "xpath=", which Playwright reads as another kind of selector.` |
 | a colour scheme that is not light or dark | `colorScheme blue`, `colorScheme Dark` | `colorScheme takes light or dark, not "blue".` |
 | a viewport that is not `<w>x<h>` from 1 to 10000 | `viewport 1280`, `viewport 0x800`, `viewport 1280X800` | `viewport takes a width and a height in CSS pixels, from 1 to 10000, not "1280".` |
 | a media step in a flow | `--flow "colorScheme dark"` | `colorScheme sets a state's media, and a flow has no media.` |
@@ -174,8 +212,10 @@ was taken:
   following the config section's "by CSS selector where it cannot".
 - **The name is needed in `Tab to` and `click`,** and may be left out only in `wait`, as the spec's table writes
   them.
-- **The media steps run in order,** where they are written, like every other step; only a flow refuses them. A
-  state may set them more than once, and the last one holds.
+- **The media steps are applied before the page loads,** in the order written, as the spec's "apply the state's
+  options, load, run its steps" has it (5.2): a page that reads its colour scheme or width while it loads sees
+  them. Only a flow refuses them. A state may set them more than once, and the last of each kind holds. The other
+  steps run after the load, in order, so a media step written after a click still takes effect first.
 - **`click` and `type` are allowed in a flow.** Only the media steps are marked "states only".
 - **Modifiers.** Only `Shift`, `Control`, `Alt`, `Meta` and `ControlOrMeta` come before a `+`.
 - **The characters `;`, `'`, the space and the new line** are written by name (`Semicolon`, `Quote`, `Space`,
@@ -183,5 +223,15 @@ was taken:
 - **State names** are lower case, digits, `-` and `_`, up to 64 characters, and never `default`: they name files
   and finding entries, and a name that differs from another only in case would collide on some file systems.
 - **A viewport is from 1 to 10000 pixels each way.**
-- **What a name matches** (the whole accessible name, or part of it) is for the code that drives the page to
-  decide, with `--states`; the parser only carries the name.
+- **A name is matched whole, and case-sensitively** (decided with `--states`): `click button 'Menu'` is the button
+  whose accessible name is `Menu`, not `Menu settings` and not `menu`. The driver passes `exact: true` to
+  `getByRole()`. The steps are meant to read like what a screen reader says, and a partial match would click the
+  wrong thing without a word; a name that is too short matches nothing, and the state reads *not scanned* with
+  the step named, which is the signal. Two elements with the same role and name are an error too (`click`), not
+  a pick of the first. `wait` takes the first match.
+- **A state name given twice in `--states` is a refusal** (decided with `--states`), not "the last wins":
+  `--states gives the state "dark" twice.` Two states of one name would be one finding entry for two different
+  sets of steps. The same name on two different pages of a config is fine; twice on one page is refused. The
+  state called `default` is refused already, by the name rule above.
+- **`--states` and `--config` do not mix.** States for a config live under their pages, so a flag that adds
+  states to every page is refused rather than guessed at.

@@ -6,6 +6,8 @@ import { EXIT } from "./exit-codes.js";
 import { installInterruptHandler } from "./interrupt.js";
 import { checkOutFolder } from "./out-folder.js";
 import { printable } from "./printable.js";
+import { checkStorageState, parseTimeout } from "./scan-options.js";
+import { planScan } from "./scan-plan.js";
 import { Refusal } from "./refusal.js";
 import { emptyScanSentence, renderReport } from "./report.js";
 import { addressKindOfUrl } from "./private-address.js";
@@ -23,11 +25,22 @@ Usage:
   a11y-genie --version
   a11y-genie --help
   a11y-genie rules [--tags <list>] [--json]
-  a11y-genie scan <url> [--json] [--out <folder>] [--format md,json]
+  a11y-genie scan <url> [--states "<name>: <steps>"]... [--json] [--out <folder>] [--format md,json]
                   [--browser-channel chrome|msedge|chromium] [--no-download] [--allow-private]
                   [--tags <list>] [--fail-on <impact>] [--same-origin] [--offline]
+                  [--timeout <seconds>] [--storage-state <file>]
+  a11y-genie scan [<url>] --config <file> [the same flags, but not --states]
 
 Flags:
+  --states           a state of the page beside the default one, as "<name>: <steps>" (steps are
+                     separated by ";"): --states "menu-open: click button 'Menu'; wait menu"
+                     Repeat the flag for more states. Each state is scanned from a fresh load
+  --config <file>    scan the pages and states a YAML file lists (docs/CONFIG.md); the address is
+                     optional when the file has a baseUrl, and one given here takes its place
+  --timeout          seconds one page in one state may take, from its first request to the end of
+                     its scan; default 60. Past it, that state reads "not scanned"
+  --storage-state    a Playwright storage state file, for signed-in pages. It is read and never
+                     copied into the scan
   --json             print scan.json on stdout; everything else goes to stderr
   --out <folder>     where the scan folder goes; default is the per-user scans folder
   --format           which reports to write beside scan.json: md, json, or md,json (the default)
@@ -51,9 +64,9 @@ Flags:
 With no Chrome, and no --browser-channel, A11y Genie says so and downloads Playwright's Chromium once.
 
 Commands:
-  scan       load one page in a browser with a new, empty profile, run axe-core on it, and write
-             scan.json and report.md. Exit 0: no findings. Exit 1: findings, or the page
-             could not be scanned (the scan says why).
+  scan       load each page, in each state, in a browser with a new, empty profile, run axe-core on
+             it, and write scan.json and report.md. Exit 0: no findings. Exit 1: findings, or a
+             page or state could not be scanned (the scan says why).
 
   rules      list every rule A11y Genie runs: axe-core's, at the version it pins, and its own genie/ rules,
              with impact, WCAG criteria and tags. --tags <list> keeps the rules with one of those tags;
@@ -158,6 +171,10 @@ async function scan(args: string[]): Promise<void> {
     "fail-on"?: string | undefined;
     "same-origin"?: boolean | undefined;
     offline?: boolean | undefined;
+    states?: string[] | undefined;
+    config?: string | undefined;
+    timeout?: string | undefined;
+    "storage-state"?: string | undefined;
   };
   let positionals: string[];
   try {
@@ -174,6 +191,10 @@ async function scan(args: string[]): Promise<void> {
         "fail-on": { type: "string" },
         "same-origin": { type: "boolean" },
         offline: { type: "boolean" },
+        states: { type: "string", multiple: true },
+        config: { type: "string" },
+        timeout: { type: "string" },
+        "storage-state": { type: "string" },
       },
       allowPositionals: true,
       strict: true,
@@ -182,7 +203,7 @@ async function scan(args: string[]): Promise<void> {
     throw new Refusal((error as Error).message, HELP_HINT);
   }
   const [url, ...extra] = positionals;
-  if (url === undefined)
+  if (url === undefined && values.config === undefined)
     throw new Refusal("scan needs a page address to scan.", "run: a11y-genie scan <url>");
   if (extra.length > 0) throw new Refusal(`scan takes one page, and got more: ${extra[0]}`, HELP_HINT);
 
@@ -193,12 +214,19 @@ async function scan(args: string[]): Promise<void> {
   const formats = parseFormats(values.format);
   const tags = values.tags === undefined ? undefined : parseTags(values.tags);
   const failOn = values["fail-on"] === undefined ? DEFAULT_FAIL_ON : parseFailOn(values["fail-on"]);
-  checkTarget(url);
-  if (values.offline === true) checkOfflineTarget(url);
+  if (url !== undefined) checkTarget(url);
   if (values.out !== undefined) checkOutFolder(values.out);
+  const plan = planScan({ url, states: values.states ?? [], config: values.config });
+  checkTarget(plan.url);
+  if (values.offline === true) checkOfflineTarget(plan.url);
+  const pageMs = values.timeout === undefined ? undefined : parseTimeout(values.timeout);
+  if (values["storage-state"] !== undefined) checkStorageState(values["storage-state"]);
 
   const record = await runScan({
-    url,
+    url: plan.url,
+    pages: plan.pages,
+    ...(pageMs === undefined ? {} : { limits: { pageMs } }),
+    ...(values["storage-state"] === undefined ? {} : { storageState: values["storage-state"] }),
     channel,
     named: values["browser-channel"] !== undefined,
     download: values["no-download"] !== true,
@@ -229,32 +257,38 @@ async function scan(args: string[]): Promise<void> {
   const say = (line: string): void => write(printable(line));
   const found =
     record.summary.critical + record.summary.serious + record.summary.moderate + record.summary.minor;
-  const page = record.pages[0];
-  const missed = page?.notScanned[0];
-  if (missed !== undefined) {
-    // The reason is the scan's own words; the address is the one asked for.
-    say(`${page?.url ?? url} was not scanned: ${missed.reason}.`);
-  } else {
+  const first = record.pages[0];
+  for (const page of record.pages) {
+    for (const missed of page.notScanned) {
+      // The reason is the scan's own words; the address is the one asked for.
+      const where = missed.state === "default" ? "" : ` in the state "${missed.state}"`;
+      say(`${page.url} was not scanned${where}: ${missed.reason}.`);
+    }
+  }
+  if (record.summary.notScanned === 0 || found > 0) {
+    const pages = record.pages.length;
     say(
       found === 0
         ? emptyScanSentence(record)
-        : `Found ${found} ${found === 1 ? "problem" : "problems"} on ${page?.url ?? url}, worst first: ` +
+        : `Found ${found} ${found === 1 ? "problem" : "problems"} on ${pages === 1 ? (first?.url ?? plan.url) : `${pages} pages`}, worst first: ` +
             `${record.summary.critical} critical, ${record.summary.serious} serious, ` +
             `${record.summary.moderate} moderate, ${record.summary.minor} minor.`,
     );
   }
-  if (page?.requestedUrl !== undefined && page.url !== page.requestedUrl) {
-    say(`It was redirected from ${page.requestedUrl} to ${page.url}.`);
+  for (const page of record.pages) {
+    if (page.requestedUrl !== undefined && page.url !== page.requestedUrl) {
+      say(`It was redirected from ${page.requestedUrl} to ${page.url}.`);
+    }
+    const stopped = page.stopped ?? [];
+    if (stopped.length > 0) {
+      const tried = stopped.map((entry) => {
+        const [one, many, done] = STOPPED_WORDS[entry.kind];
+        return `${entry.count} ${entry.count === 1 ? one : many} ${done}`;
+      });
+      say(`Stopped what the page tried: ${tried.join(", ")}. The report lists them.`);
+    }
   }
-  const stopped = page?.stopped ?? [];
-  if (stopped.length > 0) {
-    const tried = stopped.map((entry) => {
-      const [one, many, done] = STOPPED_WORDS[entry.kind];
-      return `${entry.count} ${entry.count === 1 ? one : many} ${done}`;
-    });
-    say(`Stopped what the page tried: ${tried.join(", ")}. The report lists them.`);
-  }
-  if (found > 0 && missed === undefined && record.exit === 0) {
+  if (found > 0 && record.summary.notScanned === 0 && record.exit === 0) {
     say(`None is ${failOn} or worse, so the exit is 0 (--fail-on ${failOn}).`);
   }
   const review = record.summary.needsReview;
@@ -265,11 +299,14 @@ async function scan(args: string[]): Promise<void> {
 }
 
 async function main(args: string[]): Promise<void> {
-  if (args[0] === "scan") return scan(args.slice(1));
-  if (args[0] === "rules") return rulesCommand(args.slice(1), HELP_HINT);
+  // `--version` anywhere on the line wins, before any command reads its arguments (docs/EXIT-CODES.md).
   if (args.includes("--version")) {
     console.log(packageInfo().version);
-  } else if (args.length === 0 || args.includes("--help")) {
+    return;
+  }
+  if (args[0] === "scan") return scan(args.slice(1));
+  if (args[0] === "rules") return rulesCommand(args.slice(1), HELP_HINT);
+  if (args.length === 0 || args.includes("--help")) {
     process.stdout.write(HELP);
   } else {
     throw new Refusal(`unknown command or flag: ${args[0]}`, HELP_HINT);

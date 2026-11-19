@@ -28,6 +28,10 @@ Run all five before you ask for a review. CI runs the same five in that order, o
   `--offline` are rules of `src/context.ts`, asked with the private-network rule by `networkRule()`.
 - `src/private-address.ts` says which hosts are loopback, link-local, private or unspecified, for the
   private-network rule in `src/context.ts`.
+- `src/steps.ts` parses the step grammar (`docs/STEPS.md`); `src/drive.ts` runs the steps in the browser;
+  `src/config.ts` reads the config file (`docs/CONFIG.md`) with `src/yaml-subset.ts`, a strict YAML subset
+  reader, so the config needs no dependency; `src/scan-plan.ts` makes the pages and states of a run from
+  `--states` or `--config`; `src/merge-states.ts` merges a page's states into one finding per rule.
 - `src/printable.ts` strips terminal escapes and control characters from page text before it is printed or
   written into `report.md`; every printed line and the whole report pass through it.
 - `src/axe.ts` runs axe-core on a loaded page; `src/map-axe.ts` maps its results to findings (`src/finding.ts`), and

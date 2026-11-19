@@ -37,7 +37,11 @@ function withElements(n: number): RecordInput {
   const axe = base.axe!;
   const [first, ...rest] = axe.findings;
   const element = first!.elements[0]!;
-  const many = Array.from({ length: n }, (_, i) => ({ ...element, selector: `img:nth-of-type(${i + 1})` }));
+  const many = Array.from({ length: n }, (_, i) => ({
+    ...element,
+    selector: `img:nth-of-type(${i + 1})`,
+    target: [`img:nth-of-type(${i + 1})`],
+  }));
   return { ...base, axe: { ...axe, findings: [{ ...first!, elements: many }, ...rest] } };
 }
 

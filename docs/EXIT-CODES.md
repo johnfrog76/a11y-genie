@@ -5,10 +5,14 @@ What `a11y-genie` exits with, and what it says when it refuses. The codes are in
 | Code | Meaning for `scan` |
 | --- | --- |
 | 0 | Scanned, and no violation at or above `--fail-on` (any violation, by default). |
-| 1 | Scanned, and at least one violation at or above `--fail-on`; or the page answered and was **not scanned** (below), whatever `--fail-on` says. |
+| 1 | Scanned, and at least one violation at or above `--fail-on`; or a page or state of the run was **not scanned** (below), whatever `--fail-on` says. |
 | 2 | A stated refusal: one `Error:` line and one `Hint:` line on stderr, nothing on stdout, nothing scanned or written. |
 | 3 | Something unexpected: one `Error:` line and one `Hint:` line saying where to report it. The stack trace prints only when `A11Y_GENIE_DEBUG` is set. |
 | 130 | Ctrl-C. |
+
+With `--config`, or with `--states`, the run covers several pages or states, and the exit code reads all of them: 1 when any
+violation was found in any state, or any page or state was *not scanned*; 0 only when every one was scanned and
+none had a violation.
 
 A scan with no findings says how much it checked. It never says a site is accessible.
 
@@ -30,6 +34,10 @@ Not built yet, with a place waiting in `src/exit-codes.ts`:
 
 - **Exit 4**, a refusal after something was already written. Only a later command (`cards --toolkit`) can reach it.
 
+`--version` wins anywhere on the line: `a11y-genie rules --version` and `a11y-genie scan <url> --version` print the
+version and exit 0, before the command reads its other arguments. (It is not only a top-level flag, so a
+person who adds it to any command line gets the answer, not a refusal.)
+
 ## Refusals the command can reach
 
 Every refusal is exit 2 and happens before anything is written: the scans folder and `--out` are left as they were.
@@ -42,6 +50,15 @@ Every refusal is exit 2 and happens before anything is written: the scans folder
 | An unknown flag after `scan` | the words of Node's argument parser, such as `Unknown option '--nope'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- "--nope"` | the same hint |
 | An extra argument | `scan takes one page, and got more: two` | the same hint |
 | No address | `scan needs a page address to scan.` | `run: a11y-genie scan <url>` |
+| `--config` with no address anywhere | `scan --config needs a base address: the file has no baseUrl, and none was given.` | `add baseUrl: http://localhost:5173 to the file, or run: a11y-genie scan <url> --config <file>` |
+| `--states` with `--config` | `--states and --config cannot be used together.` | `put the states under their pages in the config file, or drop --config.` |
+| A state name given twice in `--states` | `--states gives the state "dark" twice.` | `each --states names one state, and no two may share a name: rename one, or join their steps into one state.` |
+| A `--states` value or config step that does not parse | `--states step 2 "clik", column 11: "clik" is not a step.` (a config step: `<file> line 6 "clik", column 1: ...`); every message is in `docs/STEPS.md` | what a step is, or how to fix this one |
+| A CSS selector that starts with an engine prefix (`xpath=`, `text=`, `id=`) or holds `>>` | `--states step 1 "click css 'xpath=//a'", column 12: a selector cannot start with "xpath=", which Playwright reads as another kind of selector.` | `write one CSS selector, such as css '#menu', or name the element by role and name.` |
+| A config that does not read or validate | `<file>, line 3: unknown key "title" in a page; the keys it takes are key, path, states.` (also a missing key, a wrong kind of value, a repeated key, a page key or state name given twice, a path that is not on the site, a YAML feature the file does not take); every one names the file and the line | `see docs/CONFIG.md for the config file: ...` |
+| A `--config` that is missing, a folder, or over 1 MB | `--config cannot be read: <path> (ENOENT)` | `give the path to a YAML file you may read.` |
+| A `--timeout` that is not a number of seconds above 0 and up to 3600 | `--timeout takes a number of seconds above 0 and up to 3600, not "soon".` | `for example --timeout 30. The default is 60.` |
+| A `--storage-state` that is missing or is not a Playwright storage state | `--storage-state cannot be read: <path> (ENOENT)`, or `... is not a Playwright storage state: <path>` | `give the path to a Playwright storage state file.` |
 | A target that is not `http:` or `https:` | `only http: and https: addresses can be scanned, and this one is file:` (or `javascript:`, `data:`) | `give a full address that starts with http:// or https://. To scan a built site, serve it first, for example: npx serve dist` |
 | An unknown `--fail-on` impact | `unknown --fail-on impact: "severe"` | `use one of: critical, serious, moderate, minor.` |
 | An unknown `--tags` tag | `unknown --tags value: "nope"` | `use axe-core tags separated by commas, such as wcag2a, wcag2aa, wcag21aa or best-practice. The landmark rules need best-practice.` |
@@ -74,7 +91,9 @@ scan under <folder>: <code>`.
 
 ## How a page that does not answer is decided
 
-The browser gets 30 seconds (`NAVIGATION_TIMEOUT_MS` in `src/run-scan.ts`) for the first page to answer. A refused
+The browser gets 30 seconds (`NAVIGATION_TIMEOUT_MS` in `src/run-scan.ts`) for the first page to answer. Only the
+first page's first load can refuse: a page of a config that does not answer after it, or a state that does not
+answer, reads *not scanned* instead (below), with the same words after `it did not answer:`. A refused
 connection, a host name that does not resolve, a timeout, and any other `net::ERR_*` error not listed below are all a
 refusal. A page that answers with an error status, such as 404, is scanned: the server did answer.
 Tests shorten the wait with `A11Y_GENIE_TEST_NAV_TIMEOUT_MS`, which can only make the wait shorter.
@@ -94,6 +113,9 @@ page nobody saw never exits 0. The reasons, in the scan's own words:
 | more than 10 redirects | `it redirected more than 10 times, so the scan stopped following it` |
 | the page answers with a file to download | `it answered with a file to download, and downloads are refused` |
 | the page moves itself to a scheme that is not `http:` or `https:`, such as `about:blank` | `it went to an about: address, which is not http: or https:` |
+| a page after the first, or a state, does not answer (connection refused, host not found, no answer in time) | `it did not answer: the connection was refused`, `... the host name was not found`, `... no answer within 30 seconds`, or `... the browser reported ERR_<NAME>` |
+| a step of a state fails | `step 2 (click button 'Menu') failed: <why>`; the reasons are in `docs/STEPS.md` |
+| the steps of a state have not finished by its limit | `its steps did not finish within 60 seconds` |
 | the page has not finished loading 60 seconds after the first request | `it did not finish loading within 60 seconds` |
 | axe-core has not finished 60 seconds after the first request | `the scan did not finish within 60 seconds` |
 | the page moves to another address while axe-core reads it | `it went to another address while it was being scanned` |
@@ -102,8 +124,10 @@ page nobody saw never exits 0. The reasons, in the scan's own words:
 | with `--same-origin`, the page's own frame went (or was redirected) to another origin | `it went to another origin, and --same-origin stopped it` |
 | `scan.json` would be over 50 MB even with one element per finding | `its results were larger than the 52428800 byte limit on scan.json, even cut down` |
 
-The 60 seconds are the spec's limit for one state, which `--timeout` will set in a later milestone. On the command
-line the line reads `<address> was not scanned: <reason>.`
+The 60 seconds are the spec's limit for one state, from its first request to the end of axe-core; `--timeout <seconds>`
+sets it. On the command line the line reads `<address> was not scanned: <reason>.` for the default state, and
+`<address> was not scanned in the state "menu-open": <reason>.` for another. The run goes on with every other page
+and state, and the exit is 1.
 
 ## Ctrl-C
 

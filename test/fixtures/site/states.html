@@ -1,0 +1,59 @@
+<!doctype html>
+<!--
+  Fixture: a bug that shows only in a state, two ways.
+  In the default state (light colours, menu closed): nothing fires.
+  Must fire only with the menu open:    button-name (critical), an unnamed button in the opened menu
+  Must fire only in dark colour scheme: color-contrast (serious), the note is dark grey on near black
+  Must not fire: any other rule
+  The "Menu" button opens and closes the menu: click button 'Menu', then wait menu.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>States fixture</title>
+    <style>
+      body {
+        margin: 0;
+        background: #ffffff;
+        color: #1a1a1a;
+      }
+      .note {
+        color: #1a1a1a;
+      }
+      [hidden] {
+        display: none;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #1a1a1a;
+          color: #eeeeee;
+        }
+        .note {
+          color: #3a3a3a;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>States fixture</h1>
+      <button id="toggle" type="button" aria-expanded="false" aria-controls="menu">Menu</button>
+      <ul id="menu" role="menu" hidden>
+        <li role="none"><button type="button" role="menuitem">Settings</button></li>
+        <li role="none"><button type="button" role="menuitem" class="unnamed"></button></li>
+      </ul>
+      <p class="note">This note is dark grey on near black in the dark colour scheme.</p>
+    </main>
+    <script>
+      var toggle = document.getElementById("toggle");
+      var menu = document.getElementById("menu");
+      toggle.addEventListener("click", function () {
+        var open = menu.hasAttribute("hidden");
+        if (open) menu.removeAttribute("hidden");
+        else menu.setAttribute("hidden", "");
+        toggle.setAttribute("aria-expanded", String(open));
+      });
+    </script>
+  </body>
+</html>

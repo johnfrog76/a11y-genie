@@ -643,6 +643,16 @@ const ERRORS: ErrorRow[] = [
     hint: "write one CSS selector, such as css 'nav > ul > li', or name the element by role and name.",
   },
   {
+    text: "click css 'xpath=//a'",
+    run: flow,
+    code: "selector-engine",
+    step: 1,
+    column: 12,
+    error:
+      '--flow step 1 "click css \'xpath=//a\'", column 12: a selector cannot start with "xpath=", which Playwright reads as another kind of selector.',
+    hint: "write one CSS selector, such as css '#menu', or name the element by role and name.",
+  },
+  {
     text: "colorScheme dark",
     run: flow,
     code: "media-in-flow",
@@ -829,6 +839,7 @@ describe("every error", () => {
       "wrong-quote": true,
       "empty-quoted": true,
       "selector-chain": true,
+      "selector-engine": true,
       "not-a-color-scheme": true,
       "not-a-viewport": true,
       "media-in-flow": true,
@@ -889,5 +900,19 @@ describe("page text is never code", () => {
 
   it("refuses a selector that could switch Playwright to another selector engine", () => {
     expect(refusal(() => flow("click css 'div >> xpath=//a'")).code).toBe("selector-chain");
+  });
+
+  it("refuses a selector that starts with an engine prefix such as xpath=, text= or id=", () => {
+    for (const selector of ["xpath=//a", "text=Menu", "id=foo", "data-testid=save", "css=#menu"]) {
+      for (const verb of ["click", "wait", "Tab to"]) {
+        expect(refusal(() => flow(`${verb} css '${selector}'`)).code).toBe("selector-engine");
+      }
+    }
+  });
+
+  it("still reads a CSS selector that holds an = after something else", () => {
+    for (const selector of ["input[name=email]", "#a=b", "A=b", "1a=b", ".x[data-a=b]"]) {
+      expect(flow(`click css '${selector}'`)).toEqual([{ kind: "click", target: { by: "css", selector } }]);
+    }
   });
 });

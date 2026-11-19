@@ -77,6 +77,7 @@ export type StepErrorCode =
   | "wrong-quote"
   | "empty-quoted"
   | "selector-chain"
+  | "selector-engine"
   | "not-a-color-scheme"
   | "not-a-viewport"
   | "media-in-flow"
@@ -253,6 +254,9 @@ interface StepContext {
   step: number | undefined;
   span: Span;
 }
+
+/** A selector that starts like `xpath=//a`, `text=Menu` or `id=foo`: Playwright's own engine prefixes. */
+const SELECTOR_ENGINE = /^[a-z-]+=/;
 
 /** Parses `;`-separated steps, as `--flow` gives them. */
 export function parseSteps(text: string, options: StepOptions): Step[] {
@@ -565,6 +569,17 @@ function parseTarget(
         { source: ctx.source, step: ctx.step, text: stepText(ctx), column: selector.at + chain + 1 },
         'a selector cannot hold ">>", which Playwright reads as a chain into another kind of selector.',
         "write one CSS selector, such as css 'nav > ul > li', or name the element by role and name.",
+      );
+    }
+    // The driver passes a selector as `css=<selector>`, so an engine prefix is only invalid CSS there. It is
+    // refused here as well, so the mistake reads as a refusal before anything runs.
+    const engine = SELECTOR_ENGINE.exec(selector.value);
+    if (engine !== null) {
+      throw new StepError(
+        "selector-engine",
+        { source: ctx.source, step: ctx.step, text: stepText(ctx), column: selector.at + 2 },
+        `a selector cannot start with "${engine[0]}", which Playwright reads as another kind of selector.`,
+        "write one CSS selector, such as css '#menu', or name the element by role and name.",
       );
     }
     noMore(ctx, selector, rest, 2);

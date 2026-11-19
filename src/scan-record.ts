@@ -8,6 +8,8 @@ import type { AxeScan, Finding, FindingElement, Impact, NeedsReview, Rule } from
 import { IMPACTS } from "./finding.js";
 import { LIMITS, type Limits, type Stopped } from "./context.js";
 import { atOrAbove, DEFAULT_FAIL_ON } from "./rule-flags.js";
+import { mergeStates } from "./merge-states.js";
+import { orderFindings } from "./order.js";
 import { escapeJsonControls } from "./printable.js";
 
 /**
@@ -15,8 +17,10 @@ import { escapeJsonControls } from "./printable.js";
  * 1.2 added `colorPair` on a `color-contrast` element.
  * 1.3 added `options` (`failOn`, `sameOrigin`, `offline`), and the `offline` and `other-origin` kinds of
  * `pages[].stopped`.
+ * 1.4 made `states` real: a page lists every state it was asked to scan, `notScanned` names each state that
+ * could not be scanned, and an element lists the states it was found in. A 1.3 record has `["default"]` in each.
  */
-export const SCHEMA_VERSION = "1.3";
+export const SCHEMA_VERSION = "1.4";
 
 /**
  * What a scan cannot see: the questions a person has to answer, because automated rules cannot. Fixed
@@ -38,7 +42,7 @@ export const CANNOT_SEE: readonly string[] = [
 ];
 
 export interface RecordElement extends FindingElement {
-  /** The states of the page the element was found in. Always `["default"]` until states arrive. */
+  /** The states of the page the element was found in, in the order they were scanned. `default` comes first. */
   states: string[];
 }
 
@@ -73,6 +77,7 @@ export interface RecordPage {
   requestedUrl?: string;
   /** How many redirects were followed from `requestedUrl` to `url`. */
   redirects?: number;
+  /** Every state the page was asked to scan, `default` first. A state in `notScanned` too was not scanned. */
   states: string[];
   notScanned: { state: string; reason: string }[];
   /** What the page tried that the scan stopped: dialogs, pop-ups and downloads (src/context.ts). */
@@ -198,19 +203,22 @@ export function cutText(text: string, limit: number): string {
 }
 
 /** Elements kept to the limit per finding, each element's HTML cut to the excerpt limit. */
-function keptElements<E extends FindingElement>(
+function keptElements<E extends FindingElement & { states?: string[] }>(
   elements: E[],
   limits: Limits,
 ): { elements: (E & RecordElement)[]; cut: number } {
   const kept = elements.slice(0, limits.elementsPerFinding).map((element) => ({
     ...element,
     html: cutText(element.html, limits.excerptChars),
-    states: ["default"],
+    states: element.states ?? ["default"],
   }));
   return { elements: kept, cut: elements.length - kept.length };
 }
 
-function toRecordFinding(finding: Finding, limits: Limits): RecordFinding {
+function toRecordFinding(
+  finding: Omit<Finding, "elements"> & { elements: (FindingElement & { states?: string[] })[] },
+  limits: Limits,
+): RecordFinding {
   const help = oneLine(finding.rule.help);
   const { elements, cut } = keptElements(finding.elements, limits);
   return {
@@ -221,7 +229,7 @@ function toRecordFinding(finding: Finding, limits: Limits): RecordFinding {
     page: finding.page,
     title: `${help === "" ? finding.rule.id : help} on ${finding.page}`,
     plain: help === "" ? finding.rule.id : help,
-    fix: fixOf(finding),
+    fix: fixOf(finding as Finding),
     elements,
     ...(cut > 0 ? { elementsCut: cut } : {}),
     status: "new",
@@ -282,8 +290,8 @@ export function fitToSize(record: ScanRecord, maxBytes: number): ScanRecord {
   }
   if (bytesOf(fitted) <= maxBytes) return fitted;
 
-  const page = fitted.pages[0];
-  if (page !== undefined) {
+  // Nothing of any page is left to show, so every page reads *not scanned*, not as having nothing found.
+  for (const page of fitted.pages) {
     page.notScanned = [
       {
         state: "default",
@@ -302,24 +310,103 @@ export function fitToSize(record: ScanRecord, maxBytes: number): ScanRecord {
     minor: 0,
     advice: 0,
     needsReview: 0,
-    notScanned: 1,
+    notScanned: fitted.pages.length,
   };
   fitted.exit = 1;
   return fitted;
 }
 
-export function buildScanRecord(input: RecordInput): ScanRecord {
+/** What one state of one page gave: axe-core's results, or why the state was not scanned. */
+export interface StateResult {
+  name: string;
+  /** axe-core's results, or null when the state was not scanned. */
+  axe: AxeScan | null;
+  /** Why the state was not scanned. */
+  notScanned?: string;
+}
+
+/** One page and every state asked of it, `default` first. */
+export interface PageResult {
+  key: string;
+  /** Where the page ended, after redirects. */
+  url: string;
+  /** The address asked for; `url` when not given. */
+  requestedUrl?: string;
+  redirects?: number;
+  stopped?: Stopped[];
+  states: StateResult[];
+}
+
+export interface PagesInput {
+  tool: { name: string; version: string };
+  browser: string;
+  fallback: boolean;
+  startedAt: string;
+  finishedAt: string;
+  /** axe-core's version when no state of any page was scanned. */
+  axeCore?: string;
+  pages: PageResult[];
+  limits?: Limits;
+  /** `--tags`: the axe-core tags that ran; null for axe-core's default rule set. */
+  tags?: readonly string[] | null;
+  failOn?: Impact;
+  sameOrigin?: boolean;
+  offline?: boolean;
+}
+
+/**
+ * The record of a whole run: every page, each in every state asked of it. A page's states are merged into
+ * one finding per rule (src/merge-states.ts), so a finding is one rule on one page and each element says
+ * which states it was found in.
+ */
+export function buildPagesRecord(input: PagesInput): ScanRecord {
   const limits = input.limits ?? LIMITS;
-  const axe = input.axe;
-  const findings = (axe?.findings ?? []).map((finding) => toRecordFinding(finding, limits));
-  const needsReview: RecordNeedsReview[] = (axe?.needsReview ?? []).map((item) => {
-    const { elements, cut } = keptElements(item.elements, limits);
-    return { ...item, elements, ...(cut > 0 ? { elementsCut: cut } : {}) };
-  });
-  const notScanned = input.notScanned === undefined ? [] : [{ state: "default", reason: input.notScanned }];
-  const requestedUrl = input.requestedUrl ?? input.url;
+  const firstPage = input.pages[0];
+  if (firstPage === undefined) throw new Error("a scan needs at least one page");
+
+  const findings: RecordFinding[] = [];
+  const needsReview: RecordNeedsReview[] = [];
+  const pages: RecordPage[] = [];
+  let axeCore = input.axeCore ?? "";
+  let rulesRun = 0;
+  for (const page of input.pages) {
+    const scanned = page.states.flatMap((state) =>
+      state.axe === null ? [] : [{ state: state.name, axe: state.axe }],
+    );
+    for (const { axe } of scanned) {
+      if (axeCore === "" || axeCore === input.axeCore) axeCore = axe.axeCore;
+      rulesRun = Math.max(rulesRun, axe.rulesRun);
+    }
+    findings.push(
+      ...mergeStates(scanned.map(({ state, axe }) => ({ state, items: axe.findings }))).map((finding) =>
+        toRecordFinding(finding, limits),
+      ),
+    );
+    needsReview.push(
+      ...mergeStates(scanned.map(({ state, axe }) => ({ state, items: axe.needsReview }))).map((item) => {
+        const { elements, cut } = keptElements(item.elements, limits);
+        return { ...item, elements, ...(cut > 0 ? { elementsCut: cut } : {}) };
+      }),
+    );
+    const requestedUrl = page.requestedUrl ?? page.url;
+    pages.push({
+      key: page.key,
+      url: page.url,
+      requestedUrl,
+      redirects: page.redirects ?? 0,
+      states: page.states.map((state) => state.name),
+      notScanned: page.states.flatMap((state) =>
+        state.notScanned === undefined ? [] : [{ state: state.name, reason: state.notScanned }],
+      ),
+      stopped: page.stopped ?? [],
+    });
+  }
+  const pageOrder = pages.map((page) => page.key);
+  const ordered = orderFindings(findings, pageOrder);
+  const orderedReview = orderFindings(needsReview, pageOrder);
+  const notScanned = pages.reduce((count, page) => count + page.notScanned.length, 0);
+  const violations = ordered.filter((f) => f.kind === "violation");
   const failOn = input.failOn ?? DEFAULT_FAIL_ON;
-  const violations = findings.filter((f) => f.kind === "violation");
   const count = (impact: Impact): number => violations.filter((f) => f.impact === impact).length;
   const [critical, serious, moderate, minor] = IMPACTS.map(count) as [number, number, number, number];
   const record: ScanRecord = {
@@ -327,40 +414,30 @@ export function buildScanRecord(input: RecordInput): ScanRecord {
     tool: input.tool,
     command: "scan",
     // Advice and needs-review items never change the exit; a violation does at or above `--fail-on`.
-    exit: violations.some((f) => atOrAbove(f.impact, failOn)) || notScanned.length > 0 ? 1 : 0,
+    exit: violations.some((f) => atOrAbove(f.impact, failOn)) || notScanned > 0 ? 1 : 0,
     engine: {
-      axeCore: axe?.axeCore ?? input.axeCore ?? "",
+      axeCore,
       browser: input.browser,
       fallback: input.fallback,
       tags: input.tags === undefined || input.tags === null ? null : [...input.tags],
-      rulesRun: axe?.rulesRun ?? 0,
+      rulesRun,
     },
     // The target is the origin asked for, so a scan that is redirected elsewhere is filed under it.
-    target: { origin: originOf(requestedUrl), commit: null },
+    target: { origin: originOf(firstPage.requestedUrl ?? firstPage.url), commit: null },
     startedAt: input.startedAt,
     finishedAt: input.finishedAt,
-    pages: [
-      {
-        key: input.pageKey,
-        url: input.url,
-        requestedUrl,
-        redirects: input.redirects ?? 0,
-        states: ["default"],
-        notScanned,
-        stopped: input.stopped ?? [],
-      },
-    ],
+    pages,
     summary: {
       critical,
       serious,
       moderate,
       minor,
-      advice: findings.filter((f) => f.kind === "advice").length,
-      needsReview: needsReview.length,
-      notScanned: notScanned.length,
+      advice: ordered.filter((f) => f.kind === "advice").length,
+      needsReview: orderedReview.length,
+      notScanned,
     },
-    findings,
-    needsReview,
+    findings: ordered,
+    needsReview: orderedReview,
     ignored: [],
     workflows: [],
     checklist: null,
@@ -375,4 +452,37 @@ export function buildScanRecord(input: RecordInput): ScanRecord {
     options: { failOn, sameOrigin: input.sameOrigin ?? false, offline: input.offline ?? false },
   };
   return fitToSize(record, limits.scanJsonBytes);
+}
+
+/** The record of one page in one state, `default`: what a scan of a single address gives. */
+export function buildScanRecord(input: RecordInput): ScanRecord {
+  return buildPagesRecord({
+    tool: input.tool,
+    browser: input.browser,
+    fallback: input.fallback,
+    startedAt: input.startedAt,
+    finishedAt: input.finishedAt,
+    ...(input.axeCore === undefined ? {} : { axeCore: input.axeCore }),
+    ...(input.limits === undefined ? {} : { limits: input.limits }),
+    ...(input.tags === undefined ? {} : { tags: input.tags }),
+    ...(input.failOn === undefined ? {} : { failOn: input.failOn }),
+    ...(input.sameOrigin === undefined ? {} : { sameOrigin: input.sameOrigin }),
+    ...(input.offline === undefined ? {} : { offline: input.offline }),
+    pages: [
+      {
+        key: input.pageKey,
+        url: input.url,
+        ...(input.requestedUrl === undefined ? {} : { requestedUrl: input.requestedUrl }),
+        ...(input.redirects === undefined ? {} : { redirects: input.redirects }),
+        ...(input.stopped === undefined ? {} : { stopped: input.stopped }),
+        states: [
+          {
+            name: "default",
+            axe: input.axe,
+            ...(input.notScanned === undefined ? {} : { notScanned: input.notScanned }),
+          },
+        ],
+      },
+    ],
+  });
 }

@@ -90,6 +90,13 @@ function elementLines(element: RecordElement, fix: string, reason?: string): str
     "",
     ...indent(fenced(cut(element.html, HTML_LIMIT))),
   ];
+  // Only a page scanned in more than one state has anything to say about which states an element failed in.
+  if (element.states.length !== 1 || element.states[0] !== "default") {
+    lines.push(
+      "",
+      `  Found in the ${element.states.length === 1 ? "state" : "states"}: ${element.states.map(inlineCode).join(", ")}`,
+    );
+  }
   // The finding's fix line already says what axe-core said about its first element; say it again only where it differs.
   if (element.colorPair !== undefined) lines.push("", `  Colours: ${colorPairLine(element.colorPair)}`);
   const why = reason ?? (failureOnOneLine(element.failure) === fix ? "" : element.failure);
