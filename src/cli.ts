@@ -1,8 +1,11 @@
 #!/usr/bin/env node
-import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { BROWSER_CHANNELS, DEFAULT_CHANNEL, isBrowserChannel, withBrowser } from "./browser.js";
+import { BROWSER_CHANNELS, DEFAULT_CHANNEL, isBrowserChannel } from "./browser.js";
+import { packageInfo } from "./package-info.js";
 import { Refusal } from "./refusal.js";
+import { emptyScanSentence, renderReport } from "./report.js";
+import { runScan } from "./run-scan.js";
+import { defaultScansDir, makeScanFolder, writeScanFile } from "./scans-folder.js";
 
 const HELP = `A11y Genie: an accessibility scanner for agents and people.
 
@@ -11,14 +14,17 @@ It never says a site is "accessible" or "compliant". Automated checks find some 
 Usage:
   a11y-genie --version
   a11y-genie --help
-  a11y-genie scan [--browser-channel chrome|msedge]
+  a11y-genie scan <url> [--json] [--out <folder>] [--format md,json] [--browser-channel chrome|msedge]
 
 Flags:
+  --json             print scan.json on stdout; everything else goes to stderr
+  --out <folder>     where the scan folder goes; default is the per-user scans folder
+  --format           which reports to write beside scan.json: md, json, or md,json (the default)
   --browser-channel  which installed browser to launch: chrome (the default) or msedge
 
 Commands:
-  scan       so far it only launches the browser with a new, empty profile and closes it;
-             it does not load or check a page yet
+  scan       load one page in a browser with a new, empty profile, run axe-core on it, and write
+             scan.json and report.md. Exit 0: no findings. Exit 1: findings.
 
 Commands (coming, none works yet):
   check      scan again and say what is new and what is fixed
@@ -33,49 +39,89 @@ Commands (coming, none works yet):
 
 const HELP_HINT = "run a11y-genie --help to see what exists so far.";
 
-function version(): string {
-  const url = new URL("../package.json", import.meta.url);
-  return (JSON.parse(readFileSync(url, "utf8")) as { version: string }).version;
+const FORMATS = ["md", "json"] as const;
+
+/** `--format md,json`, repeatable: each value is a comma-separated list. */
+function parseFormats(values: string[] | undefined): Set<(typeof FORMATS)[number]> {
+  const chosen = new Set<(typeof FORMATS)[number]>();
+  for (const value of values ?? ["md,json"]) {
+    for (const name of value.split(",")) {
+      if (!(FORMATS as readonly string[]).includes(name)) {
+        throw new Refusal(
+          `unknown --format: ${name || "(empty)"}`,
+          `use ${FORMATS.join(" or ")}, or both, separated by a comma.`,
+        );
+      }
+      chosen.add(name as (typeof FORMATS)[number]);
+    }
+  }
+  return chosen;
 }
 
-/** The `scan` stub: proves the browser launches, until a later change makes it load a page. */
+/** Scans one page, writes its scan folder, and sets the exit code: 0 with no findings, 1 with any. */
 async function scan(args: string[]): Promise<void> {
-  let values: { "browser-channel"?: string | undefined };
+  let values: {
+    "browser-channel"?: string | undefined;
+    out?: string | undefined;
+    format?: string[] | undefined;
+    json?: boolean | undefined;
+  };
   let positionals: string[];
   try {
     ({ values, positionals } = parseArgs({
       args,
-      options: { "browser-channel": { type: "string" } },
+      options: {
+        "browser-channel": { type: "string" },
+        out: { type: "string" },
+        format: { type: "string", multiple: true },
+        json: { type: "boolean" },
+      },
       allowPositionals: true,
       strict: true,
     }));
   } catch (error) {
     throw new Refusal((error as Error).message, HELP_HINT);
   }
-  if (positionals.length > 0) {
-    throw new Refusal(`scan does not take a page yet: ${positionals[0]}`, HELP_HINT);
-  }
+  const [url, ...extra] = positionals;
+  if (url === undefined)
+    throw new Refusal("scan needs a page address to scan.", "run: a11y-genie scan <url>");
+  if (extra.length > 0) throw new Refusal(`scan takes one page, and got more: ${extra[0]}`, HELP_HINT);
 
   const channel = values["browser-channel"] ?? DEFAULT_CHANNEL;
   if (!isBrowserChannel(channel)) {
     throw new Refusal(`unknown --browser-channel: ${channel}`, `use one of: ${BROWSER_CHANNELS.join(", ")}.`);
   }
+  const formats = parseFormats(values.format);
 
-  const browserVersion = await withBrowser(channel, async (browser) => {
-    const page = await browser.newPage();
-    await page.goto("about:blank");
-    return browser.version();
-  });
-  console.error(`Launched ${channel} ${browserVersion} with a new, empty profile, and closed it.`);
-  console.error("Nothing was scanned: scan does not load pages yet.");
-  // Exit 0 never stands for a page nobody saw: nothing scanned is exit 1, as a page that could not be scanned is.
-  process.exitCode = 1;
+  const record = await runScan({ url, channel });
+
+  const folder = makeScanFolder(values.out ?? defaultScansDir(), record.target.origin, record.startedAt);
+  const json = `${JSON.stringify(record, null, 2)}\n`;
+  // scan.json is the record every other file is made from, so it is always written.
+  writeScanFile(folder, "scan.json", json);
+  if (formats.has("md")) writeScanFile(folder, "report.md", renderReport(record));
+
+  // Under --json stdout holds the one document and everything for a person goes to stderr.
+  const say = values.json ? console.error : console.log;
+  const found =
+    record.summary.critical + record.summary.serious + record.summary.moderate + record.summary.minor;
+  say(
+    found === 0
+      ? emptyScanSentence(record)
+      : `Found ${found} ${found === 1 ? "problem" : "problems"} on ${record.pages[0]?.url ?? url}, worst first: ` +
+          `${record.summary.critical} critical, ${record.summary.serious} serious, ` +
+          `${record.summary.moderate} moderate, ${record.summary.minor} minor.`,
+  );
+  if (record.summary.needsReview > 0) say(`${record.summary.needsReview} more need a person to look.`);
+  say(`Wrote ${folder}`);
+  if (values.json) process.stdout.write(json);
+  process.exitCode = record.exit;
 }
 
 async function main(args: string[]): Promise<void> {
   if (args[0] === "scan") return scan(args.slice(1));
   if (args.includes("--version")) {
-    console.log(version());
+    console.log(packageInfo().version);
   } else if (args.length === 0 || args.includes("--help")) {
     process.stdout.write(HELP);
   } else {
