@@ -29,7 +29,7 @@ Run all five before you ask for a review. CI runs the same five in that order, o
 - `src/printable.ts` strips terminal escapes and control characters from page text before it is printed or
   written into `report.md`; every printed line and the whole report pass through it.
 - `src/axe.ts` runs axe-core on a loaded page; `src/map-axe.ts` maps its results to findings (`src/finding.ts`), and
-  `src/order.ts` orders them worst first.
+  `src/order.ts` orders them worst first. `src/landmarks.ts` is the product's own `genie/no-landmarks` check.
 - `src/banner.ts` holds the genie and his bottle, the drawing for a person at a terminal. Nothing prints it
   yet, and the README's first block is the same drawing.
 - `src/scan-record.ts` builds `scan.json` (`schema/scan-1.json` is its JSON Schema, shipped in the package),
@@ -38,7 +38,7 @@ Run all five before you ask for a review. CI runs the same five in that order, o
 - `test/` holds the tests, in folders by kind. `test/cli/` runs the built `dist/`, so `npm test` builds first.
   `test/unit/` runs no browser. `test/browser/` launches the real installed Chrome and skips itself where
   Chrome is not installed.
-- `test/fixtures/site/` holds the fixture pages, each with a comment naming the axe-core rule that must fire. `test/fixtures/axe/` holds axe-core results recorded from those pages, for tests with no browser. `test/goldens/` holds the committed `scan.json` and `report.md` of the four first fixture pages; `UPDATE_GOLDENS=1 npm test` rewrites them, and you review the diff. `test/helpers/` holds the loopback fixture server, the no-network guard for Node, and `guardContext()`, its browser-side half; `test/setup/` installs the guard for every test file.
+- `test/fixtures/site/` holds the fixture pages, each with a comment naming the axe-core rule that must fire. `test/fixtures/axe/` holds axe-core results recorded from those pages, for tests with no browser. `test/goldens/` holds the committed `scan.json` and `report.md` of the first fixture pages (the four first, and `no-landmarks`); `UPDATE_GOLDENS=1 npm test` rewrites them, and you review the diff. `test/helpers/` holds the loopback fixture server, the no-network guard for Node, and `guardContext()`, its browser-side half; `test/setup/` installs the guard for every test file.
 - `src/exit-codes.ts` names the exit codes, `src/out-folder.ts` checks `--out`, and `src/interrupt.ts` handles
   Ctrl-C. `docs/EXIT-CODES.md` lists the exit codes and every refusal's words.
 - `docs/ARCHITECTURE.md` says how the parts work and why, including what was checked against a real browser.
