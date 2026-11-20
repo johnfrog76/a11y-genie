@@ -1035,12 +1035,21 @@ request the page makes to one of these is aborted (spec 8A.1):
 | unspecified | `0.0.0.0/8`, `::` |
 | IPv4-mapped IPv6 | `::ffff:0:0/96`, judged by the IPv4 address inside it |
 | NAT64, well-known prefix | `64:ff9b::/96` (RFC 6052), judged by the IPv4 address in its last 32 bits, as `::ffff:0:0/96` is |
+| IPv4-translated, IPv4-compatible | `::ffff:0:0:0/96` (RFC 2765) and the deprecated `::/96` beyond `::` and `::1` (RFC 4291), judged by the IPv4 address in their last 32 bits |
 | NAT64, local-use prefix | `64:ff9b:1::/48` (RFC 8215), read as private: the IPv4 address's place depends on the network's prefix length, so it cannot be judged |
 
 `src/private-address.ts` holds the classifier, and `test/unit/private-address.test.ts` its edges. It reads the
 host in the form the browser's URL parser gives it, so `http://0x7f.1/`, `http://2130706433/` and
 `http://[::ffff:127.0.0.1]/` read as the loopback addresses they are. Anything else reads public, `100.64.0.0/10`
-(shared address space) among them, since the spec does not list it. The rule reads the host as written and
+(shared address space) among them, since the spec does not list it. So are 6to4 (`2002::/16`) and Teredo
+(`2001::/32`): the IPv4 address inside them is a relay's or a tunnel end's, reached across the internet, not the
+service a page could reach on the person's network.
+
+Chromium does not refuse the embedded forms. Checked with playwright-core 1.65.1 and Playwright's Chromium on
+macOS, against a server on `127.0.0.1`: `http://[::ffff:7f00:1]:<port>/` reached it, while `[::ffff:0:7f00:1]`,
+`[::7f00:1]` (which the URL parser writes for `[::127.0.0.1]`), `[64:ff9b::7f00:1]` and `[2002:7f00:1::1]` were
+sent out as IPv6 and timed out, because that network has no translator. On a network that has one, they arrive,
+so each is judged by the IPv4 address inside. The rule reads the host as written and
 never looks a name up, so a public name that resolves to a private address is not caught (gap G7; see
 `SECURITY.md`). A target that is itself loopback or private (the usual dev server) is not limited at all, and
 `--allow-private` turns the rule off.
