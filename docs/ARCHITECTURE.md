@@ -596,8 +596,11 @@ was paused at plus the time that has passed since, and played on, so it ends whe
 check, not early and not late. Nothing is finished, so no `finish` event fires; setting a paused CSS animation or
 transition to its end does queue its `animationend` or `transitionend`, so the guard (`src/focus-guard.ts`)
 also stops those two kinds of event, and `animationstart`, `animationiteration`, `animationcancel`,
-`transitionrun`, `transitionstart` and `transitioncancel`, for the animations the check named, until a couple of
-frames after they are put back; the page's other animations' events pass. The styles of the focused and the
+`transitionrun`, `transitionstart` and `transitioncancel`, for the animations the check named (it names them, with the guard, before it sets any of them to its end, so no
+event can be dispatched in between, and holds only those), until three frames have been
+drawn after they are put back (the browser dispatches animation events in the step that opens a frame, before that
+frame's `requestAnimationFrame` callbacks, so the wait follows frames and not a clock; only a page that draws no
+frames, such as a hidden one, ends it at a ten-second cap); the page's other animations' events pass. The styles of the focused and the
 unfocused element are read inside the same stillness, so an animated ring is judged as it ends
 (`focus-running.html`: a 60 s animation and transition, running when the check reaches them, are within half a
 second of where the page's own clock puts them, with no end event heard). Playwright's own `animations: "disabled"` is not used,

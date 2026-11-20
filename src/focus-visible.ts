@@ -195,7 +195,7 @@ const REFOCUS = `function () {
  * finite ones for good and cancels an infinite one back to the element's style without it, which hides a
  * pulsing ring (V4).
  */
-const STILL = `function () {
+const STILL = `function (only) {
   const held = globalThis.${HELD};
   const kept = held ? held.paused : [];
   const docs = [document];
@@ -219,16 +219,21 @@ const STILL = `function () {
     for (const animation of animations) {
       try {
         if (animation.playState !== "running") continue;
+        const name = animation.animationName ?? animation.transitionProperty ?? "";
+        // Asked with no names: only reads which are running. Asked with names: holds just those, which the
+        // guard was told to listen for before this call, so none of their events can slip past it.
+        if (only === null) { kept.push({ name }); continue; }
+        if (!only.includes(name)) continue;
         const end = animation.effect ? animation.effect.getComputedTiming().endTime : 0;
         const time = animation.currentTime;
         const rate = animation.playbackRate;
         animation.pause();
-        kept.push({ animation, time, rate, at: performance.now(), name: animation.animationName ?? animation.transitionProperty });
+        kept.push({ animation, time, rate, at: performance.now(), name });
         if (typeof end === "number" && end !== Infinity) animation.currentTime = rate < 0 ? 0 : end;
       } catch (e) {}
     }
   }
-  return kept.map((k) => k.name);
+  return only === null ? kept.splice(0).map((k) => k.name) : true;
 }`;
 
 /** Puts back what `STILL` held: each animation at the time it was paused at, plus the time since, playing again. */
@@ -416,9 +421,13 @@ export class FocusVisibleCheck {
       // Each shot is taken with the page held still, and its styles read in that same stillness, so an animated
       // ring is judged as it ends; the animations are put back before the next thing happens.
       const shot = async (): Promise<{ png: Buffer; styles: string[][] | undefined }> => {
-        const names = await this.reader.call(STILL);
-        // The events that holding the animations still provokes are stopped until they have been put back.
-        await this.guard.still(Array.isArray(names) ? names.filter((n) => typeof n === "string") : []);
+        // Which animations are running, read first with nothing held; the guard is told to stop their events
+        // before any of them is set to its end, so no event can be dispatched between the two. Those are the
+        // ones held; they are let through again once they have been put back and the browser has caught up.
+        const running = await this.reader.call(STILL, null);
+        const names = Array.isArray(running) ? running.filter((n): n is string => typeof n === "string") : [];
+        await this.guard.still(names);
+        await this.reader.call(STILL, names);
         try {
           // `caret: "initial"`: Playwright's own caret hiding writes a style attribute on every field and leaves
           // it behind, empty; the caret is hidden by `NO_TRANSITIONS` instead.

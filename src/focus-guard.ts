@@ -54,6 +54,9 @@ const SOURCE = `(() => {
   for (const type of ${JSON.stringify(ANIMATION_EVENTS)}) window.addEventListener(type, stopNamed, true);
 })();`;
 
+/** The longest `settle` waits for frames that do not come, in milliseconds. */
+const FRAME_CAP_MS = 10_000;
+
 const sessions = new WeakMap<Page, Promise<FocusGuard>>();
 
 export class FocusGuard {
@@ -148,24 +151,35 @@ export class FocusGuard {
     if (held && failed) throw new Error("the focus guard could not be switched on");
   }
 
+  /** Whether `still` named any animation, so `settle` has events to wait for. */
+  private named = false;
+
   /**
    * Names the animations and transitions (by `animationName` and `propertyName`) whose events the page must not
    * hear while the check holds them still: until `settle`. An empty list names none.
    */
   async still(names: readonly string[]): Promise<void> {
+    this.named = names.length > 0;
     await this.everywhere(`globalThis.${STATE}.names = ${JSON.stringify(names)}`, false);
   }
 
   /**
-   * Waits for the browser to draw a couple of frames, in which it dispatches the events of what was set to its end
-   * and back, then lets those events through again. Never waits more than a fifth of a second.
+   * Lets the named events through again, once the browser has dispatched the ones that were queued. The wait
+   * follows frames and not a clock: the browser dispatches an animation's events in the step that opens a frame,
+   * before that frame's `requestAnimationFrame` callbacks, so when the third callback registered after the
+   * animations were put back has run, every event their restore queued has been dispatched, however slow the
+   * machine. The only time limit is a ten-second cap for a page whose frames never come (a hidden page), where
+   * the wait ends and the events are let through.
    */
   async settle(): Promise<void> {
-    await this.everywhere(
-      `new Promise((done) => { setTimeout(done, 200); requestAnimationFrame(() => requestAnimationFrame(done)); })` +
-        `.then(() => { globalThis.${STATE}.names = []; })`,
-      true,
-    );
+    if (this.named) {
+      await this.everywhere(
+        `new Promise((done) => { setTimeout(done, ${FRAME_CAP_MS.toString()}); ` +
+          `requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(done))); })`,
+        true,
+      );
+    }
+    this.named = false;
     await this.everywhere(`globalThis.${STATE}.names = []`, false);
   }
 
