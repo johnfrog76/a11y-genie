@@ -1,3 +1,4 @@
+import { channelArgs } from "../helpers/test-browser.js";
 import { spawn } from "node:child_process";
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -5,14 +6,14 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { NO_BROWSER_ENV } from "../../src/browser.js";
 import { SCANS_DIR_ENV } from "../../src/scans-folder.js";
-import { chromeIsInstalled } from "../helpers/browser-guard.js";
+import { testBrowserIsInstalled } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 
 // `--tags`, `--fail-on`, `--same-origin` and `--offline` through the built command (npm test builds first):
 // every refusal's words, and the exit codes the flags set. A refusal exits 2, prints one Error: and one Hint:
 // on stderr, nothing on stdout, and writes nothing.
 const cli = new URL("../../dist/cli.js", import.meta.url).pathname;
-const hasChrome = await chromeIsInstalled();
+const hasBrowser = await testBrowserIsInstalled();
 
 interface Run {
   status: number | null;
@@ -23,7 +24,7 @@ interface Run {
 /** Async, because the fixture server is in this process and must keep answering while the command runs. */
 function run(args: string[], scans: string, env: Record<string, string> = {}): Promise<Run> {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [cli, ...args], {
+    const child = spawn(process.execPath, [cli, ...channelArgs(args, env)], {
       env: { ...process.env, [SCANS_DIR_ENV]: scans, ...env },
     });
     let stdout = "";
@@ -158,64 +159,69 @@ describe("refusals that need no browser", () => {
   });
 });
 
-describe.skipIf(!hasChrome)("exit codes the flags set (skipped where Chrome is not installed)", () => {
-  let server: FixtureServer;
-  beforeAll(async () => {
-    server = await startFixtureServer();
-  });
-  afterAll(async () => {
-    await server.close();
-  });
+describe.skipIf(!hasBrowser)(
+  "exit codes the flags set (skipped where the test browser is not installed)",
+  () => {
+    let server: FixtureServer;
+    beforeAll(async () => {
+      server = await startFixtureServer();
+    });
+    afterAll(async () => {
+      await server.close();
+    });
 
-  const onlyScan = (scans: string) => {
-    const [name] = readdirSync(scans);
-    const [folder] = readdirSync(join(scans, name ?? ""));
-    return JSON.parse(readFileSync(join(scans, name ?? "", folder ?? "", "scan.json"), "utf8")) as {
-      exit: number;
-      schema: string;
-      engine: { tags: string[] | null; rulesRun: number };
-      options: unknown;
-      summary: Record<string, number>;
+    const onlyScan = (scans: string) => {
+      const [name] = readdirSync(scans);
+      const [folder] = readdirSync(join(scans, name ?? ""));
+      return JSON.parse(readFileSync(join(scans, name ?? "", folder ?? "", "scan.json"), "utf8")) as {
+        exit: number;
+        schema: string;
+        engine: { tags: string[] | null; rulesRun: number };
+        options: unknown;
+        summary: Record<string, number>;
+      };
     };
-  };
 
-  it("--fail-on serious exits 0 over a page with only moderate findings, and says so", async () => {
-    const scans = temp();
-    const result = await run(["scan", server.url("no-main.html"), "--fail-on", "serious"], scans);
-    expect(result.status).toBe(0);
-    const out = lines(result.stdout);
-    expect(out[0]).toMatch(
-      /^Found 1 problem on .*, worst first: 0 critical, 0 serious, 1 moderate, 0 minor\.$/,
-    );
-    expect(out[1]).toBe("None is serious or worse, so the exit is 0 (--fail-on serious).");
-    const record = onlyScan(scans);
-    expect(record.exit).toBe(0);
-    expect(record.summary).toMatchObject({ moderate: 1 });
-    expect(record.options).toEqual({ failOn: "serious", sameOrigin: false, offline: false });
-  });
+    it("--fail-on serious exits 0 over a page with only moderate findings, and says so", async () => {
+      const scans = temp();
+      const result = await run(["scan", server.url("no-main.html"), "--fail-on", "serious"], scans);
+      expect(result.status).toBe(0);
+      const out = lines(result.stdout);
+      expect(out[0]).toMatch(
+        /^Found 1 problem on .*, worst first: 0 critical, 0 serious, 1 moderate, 0 minor\.$/,
+      );
+      expect(out[1]).toBe("None is serious or worse, so the exit is 0 (--fail-on serious).");
+      const record = onlyScan(scans);
+      expect(record.exit).toBe(0);
+      expect(record.summary).toMatchObject({ moderate: 1 });
+      expect(record.options).toEqual({ failOn: "serious", sameOrigin: false, offline: false });
+    });
 
-  it("--fail-on moderate, and the default, exit 1 over the same page", async () => {
-    expect((await run(["scan", server.url("no-main.html"), "--fail-on", "moderate"], temp())).status).toBe(1);
-    expect((await run(["scan", server.url("no-main.html")], temp())).status).toBe(1);
-  });
+    it("--fail-on moderate, and the default, exit 1 over the same page", async () => {
+      expect((await run(["scan", server.url("no-main.html"), "--fail-on", "moderate"], temp())).status).toBe(
+        1,
+      );
+      expect((await run(["scan", server.url("no-main.html")], temp())).status).toBe(1);
+    });
 
-  it("--tags is recorded, and changes how many rules ran", async () => {
-    const scans = temp();
-    const tagged = await run(["scan", server.url("no-main.html"), "--tags", "wcag2a"], scans);
-    expect(tagged.status).toBe(0);
-    const record = onlyScan(scans);
-    expect(record.engine.tags).toEqual(["wcag2a"]);
-    const defaults = temp();
-    await run(["scan", server.url("no-main.html")], defaults);
-    const base = onlyScan(defaults);
-    expect(base.engine.tags).toBeNull();
-    expect(record.engine.rulesRun).toBeLessThan(base.engine.rulesRun);
-  });
+    it("--tags is recorded, and changes how many rules ran", async () => {
+      const scans = temp();
+      const tagged = await run(["scan", server.url("no-main.html"), "--tags", "wcag2a"], scans);
+      expect(tagged.status).toBe(0);
+      const record = onlyScan(scans);
+      expect(record.engine.tags).toEqual(["wcag2a"]);
+      const defaults = temp();
+      await run(["scan", server.url("no-main.html")], defaults);
+      const base = onlyScan(defaults);
+      expect(base.engine.tags).toBeNull();
+      expect(record.engine.rulesRun).toBeLessThan(base.engine.rulesRun);
+    });
 
-  it("--offline scans a loopback page, and --same-origin one on its own origin", async () => {
-    const scans = temp();
-    const result = await run(["scan", server.url("clean.html"), "--offline", "--same-origin"], scans);
-    expect(result.status).toBe(0);
-    expect(onlyScan(scans).options).toEqual({ failOn: "minor", sameOrigin: true, offline: true });
-  });
-});
+    it("--offline scans a loopback page, and --same-origin one on its own origin", async () => {
+      const scans = temp();
+      const result = await run(["scan", server.url("clean.html"), "--offline", "--same-origin"], scans);
+      expect(result.status).toBe(0);
+      expect(onlyScan(scans).options).toEqual({ failOn: "minor", sameOrigin: true, offline: true });
+    });
+  },
+);

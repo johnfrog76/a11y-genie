@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- edits a baseline as loose JSON to see what check refuses */
+import { channelArgs } from "../helpers/test-browser.js";
 import { spawn } from "node:child_process";
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -6,7 +7,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { scanSchema, validate } from "../../src/json-schema.js";
 import { SCANS_DIR_ENV } from "../../src/scans-folder.js";
-import { chromeIsInstalled } from "../helpers/browser-guard.js";
+import { testBrowserIsInstalled } from "../helpers/browser-guard.js";
 import { controlsIn } from "../helpers/controls.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 import { readGolden } from "../helpers/goldens.js";
@@ -17,7 +18,7 @@ import { neverClaimViolations } from "../helpers/never-claim.js";
 // the browser-side guard cannot be installed on it: its pages only ever load from the fixture server.
 // test/browser/check.test.ts runs the same comparison guarded.
 const cli = new URL("../../dist/cli.js", import.meta.url).pathname;
-const hasChrome = await chromeIsInstalled();
+const hasBrowser = await testBrowserIsInstalled();
 const schema = scanSchema();
 
 interface Run {
@@ -28,7 +29,7 @@ interface Run {
 
 function run(args: string[], scans: string, env: NodeJS.ProcessEnv = {}): Promise<Run> {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [cli, ...args], {
+    const child = spawn(process.execPath, [cli, ...channelArgs(args, env)], {
       env: { ...process.env, GITHUB_SHA: "", [SCANS_DIR_ENV]: scans, ...env },
     });
     let stdout = "";
@@ -180,8 +181,8 @@ describe("check's refusals, before a browser opens", () => {
   });
 });
 
-describe.skipIf(!hasChrome)(
-  "scan, fix, rescan through the command (skipped where Chrome is not installed)",
+describe.skipIf(!hasBrowser)(
+  "scan, fix, rescan through the command (skipped where the test browser is not installed)",
   () => {
     let server: FixtureServer;
     let configs: string;

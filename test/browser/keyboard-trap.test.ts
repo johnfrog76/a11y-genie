@@ -1,3 +1,4 @@
+import { TEST_CHANNEL } from "../helpers/test-browser.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { scanPage } from "../../src/axe.js";
 import { withBrowser } from "../../src/browser.js";
@@ -7,7 +8,7 @@ import { renderReport } from "../../src/report.js";
 import { runScan } from "../../src/run-scan.js";
 import { CANNOT_SEE } from "../../src/scan-record.js";
 import { parseStateFlags } from "../../src/scan-plan.js";
-import { chromeIsInstalled, guardContext } from "../helpers/browser-guard.js";
+import { testBrowserIsInstalled, guardContext } from "../helpers/browser-guard.js";
 import { neverClaimViolations } from "../helpers/never-claim.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 
@@ -15,9 +16,9 @@ import { startFixtureServer, type FixtureServer } from "../helpers/fixture-serve
 // keyboard walk; a proper modal dialog is not flagged, and one that drops focus when Escape closes it is
 // genie/focus-not-returned. Each fixture page names, in its comment, what must fire. Skipped, and says so,
 // where Chrome is not installed.
-const hasChrome = await chromeIsInstalled();
+const hasBrowser = await testBrowserIsInstalled();
 
-describe.skipIf(!hasChrome)("the keyboard trap (skipped where Chrome is not installed)", () => {
+describe.skipIf(!hasBrowser)("the keyboard trap (skipped where the test browser is not installed)", () => {
   let server: FixtureServer;
   beforeAll(async () => {
     server = await startFixtureServer();
@@ -34,7 +35,7 @@ describe.skipIf(!hasChrome)("the keyboard trap (skipped where Chrome is not inst
 
   /** Scans a fixture page, after a click on `click` when given (as a state's step would). */
   async function scan(page: string, click?: string, tags: string[] | null = null): Promise<Scanned> {
-    return withBrowser("chrome", async (browser) => {
+    return withBrowser(TEST_CHANNEL, async (browser) => {
       const context = await browser.newContext();
       const attempted = await guardContext(context, server.origin);
       const tab = await context.newPage();
@@ -147,7 +148,7 @@ describe.skipIf(!hasChrome)("the keyboard trap (skipped where Chrome is not inst
     const record = await runScan({
       url,
       pages: [{ url, states: parseStateFlags(["delete-dialog: click css '#open'"]) }],
-      channel: "chrome",
+      channel: TEST_CHANNEL,
       onContext: async (context) => {
         attempted.push(await guardContext(context, server.origin));
       },
@@ -169,7 +170,7 @@ describe.skipIf(!hasChrome)("the keyboard trap (skipped where Chrome is not inst
     const record = await runScan({
       url,
       pages: [{ url, states: parseStateFlags(["change-email: click css '#open'"]) }],
-      channel: "chrome",
+      channel: TEST_CHANNEL,
       onContext,
     });
     const line = nativeModalLine("native-modal.html", ["change-email"]);
@@ -181,7 +182,7 @@ describe.skipIf(!hasChrome)("the keyboard trap (skipped where Chrome is not inst
     expect(renderReport(record)).toContain(`- ${line}`);
     expect(neverClaimViolations(line)).toEqual([]);
     expect(record.findings.filter((f) => f.rule.source === "genie" && f.rule.id !== "skip-link")).toEqual([]);
-    const clean = await runScan({ url: server.url("clean.html"), channel: "chrome", onContext });
+    const clean = await runScan({ url: server.url("clean.html"), channel: TEST_CHANNEL, onContext });
     expect(clean.cannotSee).toEqual([...CANNOT_SEE]);
     expect(attempted.flat()).toEqual([]);
   });

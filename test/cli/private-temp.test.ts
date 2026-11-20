@@ -4,14 +4,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SCANS_DIR_ENV } from "../../src/scans-folder.js";
-import { chromeIsInstalled } from "../helpers/browser-guard.js";
+import { testBrowserIsInstalled } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 
 // Each a11y-genie process makes a temp folder of its own and removes it when it ends (src/private-temp.ts).
 // These run the built command with a "shared" temp folder of the test's own, and look in it afterwards.
 const cli = new URL("../../dist/cli.js", import.meta.url).pathname;
 const diskFull = new URL("../fixtures/preload/disk-full.mjs", import.meta.url).pathname;
-const hasChrome = await chromeIsInstalled();
+const hasBrowser = await testBrowserIsInstalled();
 
 const made: string[] = [];
 function folder(): string {
@@ -60,7 +60,7 @@ describe("the private temp folder", () => {
   });
 });
 
-describe.skipIf(!hasChrome)("a run with a browser (skipped where Chrome is not installed)", () => {
+describe.skipIf(!hasBrowser)("a run with a browser (skipped where the test browser is not installed)", () => {
   let server: FixtureServer;
   let hang: import("node:http").Server;
   let hangPort: number;

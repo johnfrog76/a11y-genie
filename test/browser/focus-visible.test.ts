@@ -1,3 +1,4 @@
+import { TEST_CHANNEL } from "../helpers/test-browser.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { scanPage } from "../../src/axe.js";
 import { withBrowser } from "../../src/browser.js";
@@ -7,15 +8,15 @@ import { MAX_SCREENSHOT_STOPS } from "../../src/focus-visible.js";
 import { wordingOf } from "../../src/plain.js";
 import { runScan } from "../../src/run-scan.js";
 import { CANNOT_SEE } from "../../src/scan-record.js";
-import { chromeIsInstalled, guardContext } from "../helpers/browser-guard.js";
+import { testBrowserIsInstalled, guardContext } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 
 // Claim C8: genie/focus-visible (spec 6.3) flags `outline: none` with nothing in its place; a custom box-shadow
 // ring is not flagged. Each fixture page names, in its comment, what must fire. Skipped, and says so, where
 // Chrome is not installed.
-const hasChrome = await chromeIsInstalled();
+const hasBrowser = await testBrowserIsInstalled();
 
-describe.skipIf(!hasChrome)("focus visible (skipped where Chrome is not installed)", () => {
+describe.skipIf(!hasBrowser)("focus visible (skipped where the test browser is not installed)", () => {
   let server: FixtureServer;
   beforeAll(async () => {
     server = await startFixtureServer();
@@ -36,7 +37,7 @@ describe.skipIf(!hasChrome)("focus visible (skipped where Chrome is not installe
 
   /** Scans a fixture page, or `html` set as its content, with `tags` (`--tags`) when given. */
   async function scan(page: string, tags: string[] | null = null, html?: string): Promise<Scanned> {
-    return withBrowser("chrome", async (browser) => {
+    return withBrowser(TEST_CHANNEL, async (browser) => {
       const context = await browser.newContext();
       const attempted = await guardContext(context, server.origin);
       const tab = await context.newPage();
@@ -227,7 +228,7 @@ describe.skipIf(!hasChrome)("focus visible (skipped where Chrome is not installe
     const attempted: string[][] = [];
     const record = await runScan({
       url: server.url("focus-hidden.html"),
-      channel: "chrome",
+      channel: TEST_CHANNEL,
       onContext: async (context) => {
         attempted.push(await guardContext(context, server.origin));
       },
@@ -241,7 +242,7 @@ describe.skipIf(!hasChrome)("focus visible (skipped where Chrome is not installe
   });
 
   it("focus-hidden.html: with the early guard install failed, its stops are needs review, never a finding", async () => {
-    await withBrowser("chrome", async (browser) => {
+    await withBrowser(TEST_CHANNEL, async (browser) => {
       const context = await browser.newContext();
       const attempted = await guardContext(context, server.origin);
       const tab = await context.newPage();
@@ -266,7 +267,7 @@ describe.skipIf(!hasChrome)("focus visible (skipped where Chrome is not installe
   });
 
   it("a page with no early guard at all reads the same: late, needs review, no finding", async () => {
-    await withBrowser("chrome", async (browser) => {
+    await withBrowser(TEST_CHANNEL, async (browser) => {
       const context = await browser.newContext();
       const tab = await context.newPage();
       await tab.goto(server.url("focus-hidden.html"));

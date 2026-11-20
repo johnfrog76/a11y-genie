@@ -1,10 +1,11 @@
+import { TEST_CHANNEL } from "../helpers/test-browser.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { checkLine, checkRecord } from "../../src/compare.js";
 import { scanSchema, validate } from "../../src/json-schema.js";
 import { renderReport } from "../../src/report.js";
 import { runScan } from "../../src/run-scan.js";
 import type { ScanRecord } from "../../src/scan-record.js";
-import { chromeIsInstalled, guardContext } from "../helpers/browser-guard.js";
+import { testBrowserIsInstalled, guardContext } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 import { neverClaimViolations } from "../helpers/never-claim.js";
 
@@ -12,10 +13,10 @@ import { neverClaimViolations } from "../helpers/never-claim.js";
 // check/v1 has three bugs, check/v2 fixes two of them, check/v3 is v2 with a new one. Each is scanned as the
 // page "page", so its findings keep their ids, as they would on a dev server whose page was edited. Skipped,
 // and says so, where Chrome is not installed.
-const hasChrome = await chromeIsInstalled();
+const hasBrowser = await testBrowserIsInstalled();
 const schema = scanSchema();
 
-describe.skipIf(!hasChrome)("check --baseline (skipped where Chrome is not installed)", () => {
+describe.skipIf(!hasBrowser)("check --baseline (skipped where the test browser is not installed)", () => {
   let server: FixtureServer;
   beforeAll(async () => {
     server = await startFixtureServer(undefined, {
@@ -33,7 +34,7 @@ describe.skipIf(!hasChrome)("check --baseline (skipped where Chrome is not insta
     const record = await runScan({
       url,
       pages: [{ url, key: "page", states: [] }],
-      channel: "chrome",
+      channel: TEST_CHANNEL,
       onContext: async (context) => {
         attempted.push(await guardContext(context, server.origin));
       },
@@ -65,7 +66,7 @@ describe.skipIf(!hasChrome)("check --baseline (skipped where Chrome is not insta
 
   let baseline: ScanRecord;
   beforeAll(async () => {
-    if (hasChrome) baseline = await scan("v1");
+    if (hasBrowser) baseline = await scan("v1");
   });
 
   it("finds the three bugs of v1, the baseline", () => {

@@ -1,3 +1,4 @@
+import { TEST_CHANNEL, channelArgs } from "../helpers/test-browser.js";
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -6,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { runScan } from "../../src/run-scan.js";
 import { SCANS_DIR_ENV } from "../../src/scans-folder.js";
 import { buildSite } from "../../scripts/build-site.js";
-import { chromeIsInstalled, guardContext } from "../helpers/browser-guard.js";
+import { testBrowserIsInstalled, guardContext } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 import { neverClaimViolations } from "../helpers/never-claim.js";
 
@@ -14,9 +15,9 @@ import { neverClaimViolations } from "../helpers/never-claim.js";
 // the built command scans it, at the desktop size it defaults to. It must have no critical or serious
 // finding. Skipped, and says so, where Chrome is not installed.
 const cli = new URL("../../dist/cli.js", import.meta.url).pathname;
-const hasChrome = await chromeIsInstalled();
+const hasBrowser = await testBrowserIsInstalled();
 
-describe.skipIf(!hasChrome)("the project's page (skipped where Chrome is not installed)", () => {
+describe.skipIf(!hasBrowser)("the project's page (skipped where the test browser is not installed)", () => {
   const folder = mkdtempSync(join(tmpdir(), "a11y-genie-site-"));
   const site = join(folder, "site");
   const scans = join(folder, "scans");
@@ -32,9 +33,13 @@ describe.skipIf(!hasChrome)("the project's page (skipped where Chrome is not ins
 
   it("has no critical or serious finding when A11y Genie scans it", async () => {
     const result = await new Promise<{ status: number | null; stdout: string }>((resolve, reject) => {
-      const child = spawn(process.execPath, [cli, "scan", server.url("index.html"), "--json"], {
-        env: { ...process.env, [SCANS_DIR_ENV]: scans },
-      });
+      const child = spawn(
+        process.execPath,
+        [cli, ...channelArgs(["scan", server.url("index.html"), "--json"])],
+        {
+          env: { ...process.env, [SCANS_DIR_ENV]: scans },
+        },
+      );
       let stdout = "";
       child.stdout.on("data", (chunk: Buffer) => (stdout += chunk));
       child.on("error", reject);
@@ -53,7 +58,7 @@ describe.skipIf(!hasChrome)("the project's page (skipped where Chrome is not ins
     const attempted: string[][] = [];
     const record = await runScan({
       url: server.url("index.html"),
-      channel: "chrome",
+      channel: TEST_CHANNEL,
       onContext: async (context) => {
         attempted.push(await guardContext(context, server.origin));
       },

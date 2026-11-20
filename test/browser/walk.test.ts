@@ -1,3 +1,4 @@
+import { TEST_CHANNEL } from "../helpers/test-browser.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Page } from "playwright-core";
 import { withBrowser } from "../../src/browser.js";
@@ -6,7 +7,7 @@ import { runScan, type RunScanOptions } from "../../src/run-scan.js";
 import { parseStateFlags } from "../../src/scan-plan.js";
 import type { ScanRecord } from "../../src/scan-record.js";
 import { walkPage, type Walk, type WalkOptions } from "../../src/walk.js";
-import { chromeIsInstalled, guardContext } from "../helpers/browser-guard.js";
+import { testBrowserIsInstalled, guardContext } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 import { readGoldenRecord } from "../helpers/goldens.js";
 
@@ -14,7 +15,7 @@ import { readGoldenRecord } from "../helpers/goldens.js";
 // roots and same-origin frames, a positive tabindex first, hidden controls skipped, --max-tabs, a page that
 // lies about focus, a frame of another origin, and names kept as data. The walk over impact-mix.html matches
 // the walk in its golden scan.json. Skipped, and says so, where Chrome is not installed.
-const hasChrome = await chromeIsInstalled();
+const hasBrowser = await testBrowserIsInstalled();
 
 /** Runs in the page: the name of the element a `target` names, read part by part, or null when none. */
 async function resolve(page: Page, target: AxeTarget): Promise<string | null> {
@@ -51,7 +52,7 @@ async function resolve(page: Page, target: AxeTarget): Promise<string | null> {
   }, target);
 }
 
-describe.skipIf(!hasChrome)("the keyboard walk (skipped where Chrome is not installed)", () => {
+describe.skipIf(!hasBrowser)("the keyboard walk (skipped where the test browser is not installed)", () => {
   let server: FixtureServer;
   let other: FixtureServer;
   beforeAll(async () => {
@@ -68,7 +69,7 @@ describe.skipIf(!hasChrome)("the keyboard walk (skipped where Chrome is not inst
     options: WalkOptions = {},
     look?: (tab: Page, walk: Walk) => Promise<void>,
   ): Promise<Walk> {
-    return withBrowser("chrome", async (browser) => {
+    return withBrowser(TEST_CHANNEL, async (browser) => {
       const context = await browser.newContext();
       const attempted = await guardContext(context, [server.origin, other.origin]);
       const tab = await context.newPage();
@@ -158,7 +159,7 @@ describe.skipIf(!hasChrome)("the keyboard walk (skipped where Chrome is not inst
 
   it("starts from the top after something lower on the page was clicked", async () => {
     const fromLoad = await walkOf("walk-order.html");
-    const afterClick = await withBrowser("chrome", async (browser) => {
+    const afterClick = await withBrowser(TEST_CHANNEL, async (browser) => {
       const context = await browser.newContext();
       await guardContext(context, server.origin);
       const tab = await context.newPage();
@@ -213,7 +214,7 @@ describe.skipIf(!hasChrome)("the keyboard walk (skipped where Chrome is not inst
       const attempted: string[][] = [];
       const record = await runScan({
         url: server.url(page),
-        channel: "chrome",
+        channel: TEST_CHANNEL,
         onContext: async (context) => {
           attempted.push(await guardContext(context, server.origin));
         },

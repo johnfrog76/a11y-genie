@@ -42,6 +42,14 @@ profile are inside it), until the system clears the temp folder.
 **Tests** get the same isolation: `test/setup/private-temp.ts` (a vitest setup file) gives each test file its own
 temp folder and removes it after the file, so test files that launch browsers side by side, or one that tests a
 missing browser, never share one. The shared one is in `A11Y_GENIE_TEST_SHARED_TMP`.
+**Which browser the tests launch.** Playwright's own Chromium, headless, never the Google Chrome app: the browser
+tests take their channel from `test/helpers/test-browser.ts` (`A11Y_GENIE_TEST_CHANNEL`, `chromium` by default), and
+the commands they spawn get `--browser-channel` from it. The product is unchanged: a person still gets their
+installed Chrome by default. Chromium is installed once per machine with
+`npx playwright-core@1.65.1 install --no-shell chromium` (about 200 MB); `test/setup/global-chromium.ts` stops the
+run once, with that command, if it is missing, and never falls back to Chrome. The tests about the Chrome channel
+itself (`test/browser/launch.test.ts`: the branded Chrome, its profile folder) run only with
+`A11Y_GENIE_TEST_CHROME=1`, and say so in their names.
 `test/cli/private-temp.test.ts` runs the built command with a temp folder of its own on every exit path, and runs
 a Chrome scan for 20 rounds beside loops of missing-browser launches.
 
