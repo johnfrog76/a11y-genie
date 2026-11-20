@@ -80,7 +80,8 @@ Fix something, then rescan against that first scan. It says what is fixed, what 
 a11y-genie check --baseline <the folder it wrote>/scan.json http://localhost:5173/
 ```
 
-`a11y-genie --help` lists every command and flag.
+`a11y-genie --help` lists every command and flag. [docs/CLI.md](docs/CLI.md) says what each one does,
+[docs/CHECKS.md](docs/CHECKS.md) what a scan checks, and [docs/KNOWN-GAPS.md](docs/KNOWN-GAPS.md) what it cannot do yet.
 
 ## Work on it
 
