@@ -1,0 +1,70 @@
+<!doctype html>
+<!--
+  Fixture: a small form for narrated workflows (spec 6.6, C10). Its controls are read from the accessibility
+  tree one by one (test/browser/a11y-tree.test.ts): a required field, a button with no name, a submit button,
+  a labelled field with a value, an invalid field, a radio group, a checkbox, a pressed toggle, a menu button
+  that opens, a control marked disabled, a link, and a heading.
+  The flow "Tab; Tab; Tab; Enter" goes Email, the button with no name, Save, and Enter puts "Saved" in the
+  status region (test/browser/narrate.test.ts, M9).
+  Must fire: button-name (the button with no name), and genie/unnamed-step in a flow that stops on it
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Account settings</title>
+  </head>
+  <body>
+    <main>
+      <h1 id="heading" tabindex="-1">Account settings</h1>
+      <form id="settings">
+        <p>
+          <label for="email">Email</label>
+          <input id="email" type="email" required />
+          <button id="unnamed" type="button"><svg width="16" height="16" aria-hidden="true"></svg></button>
+        </p>
+        <p><button id="save" type="submit">Save</button></p>
+        <p>
+          <label for="display">Display name</label>
+          <input id="display" type="text" value="Ada" />
+        </p>
+        <p>
+          <label for="code">Invite code</label>
+          <input id="code" type="text" aria-invalid="true" />
+        </p>
+        <fieldset>
+          <legend>Plan</legend>
+          <label><input id="free" type="radio" name="plan" value="free" checked /> Free</label>
+          <label><input id="team" type="radio" name="plan" value="team" /> Team</label>
+          <label><input id="business" type="radio" name="plan" value="business" /> Business</label>
+        </fieldset>
+        <p><label><input id="news" type="checkbox" checked /> Send me news</label></p>
+        <p><button id="bold" type="button" aria-pressed="true">Bold</button></p>
+        <p>
+          <button id="menu" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="actions">
+            Actions
+          </button>
+        </p>
+        <ul id="actions" role="menu" hidden>
+          <li role="menuitem" tabindex="-1">Export</li>
+          <li role="menuitem" tabindex="-1">Delete account</li>
+        </ul>
+        <p><button id="archive" type="button" aria-disabled="true">Archive</button></p>
+      </form>
+      <p><a id="privacy" href="#privacy-notes">Privacy notes</a></p>
+      <p id="status" role="status"></p>
+    </main>
+    <script>
+      document.getElementById("settings").addEventListener("submit", (event) => {
+        event.preventDefault();
+        document.getElementById("status").textContent = "Saved";
+      });
+      const menu = document.getElementById("menu");
+      menu.addEventListener("click", () => {
+        const open = menu.getAttribute("aria-expanded") !== "true";
+        menu.setAttribute("aria-expanded", String(open));
+        document.getElementById("actions").hidden = !open;
+      });
+    </script>
+  </body>
+</html>
