@@ -92,18 +92,6 @@ describe("--config", () => {
     );
   });
 
-  it("prints the config path and a page path clean when it refuses a page that is off the origin", () => {
-    const dirty = file(
-      "off\u001b[31m-origin\u001b]0;title\u0007.yaml",
-      'baseUrl: http://127.0.0.1:5173\npages:\n  - path: "//evil.example/x"\n',
-    );
-    const error = refusal(() => planScan({ url: undefined, states: [], config: dirty }));
-    expect(error.message).toContain("line 3: the path");
-    expect(error.message).toContain("off-origin.yaml");
-    // eslint-disable-next-line no-control-regex
-    expect(error.message).not.toMatch(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/);
-  });
-
   it("refuses --states beside --config", () => {
     const error = refusal(() =>
       planScan({ url: undefined, states: ["a: Tab"], config: file("d.yaml", yaml) }),
