@@ -130,7 +130,9 @@ const FAILURE =
  * Runs in the isolated world (`FocusReader.call`): whether the page has a landmark of the four roles, and whether
  * it has a heading, each visible to the accessibility tree. It reads the page the way the browser's role lookup does:
  *  - a role attribute decides, by its first token that is a known ARIA role; when none is known, `main`, `nav`, `h1` to `h6` have their own role, and
- *    `header` and `footer` are `banner` and `contentinfo` only outside `article`, `aside`, `main`, `nav` and `section`;
+ *    `header` and `footer` are `banner` and `contentinfo` only outside a scoping ancestor: `article`, `aside`, `main`, `nav` or
+ *    `section` with no role attribute, or an element whose role attribute is exactly `article`, `complementary`, `main`,
+ *    `navigation` or `region` (the browser's own rule, which does not read the first known token here);
  *  - an element is out of the tree when it or an ancestor is `display: none` or `aria-hidden="true"`, or it is
  *    `visibility: hidden`;
  *  - open shadow roots are read, as the role lookup reads them.
@@ -139,6 +141,13 @@ const FAILURE =
 export const READ_STRUCTURE = `function () {
   const LANDMARKS = ${JSON.stringify(LANDMARK_ROLES)};
   const SECTIONING = ["ARTICLE", "ASIDE", "MAIN", "NAV", "SECTION"];
+  const SCOPING_ROLES = ["article", "complementary", "main", "navigation", "region"];
+  // The browser's scoping rule, as its selector: one of the five tags with no role attribute, or a role attribute
+  // whose whole value, exactly as written, is one of the five roles. A value of several tokens does not match.
+  const scopes = (e) => {
+    const role = e.getAttribute("role");
+    return role === null ? SECTIONING.includes(e.tagName) : SCOPING_ROLES.includes(role);
+  };
   const parentOf = (el) => el.parentElement ?? (el.getRootNode() instanceof ShadowRoot ? el.getRootNode().host : null);
   const hidden = (el) => {
     if (getComputedStyle(el).visibility === "hidden") return true;
@@ -157,7 +166,7 @@ export const READ_STRUCTURE = `function () {
     if (tag === "NAV") return "navigation";
     if (/^H[1-6]$/.test(tag)) return "heading";
     if (tag === "HEADER" || tag === "FOOTER") {
-      for (let e = parentOf(el); e; e = parentOf(e)) if (SECTIONING.includes(e.tagName)) return "";
+      for (let e = parentOf(el); e; e = parentOf(e)) if (scopes(e)) return "";
       return tag === "HEADER" ? "banner" : "contentinfo";
     }
     return "";
