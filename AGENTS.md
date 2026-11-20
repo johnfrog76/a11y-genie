@@ -44,6 +44,10 @@ Run all five before you ask for a review. CI runs the same five in that order, o
   keyboard checks read the same walk. `src/a11y-tree.ts` reads the focused element from the browser's
   accessibility tree (role, name, states, value, its place in a set) and builds the line a screen reader would
   say, name first, for narration (docs/ARCHITECTURE.md, *Reading the accessibility tree*).
+- `src/narrate.ts` narrates a flow: it runs each step with the driver, reads the focused element with `TreeReader`,
+  says what an Enter, Space or click produced (a dialog, where focus went, live regions), writes the transcript
+  and makes `genie/unnamed-step`; `src/narrate-command.ts` is `a11y-genie narrate`, and a config's `workflows`
+  are narrated by `scan --config` (docs/ARCHITECTURE.md, *Narration*).
 - `src/scan-command.ts` is `a11y-genie scan`: its flags, its run, its files and its lines, which `src/check-command.ts`
   (`a11y-genie check --baseline`) shares. `src/compare.ts` compares two scans (new, still, fixed);
   `src/baseline.ts` reads an earlier `scan.json` as untrusted input, checked with `src/json-schema.ts`.

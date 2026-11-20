@@ -4,6 +4,7 @@ import { packageInfo } from "./package-info.js";
 import { EXIT } from "./exit-codes.js";
 import { installInterruptHandler } from "./interrupt.js";
 import { printable } from "./printable.js";
+import { narrateCommand } from "./narrate-command.js";
 import { promptCommand } from "./prompt-command.js";
 import { Refusal } from "./refusal.js";
 import { rulesCommand } from "./rules-command.js";
@@ -23,14 +24,21 @@ Usage:
                   [--tags <list>] [--fail-on <impact>] [--same-origin] [--offline]
                   [--timeout <seconds>] [--max-tabs <n>] [--storage-state <file>] [--commit <sha>]
   a11y-genie scan [<url>] --config <file> [the same flags, but not --states]
+  a11y-genie narrate <url> --flow "<steps>" [--json] [--out <folder>] [--format md,json]
+                  [--browser-channel chrome|msedge|chromium] [--no-download] [--allow-private]
+                  [--fail-on <impact>] [--same-origin] [--offline] [--timeout <seconds>]
+                  [--max-tabs <n>] [--storage-state <file>] [--commit <sha>]
   a11y-genie check --baseline <scan> [<url>] [scan's flags]
 
 Flags:
   --states           a state of the page beside the default one, as "<name>: <steps>" (steps are
                      separated by ";"): --states "menu-open: click button 'Menu'; wait menu"
                      Repeat the flag for more states. Each state is scanned from a fresh load
-  --config <file>    scan the pages and states a YAML file lists (docs/CONFIG.md); the address is
-                     optional when the file has a baseUrl, and one given here takes its place
+  --config <file>    scan the pages and states a YAML file lists, and narrate its workflows
+                     (docs/CONFIG.md); the address is optional when the file has a baseUrl, and one given
+                     here takes its place
+  --flow "<steps>"   narrate only: the keys to press, separated by ";" (docs/STEPS.md):
+                     --flow "Tab; Tab; Enter". A step may also be "Tab to button 'Save'" or "click ..."
   --timeout          seconds one page in one state may take, from its first request to the end of
                      its scan; default 60. Past it, that state reads "not scanned"
   --max-tabs <n>     the most Tab presses in the keyboard walk of each state, and in a "Tab to" step;
@@ -76,6 +84,15 @@ Commands:
              unverified, never fixed. A baseline of another site, or of other pages, states or --tags,
              is refused (exit 2).
 
+  narrate    load the page in a browser with a new, empty profile, press the keys of --flow one at a time,
+             and after each say what a screen reader would: the focused element's name, then its role and
+             state, read from the browser's accessibility tree. After Enter, Space or a click it also says
+             where focus went, the name of a dialog that opened, and text added to a live region. The
+             transcript is printed, and written to narration/flow.txt in the scan folder beside scan.json
+             (a config's workflows each get narration/<name>.txt on scan --config). A step that leaves
+             focus on a control with no name is genie/unnamed-step (serious, WCAG 4.1.2). Exit 0: none.
+             Exit 1: one, or a flow that stopped early (the transcript says why). Exit 2: a refusal.
+
   rules      list every rule A11y Genie runs: axe-core's, at the version it pins, and its own genie/ rules,
              with impact, WCAG criteria and tags. --tags <list> keeps the rules with one of those tags;
              --json prints them as one JSON document (docs/JSON.md). It needs no browser and no network.
@@ -88,7 +105,6 @@ Exit codes: 0 no findings (for check, no new ones), 1 findings (for check, new o
 2 a refusal (one Error: line and one Hint: line, nothing written), 3 something unexpected, 130 Ctrl-C.
 
 Commands (coming, none works yet):
-  narrate    describe a keyboard workflow step by step
   cards      turn findings into cards
   checklist  the questions a scan cannot answer
   ignore     set a finding aside, with a reason and a date
@@ -105,6 +121,7 @@ async function main(args: string[]): Promise<void> {
   }
   if (args[0] === "scan") return scanCommand(args.slice(1), HELP_HINT);
   if (args[0] === "check") return checkCommand(args.slice(1), HELP_HINT);
+  if (args[0] === "narrate") return narrateCommand(args.slice(1), HELP_HINT);
   if (args[0] === "rules") return rulesCommand(args.slice(1), HELP_HINT);
   if (args[0] === "prompt") return promptCommand(args.slice(1), HELP_HINT);
   if (args.length === 0 || args.includes("--help")) {

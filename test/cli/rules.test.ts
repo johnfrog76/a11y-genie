@@ -47,6 +47,7 @@ describe("a11y-genie rules", () => {
     expect(stdout).toContain("genie/keyboard-trap");
     expect(stdout).toContain("genie/focus-not-returned");
     expect(stdout).toContain("genie/focus-visible");
+    expect(stdout).toContain("genie/unnamed-step");
     expect(stdout).toContain(`axe-core ${axe.version}`);
   });
 
@@ -81,6 +82,7 @@ describe("a11y-genie rules", () => {
       "click-on-non-control",
       "focus-not-returned",
       "keyboard-trap",
+      "unnamed-step",
     ]);
   });
 
@@ -118,6 +120,14 @@ describe("a11y-genie rules", () => {
       impact: "moderate",
       wcag: ["2.4.3"],
       tags: ["cat.keyboard", "wcag2a", "wcag243"],
+    });
+    // Tagged wcag2a like the other level-A own rules; it only changes --tags listings, since a flow someone asks to
+    // narrate is always read, whatever --tags says.
+    const unnamedStep = doc.rules.find((r) => r.source === "genie" && r.id === "unnamed-step");
+    expect(unnamedStep).toMatchObject({
+      impact: "serious",
+      wcag: ["4.1.2"],
+      tags: ["cat.name-role-value", "wcag2a", "wcag412"],
     });
     const focusVisible = doc.rules.find((r) => r.source === "genie" && r.id === "focus-visible");
     expect(focusVisible).toMatchObject({

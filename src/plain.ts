@@ -125,6 +125,12 @@ export const RULE_WORDING: Readonly<Record<string, RuleWording>> = Object.freeze
       "The page has no landmarks at all: no header, navigation, main or footer region. A screen-reader user cannot jump between its parts and has to go through it from the top.",
     fix: "Put the page's own content in a main element, and use header, nav and footer for its banner, its navigation and its footer.",
   },
+  "genie/unnamed-step": {
+    title: "Step reaches a control with no name",
+    plain:
+      'A step of a flow puts keyboard focus on a control that has no name, so a screen reader says only what it is, such as "button", and its user cannot tell what it does.',
+    fix: 'Give the control a name: visible text inside it, or an aria-label that says what it does, such as aria-label="Close".',
+  },
   "genie/skip-link": {
     title: "No skip link, landmarks or headings",
     plain:

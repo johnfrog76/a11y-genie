@@ -4,6 +4,7 @@
  */
 
 import { readConfigFile } from "./config.js";
+import { MAX_FLOW_STEPS, type WorkflowSpec } from "./narrate.js";
 import { printableLine } from "./printable.js";
 import { Refusal } from "./refusal.js";
 import { parseState, type State } from "./steps.js";
@@ -22,6 +23,8 @@ export interface ScanPlan {
   /** The address the run is about: the first page's. */
   url: string;
   pages: PageSpec[];
+  /** The config file's workflows, to narrate after the pages; none without `--config`. */
+  workflows: WorkflowSpec[];
 }
 
 /** Each `--states` value parsed, with a name given twice refused. */
@@ -46,7 +49,11 @@ export function planScan(input: PlanInput): ScanPlan {
     if (input.url === undefined) {
       throw new Refusal("scan needs a page address to scan.", "run: a11y-genie scan <url>");
     }
-    return { url: input.url, pages: [{ url: input.url, states: parseStateFlags(input.states) }] };
+    return {
+      url: input.url,
+      pages: [{ url: input.url, states: parseStateFlags(input.states) }],
+      workflows: [],
+    };
   }
   if (input.states.length > 0) {
     throw new Refusal(
@@ -73,6 +80,15 @@ export function planScan(input: PlanInput): ScanPlan {
     }
     return { url: url.href, key: page.key, states: page.states };
   });
+  const workflows = config.workflows.map((flow): WorkflowSpec => {
+    if (flow.steps.length > MAX_FLOW_STEPS) {
+      throw new Refusal(
+        `${printableLine(input.config ?? "")}: the workflow "${printableLine(flow.name).slice(0, 40)}" has ${flow.steps.length} steps, and a flow may have at most ${MAX_FLOW_STEPS}.`,
+        "split it into workflows of their own.",
+      );
+    }
+    return { name: flow.name, page: flow.page, steps: flow.steps };
+  });
   const first = pages[0] as PageSpec;
-  return { url: first.url, pages };
+  return { url: first.url, pages, workflows };
 }

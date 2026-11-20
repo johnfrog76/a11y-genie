@@ -38,13 +38,13 @@ Only these are read. An unknown key is a refusal, not ignored.
 | --- | --- | --- |
 | the file | `baseUrl` | an `http:` or `https:` address. Only its origin is used: every page is on it. Optional, when the address is given on the command line, which then takes its place |
 | the file | `pages` | a list of at least one page |
-| the file | `workflows` | a list of workflows, for `narrate` (M9). They are checked now and not run yet |
+| the file | `workflows` | a list of workflows. `scan --config` narrates each one after the pages, from a fresh load of its page, and writes a transcript for each (`docs/ARCHITECTURE.md`, *Narration*) |
 | a page | `path` | required. Starts with a single `/`, and may hold a query: `/settings?tab=1`. A path that would leave the site (`//example.com`) is refused |
 | a page | `key` | the page's name in finding ids (`axe/color-contrast@settings`): letters, digits, `.`, `_`, `-` and `/`, up to 100. Without one, the path read as a page's key always is: `/settings` is `settings`, `/` is `home`. Two pages may not share a key |
 | a page | `states` | a list of states, beside the `default` state every page is scanned in first |
 | a state | `name` | required. The state-name rule in `docs/STEPS.md`: lower case, digits, `-` and `_`, never `default`. Once per page |
 | a state | `steps` | required: a list of at least one step, one string each, in the grammar of `docs/STEPS.md`. A `;` in one string is refused |
-| a workflow | `name`, `page`, `steps` | all required. `page` is a page's key in this file. Steps may not set media (`colorScheme`, `viewport`, `reducedMotion`) |
+| a workflow | `name`, `page`, `steps` | all required. `page` is a page's key in this file. Steps may not set media (`colorScheme`, `viewport`, `reducedMotion`), and a workflow has at most 200. The transcript is `narration/<name>.txt` in the scan folder, the name made one safe path part (letters, digits, `.`, `_`, `-`; two names that come to the same one get `-2`, `-3`) |
 
 A step that does not parse is a refusal that names the file, the line and the step's column, for example
 `a11y-genie.yaml line 6 "clik", column 1: "clik" is not a step.` Each state starts from a fresh load of its page,

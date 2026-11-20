@@ -26,8 +26,9 @@ workflows:
 
 The parser is `src/steps.ts`, and `test/unit/steps.test.ts` has a row for every form and every error below.
 `scan` reads steps from `--states` and from the config file's `states` (`docs/CONFIG.md`), and `src/drive.ts` runs
-them in the browser. `--flow` and the config's `workflows` are checked by the same parser, but nothing runs them
-until `narrate` arrives (M9).
+them in the browser. `narrate` reads `--flow`, and `scan --config` the file's `workflows`, with the same parser; a
+flow is run one step at a time by the same driver, and after each step it is read back from the accessibility tree
+(`docs/ARCHITECTURE.md`, *Narration*). A flow has at most 200 steps.
 
 ## The steps
 
