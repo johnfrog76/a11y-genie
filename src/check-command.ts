@@ -9,7 +9,14 @@
  */
 
 import { readScanFile } from "./baseline.js";
-import { checkLine, checkRecord, incomparable, type Incomparable } from "./compare.js";
+import {
+  checkLine,
+  checkRecord,
+  incomparable,
+  neverScannedLine,
+  unverifiedOf,
+  type Incomparable,
+} from "./compare.js";
 import { printableLine } from "./printable.js";
 import { Refusal } from "./refusal.js";
 import { pageKeyOf } from "./map-axe.js";
@@ -75,13 +82,18 @@ export function checkComparable(baseline: ScanRecord, prepared: PreparedScan): v
 
 /** `check`'s lines for a person, after the first: what the comparison could not verify, then the scan's own. */
 function checkLines(record: ScanRecord): string[] {
-  const unverified = record.findings.filter((finding) => finding.unverified === true).length;
-  if (unverified === 0) return [];
-  return [
-    unverified === 1
-      ? "1 finding is still open and unverified: its page or state was not scanned this time, so it is not read as fixed."
-      : `${unverified} findings are still open and unverified: their pages or states were not scanned this time, so they are not read as fixed.`,
-  ];
+  const { thisTime: unverified } = unverifiedOf(record);
+  const never = neverScannedLine(record);
+  const lines: string[] = [];
+  if (unverified > 0) {
+    lines.push(
+      unverified === 1
+        ? "1 finding is still open and unverified: its page or state was not scanned this time, so it is not read as fixed."
+        : `${unverified} findings are still open and unverified: their pages or states were not scanned this time, so they are not read as fixed.`,
+    );
+  }
+  if (never !== undefined) lines.push(never);
+  return lines;
 }
 
 export async function checkCommand(args: string[], helpHint: string): Promise<void> {

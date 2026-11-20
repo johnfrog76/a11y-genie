@@ -430,6 +430,13 @@ The comparison is a pure function of two records, so the browser tests and the u
   rest of the rule.
 - **Not scanned is never fixed.** A baseline element found in a state that was not scanned this time stays still
   open, marked `unverified`, and the run exits 1 for the state not scanned anyway.
+- **One new element makes a finding new** (decided 2026-11-19: a new instance is new work). The finding reads
+  `new` and fails the run, and its elements say which one is new.
+- **A state the baseline never scanned is not new either** (decided 2026-11-19: a state the baseline never scanned
+  proves nothing, and failing a pull request on bugs that were always there is a false alarm). An element found now
+  only in states the baseline asked for and did not scan reads still open and `unverified`, and does not fail the
+  run; one found in any state both scans scanned is judged as usual. `check` says which states, and to scan again
+  with the same `--states` for a baseline that has them.
 - **Only new violations fail it.** The exit reads the findings whose `status` is `new`, at or above `--fail-on`,
   and whether anything was not scanned; findings still open from the baseline are listed and do not fail it. This
   is what lets a pull request's job fail only on what the pull request added.

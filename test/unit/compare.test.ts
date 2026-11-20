@@ -4,7 +4,9 @@ import {
   checkRecord,
   compareScans,
   incomparable,
+  neverScannedLine,
   sincePreviousLine,
+  unverifiedOf,
   withPrevious,
 } from "../../src/compare.js";
 import type { AxeScan, Finding, Impact } from "../../src/finding.js";
@@ -92,6 +94,7 @@ describe("check against a baseline", () => {
       path: "baseline/scan.json",
       startedAt: baseline.startedAt,
       commit: null,
+      notScanned: [],
     });
     // A finding still open from the baseline never fails the check.
     expect(record.exit).toBe(0);
@@ -247,6 +250,87 @@ describe("check over merged states", () => {
     expect(button?.fixedElements).toBeUndefined();
     expect(record.summary).toMatchObject({ new: 0, still: 2, fixed: 0 });
     expect(record.exit).toBe(0);
+  });
+});
+
+describe("check against a baseline that did not scan a state (decided 2026-11-19)", () => {
+  // The baseline asked for "dark" and could not scan it, so a finding there now cannot be told new or old.
+  const baseline = scanOf([
+    { name: "default", axe: axe(finding("button-name", ["#save"])) },
+    { name: "dark", axe: null, notScanned: "step 1 (colorScheme dark) failed" },
+  ]);
+  const now = (defaultFindings: Finding[], darkFindings: Finding[]): ScanRecord =>
+    scanOf([
+      { name: "default", axe: axe(...defaultFindings) },
+      { name: "dark", axe: axe(...darkFindings) },
+    ]);
+
+  it("reads a finding found only there as unverified, not new, and does not fail the check", () => {
+    const record = check(
+      baseline,
+      now([finding("button-name", ["#save"])], [finding("color-contrast", ["p"], "serious")]),
+    );
+    const contrast = byId(record)["color-contrast"];
+    expect(contrast?.status).toBe("still");
+    expect(contrast?.unverified).toBe(true);
+    expect(contrast?.elements.map((e) => [e.selector, e.states, e.status, e.unverified])).toEqual([
+      ["p", ["dark"], "still", true],
+    ]);
+    expect(record.summary).toMatchObject({ new: 0, still: 2, fixed: 0 });
+    expect(record.exit).toBe(0);
+    expect(record.baseline?.notScanned).toEqual([{ page: "page", state: "dark" }]);
+    expect(unverifiedOf(record)).toEqual({ thisTime: 0, neverScanned: 1, states: ["dark"] });
+    expect(neverScannedLine(record)).toBe(
+      '1 finding is unverified: the baseline did not scan the state "dark". To compare it, run a11y-genie scan with the same --states to make a new baseline.',
+    );
+    expect(renderReport(record)).toContain(
+      '1 finding is unverified: the baseline did not scan the state "dark".',
+    );
+  });
+
+  it("marks an unseen state's element on a finding the baseline had as unverified, not new", () => {
+    const record = check(
+      baseline,
+      now([finding("button-name", ["#save"])], [finding("button-name", ["#print"])]),
+    );
+    const button = byId(record)["button-name"];
+    expect(button?.status).toBe("still");
+    expect(button?.unverified).toBe(true);
+    expect(button?.elements.map((e) => [e.selector, e.status, e.unverified ?? false])).toEqual([
+      ["#save", "still", false],
+      ["#print", "still", true],
+    ]);
+    expect(record.exit).toBe(0);
+  });
+
+  it("keeps a finding new when another of its elements is new in a state both scans had: only the unseen one is unverified", () => {
+    const record = check(
+      baseline,
+      now([finding("button-name", ["#save"]), finding("label", ["#email"])], [finding("label", ["#phone"])]),
+    );
+    const label = byId(record).label;
+    expect(label?.status).toBe("new");
+    expect(label?.unverified).toBe(true);
+    expect(label?.elements.map((e) => [e.selector, e.status, e.unverified ?? false])).toEqual([
+      ["#email", "new", false],
+      ["#phone", "still", true],
+    ]);
+    expect(record.exit).toBe(1);
+  });
+
+  it("reads an element found in the unseen state and in a state both scanned as new", () => {
+    const record = check(
+      baseline,
+      now([finding("button-name", ["#save"]), finding("label", ["#email"])], [finding("label", ["#email"])]),
+    );
+    const label = byId(record).label;
+    expect(label?.status).toBe("new");
+    expect(label?.unverified).toBeUndefined();
+    expect(label?.elements.map((e) => [e.selector, e.states, e.status])).toEqual([
+      ["#email", ["default", "dark"], "new"],
+    ]);
+    expect(neverScannedLine(record)).toBeUndefined();
+    expect(record.exit).toBe(1);
   });
 });
 

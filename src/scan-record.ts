@@ -158,7 +158,13 @@ export interface ScanRecord {
   /** Added in 1.3: the flags that changed what the scan did or how it exited. A 1.2 record has none. */
   options?: RecordOptions;
   /** On a `check`: the baseline it was compared with, as `--baseline` named it, and when that scan began. */
-  baseline?: { path: string; startedAt: string; commit: string | null };
+  baseline?: {
+    path: string;
+    startedAt: string;
+    commit: string | null;
+    /** The states the baseline asked for and did not scan, by page: a finding found only there reads unverified. */
+    notScanned?: { page: string; state: string }[];
+  };
 }
 
 /** Plain `scan` against the site's previous scan: findings new since it, and findings of it not found now. */

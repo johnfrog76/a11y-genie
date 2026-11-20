@@ -6,6 +6,7 @@
  * stripped first (src/printable.ts).
  */
 
+import { neverScannedLine, unverifiedOf } from "./compare.js";
 import { LIMITS, type Stopped } from "./context.js";
 import type { ColorPair, Impact } from "./finding.js";
 import { printable, printableLine } from "./printable.js";
@@ -213,7 +214,8 @@ function optionLines(record: ScanRecord): string[] {
 function comparisonLines(record: ScanRecord): string[] {
   const { summary } = record;
   if (record.command === "check" && record.baseline !== undefined) {
-    const unverified = record.findings.filter((f) => f.unverified === true).length;
+    const { thisTime: unverified } = unverifiedOf(record);
+    const never = neverScannedLine(record);
     const lines = [
       `Compared with the baseline ${inlineCode(record.baseline.path)}, the scan that began ${plainText(record.baseline.startedAt)}: ` +
         `${summary.fixed ?? 0} fixed, ${summary.new ?? 0} new, ${summary.still ?? 0} still open. ` +
@@ -227,6 +229,7 @@ function comparisonLines(record: ScanRecord): string[] {
         "",
       );
     }
+    if (never !== undefined) lines.push(plainText(never), "");
     return lines;
   }
   const since = summary.sincePrevious;

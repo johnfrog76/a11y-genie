@@ -269,6 +269,38 @@ describe.skipIf(!hasChrome)(
       ]);
     });
 
+    it("reads a finding in a state the baseline did not scan as unverified, exits 0, and says why (decided 2026-11-19)", async () => {
+      const withOpen = (name: string): string[] => {
+        const path = join(configs, `${name}-open.yaml`);
+        writeFileSync(
+          path,
+          `pages:\n  - key: page\n    path: /check/${name}/page.html\n    states:\n` +
+            `      - name: open\n        steps: ["click button 'Open'", "wait textbox"]\n`,
+        );
+        return [server.origin, "--config", path];
+      };
+      const root = fresh();
+      // v1 has no "Open" button, so the baseline asks for the state "open" and cannot scan it.
+      const first = await run(["scan", ...withOpen("v1"), "--timeout", "5"], root);
+      expect(first.stdout).toMatch(/was not scanned in the state "open"/);
+      const [baseline] = scanFolders(root);
+      const result = await run(["check", "--baseline", baseline as string, ...withOpen("v4")], root);
+      expect(result.status).toBe(0);
+      const lines = result.stdout.split("\n");
+      expect(lines[0]).toBe("0 fixed, 0 new, 3 still open (worst: critical, button-name on page)");
+      expect(lines[1]).toBe(
+        '1 finding is unverified: the baseline did not scan the state "open". To compare it, run a11y-genie scan with the same --states to make a new baseline.',
+      );
+      const report = readFileSync(join(scanFolders(root)[1] as string, "report.md"), "utf8");
+      expect(report).toContain('1 finding is unverified: the baseline did not scan the state "open".');
+      const record = JSON.parse(readFileSync(join(scanFolders(root)[1] as string, "scan.json"), "utf8"));
+      expect(validate(schema, record)).toEqual([]);
+      expect(record.findings.find((f: { id: string }) => f.id === "axe/label@page")).toMatchObject({
+        status: "still",
+        unverified: true,
+      });
+    });
+
     it("exits 1 when the page is not scanned, and reads nothing of it as fixed", async () => {
       const root = fresh();
       await run(["scan", ...version("v1")], root);

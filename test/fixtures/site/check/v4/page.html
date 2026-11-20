@@ -1,0 +1,32 @@
+<!doctype html>
+<!--
+  Fixture: check/v1/page.html with an "Open" button, which shows a text field with no label. For
+  check --baseline over a state the baseline did not scan (test/cli/check.test.ts): v1 has no "Open"
+  button, so the state "open: click button 'Open'; wait textbox" is not scanned there.
+  Must fire:     button-name (critical), on #save and #share
+                 image-alt (critical), on the img
+  Must fire only in the state "open": label (critical), on #email
+  Must not fire: any other rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Check fixture</title>
+  </head>
+  <body>
+    <main>
+      <h1>Check fixture</h1>
+      <button id="save" type="button"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M2 2h12v12H2z" fill="#000000" /></svg></button>
+      <button id="share" type="button"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M2 2h12v12H2z" fill="#000000" /></svg></button>
+      <img src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22%3E%3C/svg%3E" width="16" height="16" />
+      <button id="open" type="button">Open</button>
+      <input id="email" type="text" hidden />
+      <script>
+        document.getElementById("open").addEventListener("click", () => {
+          document.getElementById("email").hidden = false;
+        });
+      </script>
+    </main>
+  </body>
+</html>

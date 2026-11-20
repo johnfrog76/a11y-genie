@@ -121,6 +121,8 @@ export interface Comparison {
   fixed: number;
   /** How many findings read `still` only because their page or state was not scanned now. */
   unverified: number;
+  /** How many findings have an element found only in states the baseline asked for and did not scan. */
+  unproved: number;
 }
 
 /**
@@ -137,24 +139,45 @@ export interface Comparison {
  * they are read as the same elements under selectors that moved (spec R11), so the finding reads `still`, never
  * fixed plus new. An earlier element whose page or state was not scanned now is never read as fixed: it stays,
  * as `still` with `unverified: true`, and so does its finding.
+ *
+ * The other way round (decided 2026-11-19): an element found now only in states the baseline asked for and did not
+ * scan proves nothing new, since the baseline never looked there. It reads `still` with `unverified: true`, never
+ * `new`, and so does not fail a check. An element found in at least one state both scans scanned is judged as any
+ * other: it is `new` if the baseline did not have it. So a finding whose other elements are new stays `new`, with
+ * only its elements in the baseline's unscanned states marked unverified.
  */
 export function compareScans(earlier: ScanRecord, now: ScanRecord): Comparison {
   const missed = notScannedStates(now);
   const unseen = (page: string, element: RecordElement): boolean =>
     element.states.some((state) => missed.get(page)?.has(state) === true);
+  const earlierMissed = notScannedStates(earlier);
+  /** Found now only in states the baseline did not scan: whether it is new cannot be told. */
+  const unproven = (page: string, element: RecordElement): boolean =>
+    element.states.length > 0 &&
+    element.states.every((state) => earlierMissed.get(page)?.has(state) === true);
+  /** A new element, or an unverified one when the baseline never scanned where it was found. */
+  const judgedNew = (page: string, element: RecordElement): RecordElement =>
+    unproven(page, element)
+      ? { ...element, status: "still", unverified: true }
+      : { ...element, status: "new" };
   const before = new Map(openFindings(earlier).map((finding) => [finding.id, finding]));
   const fixedIn: FixedIn = { startedAt: now.startedAt, commit: now.target.commit };
   const open: RecordFinding[] = [];
   const fixed: RecordFinding[] = [];
   let unverified = 0;
+  let unproved = 0;
 
   for (const finding of openFindings(now)) {
     const was = before.get(finding.id);
     if (was === undefined) {
+      const elements = finding.elements.map((e) => judgedNew(finding.page, e));
+      const anyUnproven = elements.some((e) => e.unverified === true);
+      if (anyUnproven) unproved += 1;
       open.push({
         ...finding,
-        status: "new",
-        elements: finding.elements.map((e) => ({ ...e, status: "new" as const })),
+        status: elements.some((e) => e.status === "new") ? "new" : "still",
+        elements,
+        ...(anyUnproven ? { unverified: true as const } : {}),
       });
       continue;
     }
@@ -165,13 +188,14 @@ export function compareScans(earlier: ScanRecord, now: ScanRecord): Comparison {
     const unmatchedBefore = was.elements.filter((element) => !nowSelectors.has(element.selector));
     // As many on each side: the same elements, read under selectors that moved (R11).
     const moved = unmatchedNow.length === unmatchedBefore.length;
+    // An element found now is this run's own: kept whole, with its status.
     const elements: RecordElement[] = finding.elements.map((element) =>
-      // An element found now is this run's own: kept whole, with its status.
-      ({
-        ...element,
-        status: moved || earlierBySelector.has(element.selector) ? ("still" as const) : ("new" as const),
-      }),
+      moved || earlierBySelector.has(element.selector)
+        ? { ...element, status: "still" as const }
+        : judgedNew(finding.page, element),
     );
+    const anyUnproven = elements.some((e) => e.unverified === true);
+    if (anyUnproven) unproved += 1;
     const gone = moved ? [] : unmatchedBefore;
     const stillUnseen = gone.filter((element) => unseen(finding.page, element));
     const fixedElements = gone
@@ -185,7 +209,7 @@ export function compareScans(earlier: ScanRecord, now: ScanRecord): Comparison {
       status,
       elements,
       ...(fixedElements.length > 0 ? { fixedElements } : {}),
-      ...(stillUnseen.length > 0 ? { unverified: true as const } : {}),
+      ...(stillUnseen.length > 0 || anyUnproven ? { unverified: true as const } : {}),
     });
   }
 
@@ -235,6 +259,7 @@ export function compareScans(earlier: ScanRecord, now: ScanRecord): Comparison {
     still: ordered.filter((f) => f.status === "still").length,
     fixed: fixed.length,
     unverified,
+    unproved,
   };
 }
 
@@ -279,6 +304,9 @@ export function checkRecord(now: ScanRecord, baseline: BaselineInfo): ScanRecord
       path: baseline.path,
       startedAt: baseline.record.startedAt,
       commit: baseline.record.target.commit,
+      notScanned: baseline.record.pages.flatMap((page) =>
+        page.notScanned.map((missed) => ({ page: page.key, state: missed.state })),
+      ),
     },
   };
   return fitToSize(record, now.limits?.scanJsonBytes ?? LIMITS.scanJsonBytes);
@@ -340,4 +368,61 @@ export function sincePreviousLine(record: ScanRecord): string | undefined {
   if (since === null)
     return `Not comparable with the last scan: ${record.summary.sincePreviousReason ?? NOT_COMPARABLE_REASON}.`;
   return `${since.new} new, ${since.fixed} fixed since the last scan`;
+}
+
+/** The states of each page a `check`'s baseline asked for and did not scan. */
+function baselineMissed(record: ScanRecord): Map<string, Set<string>> {
+  const missed = new Map<string, Set<string>>();
+  for (const { page, state } of record.baseline?.notScanned ?? []) {
+    const states = missed.get(page) ?? new Set<string>();
+    states.add(state);
+    missed.set(page, states);
+  }
+  return missed;
+}
+
+/**
+ * On a `check`, the two kinds of unverified finding: `thisTime`, a baseline finding on a page or state not scanned
+ * now; and `neverScanned`, a finding found now only in states the baseline did not scan, with those states' names.
+ */
+export function unverifiedOf(record: ScanRecord): {
+  thisTime: number;
+  neverScanned: number;
+  states: string[];
+} {
+  const nowMissed = notScannedStates(record);
+  const before = baselineMissed(record);
+  const states = new Set<string>();
+  let thisTime = 0;
+  let neverScanned = 0;
+  for (const finding of record.findings) {
+    const unverified = finding.elements.filter((element) => element.unverified === true);
+    const inMissedNow = (e: RecordElement) =>
+      e.states.some((state) => nowMissed.get(finding.page)?.has(state));
+    const inBaselineMissed = (e: RecordElement) =>
+      e.states.length > 0 && e.states.every((state) => before.get(finding.page)?.has(state) === true);
+    if (unverified.some(inMissedNow)) thisTime += 1;
+    const never = unverified.filter((e) => !inMissedNow(e) && inBaselineMissed(e));
+    if (never.length > 0) neverScanned += 1;
+    for (const element of never) for (const state of element.states) states.add(state);
+  }
+  return { thisTime, neverScanned, states: [...states] };
+}
+
+/**
+ * `1 finding is unverified: the baseline did not scan the state "dark". ...`, or undefined when no finding was
+ * found only in states the baseline did not scan.
+ */
+export function neverScannedLine(record: ScanRecord): string | undefined {
+  const { neverScanned: count, states } = unverifiedOf(record);
+  if (count === 0) return undefined;
+  const quoted = states.map((state) => `"${state}"`);
+  const named =
+    quoted.length === 1
+      ? `the state ${quoted[0]}`
+      : `the states ${quoted.slice(0, -1).join(", ")} and ${quoted.at(-1)}`;
+  return (
+    `${count === 1 ? "1 finding is" : `${count} findings are`} unverified: the baseline did not scan ${named}. ` +
+    `To compare ${count === 1 ? "it" : "them"}, run a11y-genie scan with the same --states to make a new baseline.`
+  );
 }

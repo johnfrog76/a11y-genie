@@ -34,7 +34,7 @@ earlier scan*), and exits on what is new:
 | Code | Meaning for `check` |
 | --- | --- |
 | 0 | Every page and state was scanned, and no **new** violation at or above `--fail-on`. Findings still open from the baseline do not fail it, and neither do fixed ones. |
-| 1 | A new violation at or above `--fail-on` (a finding the baseline did not have, or a new element on one it had); or a page or state **not scanned**, whatever `--fail-on` says. The baseline's findings on a page or state not scanned read still open and unverified, never fixed. |
+| 1 | A new violation at or above `--fail-on` (a finding the baseline did not have, or a new element on one it had); or a page or state **not scanned**, whatever `--fail-on` says. The baseline's findings on a page or state not scanned read still open and unverified, never fixed. A finding found only in a state the baseline asked for and did not scan reads unverified, not new, and does not make the exit 1. |
 | 2, 3, 130 | As for `scan`. A baseline that cannot be compared is a refusal (below). |
 
 Its first line counts the findings, such as `2 fixed, 0 new, 3 still open (worst: serious, color-contrast on

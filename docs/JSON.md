@@ -118,7 +118,7 @@ and `target.commit` from `--commit`; a 1.4 record has none of them, and is still
 | `checklist` | `null` until the checklist exists |
 | `cannotSee` | The fixed list of what a scan cannot see: the same lines that end `report.md` |
 | `options` | Added in 1.3. The flags that changed what the scan did or how it exited: `failOn` (`critical`, `serious`, `moderate` or `minor`; `minor` by default), `sameOrigin` and `offline` (booleans). `--tags` is `engine.tags`. The report says so when any is set |
-| `baseline` | On a `check` only: `path`, the `--baseline` as it was given; `startedAt`, when the baseline's scan began; and `commit`, the baseline's own `target.commit` |
+| `baseline` | On a `check` only: `path`, the `--baseline` as it was given; `startedAt`, when the baseline's scan began; `commit`, the baseline's own `target.commit`; and `notScanned`, each `{ page, state }` the baseline asked for and did not scan |
 | `limits` | The limits the page was held to: `pageSeconds` (60), `redirects` (10), `elementsPerFinding` (500), `excerptChars` (160), `scanJsonBytes` (52428800, 50 MB). docs/ARCHITECTURE.md, *Hostile pages*, says what each does |
 
 **One finding per rule per page.** A page is a URL, and the states of a page are merged into it (D6). A finding is one rule on one page, so
@@ -169,8 +169,8 @@ finding. A finding's `status`:
 
 | `status` | Means |
 | --- | --- |
-| `new` | Not in the earlier scan; or in it, with an element it did not have. On a `scan` with no earlier scan, every finding |
-| `still` | In both. Its `elements` are the ones failing now |
+| `new` | Not in the earlier scan; or in it, with an element it did not have. On a `scan` with no earlier scan, every finding. One new element makes the whole finding `new`, and its elements say which one is (decided 2026-11-19: a new instance is new work) |
+| `still` | In both. Its `elements` are the ones failing now. Also, with `unverified: true`, a finding or element found now only in states the earlier scan asked for and did not scan (below) |
 | `fixed` | In the earlier scan, and not found now. Only a `check` lists fixed findings |
 
 **Elements.** Within a finding found in both, elements are matched by `selector`. When the elements left unmatched on
@@ -182,6 +182,15 @@ fixed finding), and a finding still open lists the earlier elements that no long
 **Not scanned is never fixed.** An earlier element found in a state of its page that was not scanned this time is
 not read as fixed: it stays in `elements` with `status: "still"` and `unverified: true`, and its finding reads
 `still` with `unverified: true`. Such a run exits 1 anyway, since a page or state was not scanned.
+
+**Nor is a state the earlier scan did not scan read as new** (decided 2026-11-19: a state the baseline never
+scanned proves nothing, and failing a pull request on bugs that were always there is a false alarm). An element
+found now only in states the earlier scan asked for and did not scan (its `pages[].notScanned`) reads
+`status: "still"` with `unverified: true`, and so does its finding, which then does not fail a check. An element
+found in at least one state both scans scanned is judged as usual: `new` if the earlier scan did not have it. So a
+finding with a new element in a state both scanned stays `new`, and only its elements in the unscanned state are
+marked unverified. `check` says `1 finding is unverified: the baseline did not scan the state "dark". To compare
+it, run a11y-genie scan with the same --states to make a new baseline.`, and `report.md` says the same.
 
 **`check`'s record** has `command: "check"`, `baseline`, every finding with its `status` (the open ones worst first,
 then the fixed ones worst first), and `summary.new`, `still` and `fixed`. A fixed finding keeps the earlier
