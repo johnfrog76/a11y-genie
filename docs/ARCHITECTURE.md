@@ -646,7 +646,7 @@ such items a state. Fixtures: `focus-custom-ok.html`, `focus-hidden.html`, `focu
 
 Narration (spec 6.6, M9) reads, after each key of a flow, what the browser's accessibility tree says of the
 element focus is on, and writes the line a screen reader would say for it. This part is the reader and the line;
-the `narrate` command, its transcript and `genie/unnamed-step` come next. It is not a screen reader: it says what
+the `narrate` command, its transcript and `genie/unnamed-step` are in *Narration*, below. It is not a screen reader: it says what
 Chrome's tree holds, in words of its own, and NVDA, JAWS and VoiceOver each say it their own way.
 
 **Two sources, compared (V6).** Checked at Chrome 158 (headless, Playwright 1.65.1) on each control of
