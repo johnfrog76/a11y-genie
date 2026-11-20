@@ -28,15 +28,15 @@ The first thing `src/cli.ts` does is make a folder under the system temp folder 
 suffix) and set `TMPDIR` to it in `process.env`, and `TEMP` and `TMP` too on Windows. playwright-core reads the
 temp folder each time it launches, not once at import, so its profile and artifacts folders, and everything the
 browser and the browser installer (a child process) make, land in it. The folder is removed when the process
-exits, however it exits: a normal end, a refusal (exit 2), an unexpected error (exit 3), and Ctrl-C (130, through
-`process.exit()` in `src/interrupt.ts`), all of which run the `exit` handler.
+exits, however it exits: a normal end, a refusal (exit 2), an unexpected error (exit 3), and Ctrl-C, a plain kill and a closed terminal (130, 143 and 129,
+through `process.exit()` in `src/interrupt.ts`), all of which run the `exit` handler.
 
 Why: the system temp folder is shared by every process on the machine. Cleaning up after a failed launch there,
 as this code once did, can remove another run's brand-new, still-empty profile folder, and that browser then
 fails to start (*Failed to create a ProcessSingleton*). In the private folder nothing else is running, so the
 failed-launch cleanup in `withBrowser()` reads only that folder, and the shared one is never read for it.
 
-Not covered: `SIGKILL`. Nothing runs, so the folder stays, one folder named `a11y-genie-*` (the browser and its
+Not covered: only `SIGKILL`. Nothing runs, so the folder stays, one folder named `a11y-genie-*` (the browser and its
 profile are inside it), until the system clears the temp folder.
 
 **Tests** get the same isolation: `test/setup/private-temp.ts` (a vitest setup file) gives each test file its own
@@ -61,9 +61,9 @@ opens a person's real profile when handed the wrong path, so the code never call
 folder from its own `chrome://version` page, and checks that the folder is in the temp folder, was made for
 this run, differs between two runs, and is gone after the run, including a run that throws.
 
-On Ctrl-C, `src/interrupt.ts` closes the browser (so the folder is deleted) and exits 130; the launch passes
-`handleSIGINT: false`, so playwright-core's own handler does not race it. On a normal `SIGTERM`,
-playwright-core closes the browser and deletes the folder.
+On Ctrl-C, a plain `kill` (`SIGTERM`) or a closed terminal (`SIGHUP`), `src/interrupt.ts` closes the browser (so
+the folder is deleted) and exits 130, 143 or 129; the launch passes `handleSIGINT: false`, `handleSIGTERM: false`
+and `handleSIGHUP: false`, so playwright-core's own handlers (all on by default) do not race it or change the code.
 
 ### A browser that is not installed
 
