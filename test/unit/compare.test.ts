@@ -11,6 +11,7 @@ import type { AxeScan, Finding, Impact } from "../../src/finding.js";
 import { renderReport } from "../../src/report.js";
 import { buildPagesRecord, type ScanRecord, type StateResult } from "../../src/scan-record.js";
 import { scanSchema, validate } from "../../src/json-schema.js";
+import { readGolden } from "../helpers/goldens.js";
 import { neverClaimViolations } from "../helpers/never-claim.js";
 
 // How two scans are compared (spec 4.6), with no browser: records built from made-up axe-core findings.
@@ -137,10 +138,11 @@ describe("check against a baseline", () => {
     const record = check(baseline, now);
     const button = byId(record)["button-name"];
     expect(button?.status).toBe("new");
+    // Elements in the record's order: by their first state, then by target (src/merge-states.ts).
     expect(button?.elements.map((e) => [e.selector, e.status])).toEqual([
+      ["#print", "new"],
       ["#save", "still"],
       ["#share", "still"],
-      ["#print", "new"],
     ]);
     expect(record.exit).toBe(1);
   });
@@ -218,6 +220,33 @@ describe("check against a baseline", () => {
       /`axe\/image-alt@page`: .*first found gone in the scan that began .* at `abc123`\./,
     );
     expect(neverClaimViolations(report)).toEqual([]);
+  });
+});
+
+describe("check over merged states", () => {
+  // The states golden: one page in three states, and `.unnamed` found in two of them, menu-open and menu-dark.
+  const golden = JSON.parse(readGolden("states", "scan.json")) as ScanRecord;
+
+  it("reads an element found in two states, then in only one of them, as still, with nothing fixed under it", () => {
+    const baseline = golden.findings.find((f) => f.id === "axe/button-name@states.html");
+    expect(baseline?.elements.map((e) => [e.selector, e.states])).toEqual([
+      [".unnamed", ["menu-open", "menu-dark"]],
+    ]);
+    const now = structuredClone(golden);
+    const finding = now.findings.find((f) => f.id === "axe/button-name@states.html");
+    (finding?.elements[0] as { states: string[] }).states = ["menu-open"];
+    now.startedAt = "2000-01-01T00:01:00Z";
+
+    const record = check(golden, now);
+    const button = record.findings.find((f) => f.id === "axe/button-name@states.html");
+    expect(button?.status).toBe("still");
+    expect(button?.elements.map((e) => [e.selector, e.states, e.status])).toEqual([
+      [".unnamed", ["menu-open"], "still"],
+    ]);
+    // The element is the same element, so nothing is fixed under the finding.
+    expect(button?.fixedElements).toBeUndefined();
+    expect(record.summary).toMatchObject({ new: 0, still: 2, fixed: 0 });
+    expect(record.exit).toBe(0);
   });
 });
 

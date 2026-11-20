@@ -79,7 +79,7 @@ function notScannedStates(record: ScanRecord): Map<string, Set<string>> {
 }
 
 /**
- * An element as a new record keeps it, with its status. Only the fields this version knows are copied, and the
+ * An earlier element as a new record keeps it, with its status. Only the fields this version knows are copied, and the
  * HTML is cut to the excerpt limit again: an earlier element comes from a file this run did not write.
  */
 function carried(element: RecordElement, status: RecordElement["status"], unverified = false): RecordElement {
@@ -151,7 +151,11 @@ export function compareScans(earlier: ScanRecord, now: ScanRecord): Comparison {
   for (const finding of openFindings(now)) {
     const was = before.get(finding.id);
     if (was === undefined) {
-      open.push({ ...finding, status: "new", elements: finding.elements.map((e) => carried(e, "new")) });
+      open.push({
+        ...finding,
+        status: "new",
+        elements: finding.elements.map((e) => ({ ...e, status: "new" as const })),
+      });
       continue;
     }
     before.delete(finding.id);
@@ -161,8 +165,12 @@ export function compareScans(earlier: ScanRecord, now: ScanRecord): Comparison {
     const unmatchedBefore = was.elements.filter((element) => !nowSelectors.has(element.selector));
     // As many on each side: the same elements, read under selectors that moved (R11).
     const moved = unmatchedNow.length === unmatchedBefore.length;
-    const elements = finding.elements.map((element) =>
-      carried(element, moved || earlierBySelector.has(element.selector) ? "still" : "new"),
+    const elements: RecordElement[] = finding.elements.map((element) =>
+      // An element found now is this run's own: kept whole, with its status.
+      ({
+        ...element,
+        status: moved || earlierBySelector.has(element.selector) ? ("still" as const) : ("new" as const),
+      }),
     );
     const gone = moved ? [] : unmatchedBefore;
     const stillUnseen = gone.filter((element) => unseen(finding.page, element));
