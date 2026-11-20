@@ -46,6 +46,7 @@ describe("a11y-genie rules", () => {
     expect(stdout).toContain("genie/skip-link");
     expect(stdout).toContain("genie/keyboard-trap");
     expect(stdout).toContain("genie/focus-not-returned");
+    expect(stdout).toContain("genie/focus-visible");
     expect(stdout).toContain(`axe-core ${axe.version}`);
   });
 
@@ -114,6 +115,12 @@ describe("a11y-genie rules", () => {
       impact: "moderate",
       wcag: ["2.4.3"],
       tags: ["cat.keyboard", "wcag2a", "wcag243"],
+    });
+    const focusVisible = doc.rules.find((r) => r.source === "genie" && r.id === "focus-visible");
+    expect(focusVisible).toMatchObject({
+      impact: "serious",
+      wcag: ["2.4.7"],
+      tags: ["cat.keyboard", "wcag2aa", "wcag247"],
     });
   });
 

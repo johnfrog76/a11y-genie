@@ -1,0 +1,32 @@
+<!doctype html>
+<!--
+  Fixture: focus styles that arrive slowly, by a transition and by an animation, each from nothing to a ring.
+  Must fire:     nothing
+  Must not fire: genie/focus-visible, as a finding or as needs review; any axe-core rule
+  Each is judged on where it ends, not where it starts: the screenshots run the transition and the animation
+  to their end (V4). #pulse's animation never ends, and its ring is there from its first frame.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Animated focus</title>
+    <style>
+      a { outline: none; }
+      #slide { transition: box-shadow 3s linear 1s; }
+      #slide:focus-visible { box-shadow: 0 0 0 3px #1a5fb4; }
+      @keyframes grow { from { box-shadow: 0 0 0 0 transparent; } to { box-shadow: 0 0 0 3px #1a5fb4; } }
+      #grow:focus-visible { animation: grow 3s linear 1s forwards; }
+      @keyframes pulse { from { box-shadow: 0 0 0 3px #1a5fb4; } to { box-shadow: 0 0 0 5px #1a5fb4; } }
+      #pulse:focus-visible { animation: pulse 1s ease-in-out infinite alternate; }
+    </style>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <main>
+      <h1>Animated focus</h1>
+      <p><a id="slide" href="#one">By a transition</a></p>
+      <p><a id="grow" href="#two">By an animation</a></p>
+      <p><a id="pulse" href="#three">By a pulse that never ends</a></p>
+    </main>
+  </body>
+</html>

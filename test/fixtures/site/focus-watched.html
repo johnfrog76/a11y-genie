@@ -1,0 +1,42 @@
+<!doctype html>
+<!--
+  Fixture: a page that watches focus. Its menu closes when focus leaves it, and it counts every focus and blur
+  event it hears. The focus-visible check takes focus off each stop and gives it back; the page must hear none
+  of that, so the counts and the walk are the same with the check as without it
+  (test/browser/focus-visible.test.ts).
+  Must fire:     genie/focus-visible on #menu-first and #menu-second, whose outline is taken away
+  Must not fire: any axe-core rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Watched focus</title>
+    <style>
+      #menu a:focus { outline: none; }
+      #menu[hidden] { display: none; }
+    </style>
+  </head>
+  <body style="background: #ffffff; color: #000000" data-focus="0" data-blur="0" data-closed="0">
+    <main>
+      <h1>Watched focus</h1>
+      <button id="before" type="button">Before</button>
+      <div id="menu">
+        <a id="menu-first" href="#a">First</a>
+        <a id="menu-second" href="#b">Second</a>
+      </div>
+      <button id="after" type="button">After</button>
+    </main>
+    <script>
+      const body = document.body;
+      const bump = (name) => { body.dataset[name] = String(Number(body.dataset[name]) + 1); };
+      document.addEventListener("focusin", () => bump("focus"));
+      document.addEventListener("focusout", () => bump("blur"));
+      const menu = document.getElementById("menu");
+      // A menu that closes as soon as focus is on no element inside it: a blur with nothing after it closes it.
+      menu.addEventListener("focusout", (event) => {
+        if (!menu.contains(event.relatedTarget)) { menu.hidden = true; bump("closed"); }
+      });
+    </script>
+  </body>
+</html>

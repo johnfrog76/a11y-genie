@@ -8,6 +8,7 @@ import { createRequire } from "node:module";
 import { parseArgs } from "node:util";
 import "./click-on-non-control.js"; // registers `genie/click-on-non-control`
 import { IMPACTS, type Impact } from "./finding.js";
+import "./focus-visible.js"; // registers `genie/focus-visible`
 import { genieRules } from "./genie-rules.js";
 import "./keyboard-trap.js"; // registers `genie/keyboard-trap` and `genie/focus-not-returned`
 import "./landmarks.js"; // registers `genie/no-landmarks`; each later check is imported here too

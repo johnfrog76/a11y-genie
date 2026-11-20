@@ -60,7 +60,9 @@ compare by code point, so the order is the same on every machine (`src/order.ts`
 
 axe-core's `incomplete` results are things it could not decide, such as text over a gradient whose contrast
 it cannot measure. The product's own checks have them too: `genie/click-on-non-control` lists an element that
-looks clickable but has no click handler of its own, since a handler further up the page may act on it. They
+looks clickable but has no click handler of its own, since a handler further up the page may act on it, and
+`genie/focus-visible` lists an element whose focus changes too faintly to be sure of, or that it could not
+photograph (docs/ARCHITECTURE.md, *Focus visible*). They
 are never passes and never findings. Each is a *needs review* item: the same fields as a finding except
 `kind`, and each element has one more field.
 
