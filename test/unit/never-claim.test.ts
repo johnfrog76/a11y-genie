@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CRITERION_WORDING, RULE_WORDING } from "../../src/plain.js";
 import { emptyScanSentence, renderReport } from "../../src/report.js";
 import { CANNOT_SEE } from "../../src/scan-record.js";
 import { GOLDEN_PAGES, readGolden, readGoldenRecord } from "../helpers/goldens.js";
@@ -46,6 +47,17 @@ describe("what a report says", () => {
 
   it("the fixed text of what a scan cannot see claims nothing", () => {
     expect(neverClaimViolations(CANNOT_SEE.join("\n"))).toEqual([]);
+  });
+
+  it("the wording table, every rule's plain, fix and advice and every criterion's words, claims nothing", () => {
+    const words = Object.values(RULE_WORDING).flatMap((entry) => [
+      entry.plain,
+      entry.fix,
+      ...(entry.advice === undefined ? [] : [entry.advice.plain, entry.advice.fix]),
+    ]);
+    const criteria = Object.values(CRITERION_WORDING).flatMap((entry) => [entry.name, entry.plain]);
+    expect(words.length).toBeGreaterThan(0);
+    expect(neverClaimViolations([...words, ...criteria].join("\n"))).toEqual([]);
   });
 
   it("every golden report ends with What this scan cannot see, with the whole fixed list", () => {
