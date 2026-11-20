@@ -1,0 +1,16 @@
+<!doctype html>
+<!--
+  Fixture: a header with role="presentation", the only element that could be a landmark. It is not a banner.
+  Must fire:     genie/no-landmarks
+  Also fires: whatever axe-core makes of the page; the test reads only genie/no-landmarks.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>A presentational header</title>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <header role="presentation"><a href="/one">One</a></header>
+  </body>
+</html>
