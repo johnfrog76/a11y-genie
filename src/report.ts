@@ -348,8 +348,11 @@ export function renderReport(record: ScanRecord): string {
     }
     out.push("");
     if (summary.notScanned > 0) {
+      const flows = record.workflows.some((flow) => flow.notScanned !== undefined);
       out.push(
-        `${plural(summary.notScanned, "page, state or flow was", "pages, states or flows were")} not scanned:`,
+        flows
+          ? `${plural(summary.notScanned, "page, state or flow was", "pages, states or flows were")} not scanned:`
+          : `${plural(summary.notScanned, "page or state was", "pages or states were")} not scanned:`,
         "",
       );
       for (const page of record.pages) {
