@@ -280,7 +280,7 @@ describe("the record", () => {
       notScanned: 0,
     });
     expect(record.exit).toBe(1);
-    expect(record.schema).toBe("1.8");
+    expect(record.schema).toBe("1.9");
   });
 
   it("sets exit 0 for none", () => {

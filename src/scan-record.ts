@@ -28,8 +28,10 @@ import type { Walk } from "./walk.js";
  * record has none.
  * 1.7 added `pages[].walks`, the keyboard walk of each state that was scanned. A 1.6 record has none.
  * 1.8 added `stopsCut` on a walk: stops dropped from its end to hold `scan.json` to its size. A 1.7 record has none.
+ * 1.9 added a walk's `cycled` end and its `cycleFrom`, where focus went twice round a later part of the page, and
+ * the findings `genie/keyboard-trap` and `genie/focus-not-returned`. A 1.8 record has none of them.
  */
-export const SCHEMA_VERSION = "1.8";
+export const SCHEMA_VERSION = "1.9";
 
 /**
  * What a scan cannot see: the questions a person has to answer, because automated rules cannot. Fixed
