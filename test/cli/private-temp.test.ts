@@ -1,7 +1,7 @@
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SCANS_DIR_ENV } from "../../src/scans-folder.js";
 import { channelArgs } from "../helpers/test-browser.js";
@@ -127,6 +127,42 @@ describe.skipIf(!hasBrowser)("a run with a browser (skipped where the test brows
     expect((await done).status).toBe(130);
     expect(readdirSync(shared)).toEqual([]);
   });
+
+  // Browser processes whose command line names this test's shared temp folder: the ones the child started.
+  function browsersIn(shared: string): string[] {
+    const marker = basename(shared);
+    return execFileSync("ps", ["-ww", "-axo", "pid,command"], { encoding: "utf8" })
+      .split("\n")
+      .filter((line) => line.includes(marker));
+  }
+
+  // SIGTERM is not delivered on Windows, and SIGHUP there arrives only when the console window closes, so a
+  // test cannot send either to a spawned process: both skip on win32.
+  const signalCases = [
+    ["SIGTERM", 143],
+    ["SIGHUP", 129],
+  ] as const;
+  for (const [signal, code] of signalCases) {
+    it.skipIf(process.platform === "win32")(
+      `${signal} (exit ${code}) leaves no temp folder and no browser (skipped on win32, which does not deliver it)`,
+      async () => {
+        const shared = folder();
+        const { child, done } = start(["scan", `http://127.0.0.1:${hangPort}/`], shared, folder());
+        await waitForProfile(shared);
+        expect(browsersIn(shared).length, "the browser is up").toBeGreaterThan(0);
+        child.kill(signal);
+        const result = await done;
+        expect(result.status).toBe(code);
+        expect(readdirSync(shared)).toEqual([]);
+        // The browser is closed before the command exits, but give the system a moment to reap it.
+        const deadline = Date.now() + 5_000;
+        while (browsersIn(shared).length > 0 && Date.now() < deadline) {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        expect(browsersIn(shared)).toEqual([]);
+      },
+    );
+  }
 
   it("a killed run (SIGKILL) leaves at most one folder, named a11y-genie-*", async () => {
     const shared = folder();

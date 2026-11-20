@@ -21,8 +21,10 @@ export function usePrivateTemp(): string {
   const made = mkdtempSync(join(tmpdir(), "a11y-genie-"));
   folder = made;
   for (const name of TEMP_VARIABLES) process.env[name] = made;
-  // `exit` runs on a normal end, on process.exit() (a refusal, an unexpected error, Ctrl-C) and after an
-  // uncaught exception. It does not run on SIGKILL: that leaves this one folder, named a11y-genie-*.
+  // `exit` runs on a normal end, on process.exit() (a refusal, an unexpected error) and after an
+  // uncaught exception. The signal handlers of src/interrupt.ts (Ctrl-C, a plain kill, a closed terminal) end
+  // with process.exit(), so it runs for them too. It does not run on SIGKILL: only that leaves this one folder,
+  // named a11y-genie-*.
   process.on("exit", removePrivateTemp);
   return made;
 }
