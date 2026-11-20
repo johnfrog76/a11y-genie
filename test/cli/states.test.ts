@@ -1,5 +1,6 @@
 import { channelArgs } from "../helpers/test-browser.js";
 import { spawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -377,7 +378,9 @@ describe.skipIf(!hasBrowser)(
     it("reads --storage-state and never copies it into the scan", async () => {
       const root = fresh();
       const dir = fresh();
-      const secret = "SECRET-TOKEN-value-1234567890";
+      // Made fresh each run, so no literal in the source looks like a credential to a secret scanner, and a
+      // match below can only come from the storage-state file.
+      const cookie = `session-${randomBytes(16).toString("hex")}`;
       const state = join(dir, "state.json");
       writeFileSync(
         state,
@@ -385,7 +388,7 @@ describe.skipIf(!hasBrowser)(
           cookies: [
             {
               name: "session",
-              value: secret,
+              value: cookie,
               domain: "127.0.0.1",
               path: "/",
               expires: -1,
@@ -397,13 +400,14 @@ describe.skipIf(!hasBrowser)(
           origins: [],
         }),
       );
+      expect(readFileSync(state, "utf8")).toContain(cookie);
       const result = await run(["scan", server.url("clean.html"), "--storage-state", state, "--json"], root);
       expect(result.status).toBe(0);
-      expect(result.stdout + result.stderr).not.toContain(secret);
+      expect(result.stdout + result.stderr).not.toContain(cookie);
       const [site] = readdirSync(root);
       const [scan] = readdirSync(join(root, site as string));
       for (const name of readdirSync(join(root, site as string, scan as string))) {
-        expect(readFileSync(join(root, site as string, scan as string, name), "utf8")).not.toContain(secret);
+        expect(readFileSync(join(root, site as string, scan as string, name), "utf8")).not.toContain(cookie);
       }
     });
   },
