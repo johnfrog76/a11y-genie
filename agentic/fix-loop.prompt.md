@@ -190,7 +190,9 @@ at in `report.md`: the loop does not work them.
 
 ## What you never claim
 
-Never tell the person that the site is free of barriers, meets WCAG or any other standard, is usable by
+Never call the site "accessible", "compliant" or "conformant".
+
+Nor tell the person that the site is free of barriers, meets WCAG or any other standard, is usable by
 everyone, or "got a pass". Not in the closing line, not in a summary, not in a commit message or a pull
 request. A Clean stop means one thing: these rules, on these pages, in these states, found no violation at or
 above `options.failOn`. That is worth saying, and it is all a scan can say. Automated rules find only some of

@@ -4,7 +4,7 @@ import { CRITERION_WORDING, RULE_WORDING } from "../../src/plain.js";
 import { emptyScanSentence, renderReport } from "../../src/report.js";
 import { CANNOT_SEE } from "../../src/scan-record.js";
 import { GOLDEN_PAGES, readGolden, readGoldenRecord } from "../helpers/goldens.js";
-import { neverClaimViolations } from "../helpers/never-claim.js";
+import { neverClaimViolations, PROMPT_WORD_LIST } from "../helpers/never-claim.js";
 
 describe("the phrase list (C16)", () => {
   it.each([
@@ -41,7 +41,39 @@ describe("the phrase list (C16)", () => {
 describe("what the prompt file says", () => {
   it("agentic/fix-loop.prompt.md claims nothing", () => {
     const prompt = readFileSync(new URL("../../agentic/fix-loop.prompt.md", import.meta.url), "utf8");
-    expect(neverClaimViolations(prompt, { docs: true })).toEqual([]);
+    expect(neverClaimViolations(prompt, { promptFile: true })).toEqual([]);
+  });
+
+  it("names the forbidden words in the one exact sentence, once", () => {
+    const prompt = readFileSync(new URL("../../agentic/fix-loop.prompt.md", import.meta.url), "utf8");
+    expect(prompt.split(PROMPT_WORD_LIST)).toHaveLength(2);
+    expect(PROMPT_WORD_LIST).toBe('Never call the site "accessible", "compliant" or "conformant".');
+  });
+
+  it("allows the sentence in the prompt file, and nowhere else", () => {
+    const text = `Some words.\n\n${PROMPT_WORD_LIST}\n`;
+    expect(neverClaimViolations(text, { promptFile: true })).toEqual([]);
+    // README.md and docs/ are read in docs mode, and a report or anything else in the default one.
+    expect(neverClaimViolations(text, { docs: true })).toEqual(["accessible", "compliant", "conformant"]);
+    expect(neverClaimViolations(text)).toEqual(["accessible", "compliant", "conformant"]);
+  });
+
+  it.each([
+    'Never call the site "accessible", "compliant" or "certified".',
+    'Never call the site "accessible", "compliant" or conformant".',
+    'never call the site "accessible", "compliant" or "conformant".',
+    'Never call the page "accessible", "compliant" or "conformant".',
+  ])("a variant of the sentence fails in the prompt file: %s", (variant) => {
+    expect(neverClaimViolations(variant, { promptFile: true })).not.toEqual([]);
+  });
+
+  it("a second copy of the sentence in the prompt file fails", () => {
+    const twice = `${PROMPT_WORD_LIST}\n\nAnd again: ${PROMPT_WORD_LIST}\n`;
+    expect(neverClaimViolations(twice, { promptFile: true })).toEqual([
+      "accessible",
+      "compliant",
+      "conformant",
+    ]);
   });
 });
 

@@ -77,6 +77,8 @@ Run all five before you ask for a review. CI runs the same five in that order, o
 1. **Never claim a site is accessible.** Not in output, reports, docs, tests or commit messages: no
    "accessible", "compliant", "passes" or "clean" said of a site. A scan finds some problems, not all of
    them, and says what it cannot see. A scan with no findings says how much it checked, never that all is well.
+   One exception: `agentic/fix-loop.prompt.md` names the words once, in one exact sentence, because an agent
+   follows a literal word list better than a description (`PROMPT_WORD_LIST` in `test/helpers/never-claim.ts`).
 2. **One commit identity for the project.** Commits use the identity this repository's local git config
    sets. Don't change it, don't pass `--author`, and don't put any other name or email in a file.
 3. **Pin every dependency exactly.** No `^` or `~` in `package.json`. A new runtime dependency is its own
