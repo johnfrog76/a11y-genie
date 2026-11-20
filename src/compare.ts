@@ -121,6 +121,12 @@ function withCut<T extends { elementsCut?: number }>(rest: T, extra: number): T 
   return { ...rest, elementsCut: (rest.elementsCut ?? 0) + extra };
 }
 
+/** `rest` with `extra` fixed elements counted as not listed (`fixedCut`), apart from the failing ones `elementsCut` counts. */
+function withFixedCut<T extends { fixedCut?: number }>(rest: T, extra: number): T {
+  if (extra === 0) return rest;
+  return { ...rest, fixedCut: (rest.fixedCut ?? 0) + extra };
+}
+
 /** An earlier finding's own fields, the ones this version knows, without its elements or its comparison. */
 function findingOf(was: RecordFinding): Omit<RecordFinding, "status" | "elements"> {
   const { source, id, help, helpUrl, wcag } = was.rule;
@@ -235,7 +241,7 @@ export function compareScans(earlier: ScanRecord, now: ScanRecord): Comparison {
     const status = elements.some((element) => element.status === "new") ? "new" : "still";
     if (stillUnseen.length > 0) unverified += 1;
     open.push({
-      ...withCut(finding, fixedCarried.cut + stillCarried.cut),
+      ...withFixedCut(withCut(finding, stillCarried.cut), fixedCarried.cut),
       status,
       elements,
       ...(fixedElements.length > 0 ? { fixedElements } : {}),
@@ -257,7 +263,7 @@ export function compareScans(earlier: ScanRecord, now: ScanRecord): Comparison {
       const fixedElements = fixedCarried.kept;
       const stillCarried = carryAll(stillUnseen, "still", perFinding, true);
       open.push({
-        ...withCut(rest, fixedCarried.cut + stillCarried.cut),
+        ...withFixedCut(withCut(rest, stillCarried.cut), fixedCarried.cut),
         status: "still",
         elements: stillCarried.kept,
         ...(fixedElements.length > 0 ? { fixedElements } : {}),

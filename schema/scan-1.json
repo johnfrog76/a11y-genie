@@ -257,6 +257,7 @@
           }
         },
         "fixedElements": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/element" } },
+        "fixedCut": { "type": "integer", "minimum": 1 },
         "unverified": { "const": true }
       }
     },

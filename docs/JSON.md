@@ -185,7 +185,9 @@ finding. A finding's `status`:
 each side are as many as each other, they are read as the same elements under selectors that moved, so the finding
 reads `still`, never fixed plus new. Otherwise an unmatched element found now is `new`, and makes its finding `new`,
 and an unmatched earlier element is fixed. On a `check`, each element has a `status` (`new`, `still`, or `fixed` on a
-fixed finding), and a finding still open lists the earlier elements that no longer fail in `fixedElements`.
+fixed finding), and a finding still open lists the earlier elements that no longer fail in `fixedElements`, at most 500; `fixedCut` counts the fixed elements
+not listed there, and is left out when none were cut. `elementsCut` counts failing elements only, so a cut fixed
+element is never in it. On a fixed finding, every element is a fixed one, and `elementsCut` counts those not listed.
 
 **Not scanned is never fixed.** An earlier element found in a state of its page that was not scanned this time is
 not read as fixed: it stays in `elements` with `status: "still"` and `unverified: true`, and its finding reads
