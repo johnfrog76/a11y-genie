@@ -1,5 +1,5 @@
 {
-  "schema": "1.5",
+  "schema": "1.6",
   "tool": {
     "name": "a11y-genie",
     "version": "0.0.0"

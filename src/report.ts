@@ -295,7 +295,8 @@ function fixedLines(record: ScanRecord): string[] {
         `(${finding.elements.map((e) => inlineCode(e.selector)).join(", ")})` +
         (when === undefined
           ? "."
-          : `, first found gone in the scan that began ${plainText(when.startedAt)}${commit}.`),
+          : `, first found gone in the scan that began ${plainText(when.startedAt)}${commit}.`) +
+        ((finding.elementsCut ?? 0) > 0 ? ` ${finding.elementsCut} more elements are not listed.` : ""),
     );
   }
   out.push("");
@@ -365,7 +366,11 @@ export function renderReport(record: ScanRecord): string {
       );
       const fixedHere = finding.fixedElements ?? [];
       if (fixedHere.length > 0) {
-        out.push(`- Fixed under it: ${fixedHere.map((e) => inlineCode(e.selector)).join(", ")}`);
+        const more = finding.fixedCut ?? 0;
+        out.push(
+          `- Fixed under it: ${fixedHere.map((e) => inlineCode(e.selector)).join(", ")}` +
+            (more > 0 ? `, and ${more} more not listed` : ""),
+        );
       }
       out.push("");
       out.push(...findingElementLines(finding));

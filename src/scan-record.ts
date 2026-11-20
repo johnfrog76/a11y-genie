@@ -23,8 +23,10 @@ import { escapeJsonControls } from "./printable.js";
  * 1.5 added `check`'s record (`command: "check"`, `baseline`, `summary.new`, `still` and `fixed`, and on findings
  * `fixedIn`, `fixedElements`, `unverified`, and an element's `status`), plain `scan`'s `summary.sincePrevious`
  * and `sincePreviousReason`, and `target.commit` from `--commit`. A 1.4 record has none of them.
+ * 1.6 added `fixedCut` on a still-open finding: fixed elements carried from a baseline and not listed. A 1.5
+ * record has none.
  */
-export const SCHEMA_VERSION = "1.5";
+export const SCHEMA_VERSION = "1.6";
 
 /**
  * What a scan cannot see: the questions a person has to answer, because automated rules cannot. Fixed
@@ -86,6 +88,8 @@ export interface RecordFinding {
   fixedIn?: FixedIn;
   /** On a `check`, a finding still open: the baseline's elements that no longer fail. */
   fixedElements?: RecordElement[];
+  /** On a `check`, how many of those fixed elements are not listed in `fixedElements`. Not part of `elementsCut`, which counts failing elements only. */
+  fixedCut?: number;
   /** On a `check`: a finding of the baseline on a page or state not scanned this time. It reads `still`. */
   unverified?: true;
 }

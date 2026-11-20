@@ -389,6 +389,59 @@ describe("elements carried from a baseline get a fresh scan's limits (issue 75)"
   });
 });
 
+describe("fixed elements cut from a baseline are not failing elements (issue 79)", () => {
+  const many = (count: number, prefix: string) => Array.from({ length: count }, (_, i) => `#${prefix}${i}`);
+  // A baseline file lists 600 elements (a fresh scan never keeps more than 500, but a file can say anything):
+  // 1 still fails, 599 are fixed, of which 500 are carried and 99 cut.
+  const baseline = (): ScanRecord => {
+    const record = scanOf(only(finding("image-alt", ["#a-open"])));
+    const [first] = record.findings;
+    const template = first!.elements[0]!;
+    first!.elements.push(
+      ...many(599, "f").map((selector) => ({ ...template, selector, target: [selector] })),
+    );
+    return record;
+  };
+  const now = () => scanOf(only(finding("image-alt", ["#a-open"])));
+
+  it("counts the excess in fixedCut and leaves elementsCut alone", () => {
+    const record = check(baseline(), now());
+    const [open] = record.findings;
+    expect(open!.status).toBe("still");
+    expect(open!.fixedElements).toHaveLength(500);
+    expect(open!.fixedCut).toBe(99);
+    expect(open!.elementsCut).toBeUndefined();
+    expect(validate(schema, record)).toEqual([]);
+  });
+
+  it("reads the Elements line as failing elements only, and says the fixed ones not listed", () => {
+    const report = renderReport(check(baseline(), now()));
+    expect(report).toContain("- Elements: 1\n");
+    expect(report).not.toContain("more not listed (at most");
+    expect(report).toMatch(/- Fixed under it: .*, and 99 more not listed\n/);
+  });
+
+  it("adds no fixedCut when nothing was cut", () => {
+    const [open] = check(
+      baseline(),
+      scanOf(only(finding("image-alt", ["#a-open", ...many(599, "f").slice(0, 99)]))),
+    ).findings;
+    expect(open!.fixedCut).toBeUndefined();
+  });
+
+  it("keeps unseen (still failing) elements cut in elementsCut, not fixedCut", () => {
+    const partial = scanOf([{ name: "default", axe: null, notScanned: "it did not answer" }]);
+    const [open] = compareScans(baseline(), partial).findings;
+    expect(open!.elementsCut).toBe(100);
+    expect(open!.fixedCut).toBeUndefined();
+  });
+
+  it("says in the fixed section how many of a fixed finding's elements are not listed", () => {
+    const report = renderReport(check(scanOf(only(finding("image-alt", many(600, "g")))), scanOf(only())));
+    expect(report).toContain("100 more elements are not listed.");
+  });
+});
+
 describe("plain scan against the last scan", () => {
   const previous = scanOf(only(finding("button-name", ["#save"]), finding("image-alt", ["img"])));
 
