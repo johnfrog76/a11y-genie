@@ -1,0 +1,55 @@
+<!doctype html>
+<!--
+  Fixture: a finite animation and a transition, both running, and long, when the focus-visible check reaches
+  them. The page records, in `body`'s data attributes, every finish, animationend and transitionend it hears,
+  and when each animation began, so a test can tell where each should be (test/browser/focus-visible.test.ts).
+  Must fire:     genie/focus-visible on #one and #two, whose outline is taken away
+  Must not fire: any axe-core rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Running animations</title>
+    <style>
+      a:focus { outline: none; }
+      @keyframes slide { from { margin-left: 0; } to { margin-left: 40px; } }
+      #moving { width: 20px; height: 20px; background: #1a5fb4; animation: slide 60s linear 1 forwards; }
+      #fading { width: 20px; height: 20px; background: #1a5fb4; transition: background-color 60s linear; }
+      #fading.on { background-color: #26a269; }
+    </style>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <main>
+      <h1>Running animations</h1>
+      <p><a id="one" href="#one">One</a></p>
+      <p><a id="two" href="#two">Two</a></p>
+      <div id="moving"></div>
+      <div id="fading"></div>
+    </main>
+    <script>
+      const d = document.body.dataset;
+      const bump = (name) => { d[name] = String(Number(d[name] ?? 0) + 1); };
+      for (const type of ["animationend", "transitionend", "animationcancel", "transitioncancel"]) {
+        document.addEventListener(type, () => bump(type), true);
+      }
+      // A forced style read first, so the class changes a style that was already computed and a transition starts.
+      const fading = document.getElementById("fading");
+      void getComputedStyle(fading).backgroundColor;
+      fading.classList.add("on");
+      void getComputedStyle(fading).backgroundColor;
+      const origin = performance.now();
+      for (const animation of document.getAnimations()) {
+        animation.id = animation instanceof CSSTransition ? "transition" : "animation";
+        animation.addEventListener("finish", () => bump("finish"));
+        animation.addEventListener("cancel", () => bump("cancel"));
+      }
+      // What each animation's currentTime and play state are now, as JSON, against how long the page has run.
+      window.report = () =>
+        JSON.stringify({
+          elapsed: performance.now() - origin,
+          animations: document.getAnimations().map((a) => ({ id: a.id, time: a.currentTime, state: a.playState })),
+        });
+    </script>
+  </body>
+</html>

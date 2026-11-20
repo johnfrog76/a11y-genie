@@ -7,9 +7,9 @@
  * 1. the computed `outline-style`, `outline-width`, `outline-color`, `box-shadow`, `border-color`,
  *    `background-color` and `text-decoration` of the element and of its first two ancestors; and
  * 2. a screenshot of the element padded by `PAD_PX` on each side, first as the Tab key left it (so
- *    `:focus-visible` applies), then with focus taken off it. Both are taken with Playwright's
- *    `animations: "disabled"` (a finite animation or transition is run to its end, so an animated ring is
- *    judged as it ends), the caret hidden, and a style that turns transitions off.
+ *    `:focus-visible` applies), then with focus taken off it. Both are taken with the page held
+ *    still (a finite animation or transition is set to its end while paused, so an animated ring
+ *    is judged as it ends, then put back as it was), the caret hidden, and a style that turns transitions off.
  *
  * A pixel has changed when one of its red, green and blue differs by more than `PIXEL_TOLERANCE`. When at least
  * `VISIBLE_SHARE` of the padded box's pixels changed, focus is visible. When no pixel changed and none of the
@@ -178,7 +178,6 @@ const REFOCUS = `function () {
   if (!held) return false;
   let back = false;
   try {
-    for (const animation of held.paused.splice(0)) { try { animation.play(); } catch (e) {} }
     held.el.focus({ preventScroll: true });
     back = held.el.getRootNode().activeElement === held.el;
   } finally {
@@ -188,15 +187,17 @@ const REFOCUS = `function () {
 }`;
 
 /**
- * Holds the page still for a screenshot: every finite animation and transition, in the page and its same-origin
- * frames (shadow roots included), is run to its end, so a ring that grows in is judged as it ends; every
- * infinite one is paused where it is, and kept, for `RESUME` to play on. Playwright's own
- * `animations: "disabled"` is not used, because it cancels an infinite animation back to the element's style
- * without it, which hides a pulsing ring (V4).
+ * Holds the page still for a screenshot, in the page and its same-origin frames (shadow roots included). Each
+ * running animation and transition is paused, its `currentTime` kept, and a finite one is set to its end while
+ * paused, so a ring that grows in is judged as it ends. A paused animation set to its end is not finished, so
+ * no `finish`, `animationend` or `transitionend` event is heard. An infinite one is paused where it is.
+ * `RESUME` puts every one back. Playwright's own `animations: "disabled"` is not used, because it finishes the
+ * finite ones for good and cancels an infinite one back to the element's style without it, which hides a
+ * pulsing ring (V4).
  */
 const STILL = `function () {
   const held = globalThis.${HELD};
-  const paused = held ? held.paused : [];
+  const kept = held ? held.paused : [];
   const docs = [document];
   for (let i = 0; i < docs.length && i < 50; i++) {
     for (const frame of docs[i].querySelectorAll("iframe, frame")) {
@@ -217,23 +218,34 @@ const STILL = `function () {
     try { animations = doc.getAnimations(); } catch (e) { animations = []; }
     for (const animation of animations) {
       try {
+        if (animation.playState !== "running") continue;
         const end = animation.effect ? animation.effect.getComputedTiming().endTime : 0;
-        if (end === Infinity) {
-          if (animation.playState === "running") { animation.pause(); paused.push(animation); }
-        } else {
-          animation.finish();
-        }
+        const time = animation.currentTime;
+        const rate = animation.playbackRate;
+        animation.pause();
+        kept.push({ animation, time, rate, at: performance.now(), name: animation.animationName ?? animation.transitionProperty });
+        if (typeof end === "number" && end !== Infinity) animation.currentTime = rate < 0 ? 0 : end;
       } catch (e) {}
     }
   }
-  return true;
+  return kept.map((k) => k.name);
 }`;
 
-/** Plays on the infinite animations `STILL` paused. */
+/** Puts back what `STILL` held: each animation at the time it was paused at, plus the time since, playing again. */
 const RESUME = `function () {
   const held = globalThis.${HELD};
   if (!held) return;
-  for (const animation of held.paused.splice(0)) { try { animation.play(); } catch (e) {} }
+  for (const { animation, time, rate, at } of held.paused.splice(0)) {
+    try {
+      if (animation.playbackRate === rate) {
+        // Put back at the time it was paused at, plus the time that has passed since, as it would have run.
+        const end = animation.effect ? animation.effect.getComputedTiming().endTime : 0;
+        const now = time + (performance.now() - at) * rate;
+        animation.currentTime = typeof end === "number" ? Math.max(0, Math.min(now, end)) : now;
+      }
+      animation.play();
+    } catch (e) {}
+  }
 }`;
 
 /** The element's box in the top page's window, and the window's size, as read and checked. */
@@ -401,25 +413,37 @@ export class FocusVisibleCheck {
     this.shots += 1;
     let verdict: Verdict;
     try {
-      const shot = async (): Promise<Buffer> => {
-        await this.reader.call(STILL);
+      // Each shot is taken with the page held still, and its styles read in that same stillness, so an animated
+      // ring is judged as it ends; the animations are put back before the next thing happens.
+      const shot = async (): Promise<{ png: Buffer; styles: string[][] | undefined }> => {
+        const names = await this.reader.call(STILL);
+        // The events that holding the animations still provokes are stopped until they have been put back.
+        await this.guard.still(Array.isArray(names) ? names.filter((n) => typeof n === "string") : []);
         try {
           // `caret: "initial"`: Playwright's own caret hiding writes a style attribute on every field and leaves
           // it behind, empty; the caret is hidden by `NO_TRANSITIONS` instead.
-          return await this.page.screenshot({ clip, caret: "initial", scale: "css", style: NO_TRANSITIONS });
+          const png = await this.page.screenshot({
+            clip,
+            caret: "initial",
+            scale: "css",
+            style: NO_TRANSITIONS,
+          });
+          return { png, styles: stylesOf(await this.reader.call(STYLES)) };
         } finally {
           await this.reader.call(RESUME);
+          await this.guard.settle();
         }
       };
-      const focusedShot = await shot();
-      // Read after the screenshot, which has run any animation to its end.
-      const focusedStyles = stylesOf(await this.reader.call(STYLES));
+      const focused = await shot();
       await this.guard.hold(true);
       if ((await this.reader.call(BLUR)) !== true) throw new Error("focus did not leave the element");
-      const unfocusedShot = await shot();
-      const unfocusedStyles = stylesOf(await this.reader.call(STYLES));
+      const unfocused = await shot();
       await this.giveBack();
+      const focusedStyles = focused.styles;
+      const unfocusedStyles = unfocused.styles;
       if (focusedStyles === undefined || unfocusedStyles === undefined) throw new Error("unreadable styles");
+      const focusedShot = focused.png;
+      const unfocusedShot = unfocused.png;
       const a = decodePng(focusedShot);
       const b = decodePng(unfocusedShot);
       const share = changedPixels(a, b, PIXEL_TOLERANCE) / (a.width * a.height);

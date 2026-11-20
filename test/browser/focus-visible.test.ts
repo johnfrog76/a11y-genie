@@ -147,6 +147,40 @@ describe.skipIf(!hasChrome)("focus visible (skipped where Chrome is not installe
     expect(withIt.data).toEqual(without.data);
   });
 
+  it("focus-running.html: a running animation and transition keep their time and play state, and fire no end event", async () => {
+    const read = (s: Scanned) =>
+      JSON.parse(s.report ?? "null") as {
+        elapsed: number;
+        animations: { id: string; time: number; state: string }[];
+      };
+    const without = await scan("focus-running.html", ["wcag2a", "best-practice"]);
+    const withIt = await scan("focus-running.html", ["wcag2a", "best-practice", "wcag2aa"]);
+    expect(withIt.finding?.elements.map((e) => e.selector)).toEqual(["#one", "#two"]);
+    const a = read(without);
+    const b = read(withIt);
+    expect(b.animations.map((x) => [x.id, x.state])).toEqual(a.animations.map((x) => [x.id, x.state]));
+    expect(b.animations.map((x) => x.id).sort()).toEqual(["animation", "transition"]);
+    for (const x of b.animations) {
+      expect(x.state).toBe("running");
+      // Each is where the page's own clock says it should be, as it is without the check: not at its end, and
+      // not behind by the time the check held it still.
+      expect(x.time).toBeLessThan(30_000);
+      expect(Math.abs(x.time - b.elapsed)).toBeLessThan(500);
+    }
+    expect(withIt.data).toEqual({});
+    for (const name of [
+      "animationend",
+      "transitionend",
+      "animationcancel",
+      "transitioncancel",
+      "finish",
+      "cancel",
+    ]) {
+      expect(withIt.data[name], name).toBeUndefined();
+    }
+    expect(withIt.data).toEqual(without.data);
+  });
+
   it("the walk and the trap check read the same with the check as without it", async () => {
     for (const page of [
       "trap.html",

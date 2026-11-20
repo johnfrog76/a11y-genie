@@ -588,10 +588,19 @@ indicator drawn away from the element (outside it, its two nearest ancestors' st
 is not seen; check focus by hand where a design draws it elsewhere (WCAG 2.4.7)."
 
 **Animations (V4).** A ring that comes in by a transition or an animation is judged as it ends. Before each
-screenshot, every finite animation and transition of the page, its same-origin frames and the shadow roots the
-element is in is run to its end (`Animation.finish()`), and a style turns transitions off for as long as the
-screenshot takes (Playwright's `style` option, which reaches shadow roots and frames). An infinite animation is
-paused where it is, and played on after the screenshot. Playwright's own `animations: "disabled"` is not used,
+screenshot, every running animation and transition of the page, its same-origin frames and the shadow roots the
+element is in is paused, its `currentTime` kept, and a finite one is set to its end while paused; a style turns
+transitions off for as long as the screenshot takes (Playwright's `style` option, which reaches shadow roots and
+frames). An infinite animation is paused where it is. After the screenshot each one is put back at the time it
+was paused at plus the time that has passed since, and played on, so it ends where it would have without the
+check, not early and not late. Nothing is finished, so no `finish` event fires; setting a paused CSS animation or
+transition to its end does queue its `animationend` or `transitionend`, so the guard (`src/focus-guard.ts`)
+also stops those two kinds of event, and `animationstart`, `animationiteration`, `animationcancel`,
+`transitionrun`, `transitionstart` and `transitioncancel`, for the animations the check named, until a couple of
+frames after they are put back; the page's other animations' events pass. The styles of the focused and the
+unfocused element are read inside the same stillness, so an animated ring is judged as it ends
+(`focus-running.html`: a 60 s animation and transition, running when the check reaches them, are within half a
+second of where the page's own clock puts them, with no end event heard). Playwright's own `animations: "disabled"` is not used,
 because it cancels an infinite animation back to the style without it: with it, `#pulse`'s ring was gone from the
 focused screenshot (0 pixels changed, needs review). With neither, `#slide` and `#grow`, whose rings start after
 a second, were photographed before them and read as findings. The caret is hidden by the same style.
@@ -607,7 +616,7 @@ same with the check as without it). The guard is first in line: `runScan` instal
 document the page opens, frames included), and it sits dormant, with capture-phase listeners on `window` for the
 four events that do nothing, until the check switches it on around its blur and refocus and off after. So a
 listener of the page's own on `window` in the capture phase, added at load, is behind it and hears nothing
-(`focus-listening.html`, whose counts are the same with the check as without it). Verified in Chrome: a
+(`focus-listening.html`, `focus-running.html`, whose counts are the same with the check as without it). Verified in Chrome: a
 listener added from an isolated world and stopping an event with `stopImmediatePropagation()` stops the page's
 own main-world listeners after it on the same target, as the browser keeps one list of listeners per target.
 A scan of a page that was already loaded when it began (a caller that did not install the guard) gets a late
@@ -615,8 +624,7 @@ guard, behind whatever the page added; `runScan` never does. Focus ends on
 the element Tab put it on, so the walk's next Tab goes on from there, and the trap check reads the same walk and
 the same trap with the check as without it (`trap.html`, `trap-stuck.html`, `walk-order.html`, `walk-shadow.html`,
 `walk-frame.html`). If focus cannot be given back, the check takes no more screenshots on that walk, and the rest
-of its stops are *needs review*. What the page can still notice: the screenshot style is a `style` element added and removed; and an
-animation run to its end fires its `animationend` or `transitionend`, as it would have later.
+of its stops are *needs review*. What the page can still notice: the screenshot style is a `style` element added and removed.
 
 **The screenshots stay in memory.** Each pair is decoded in Node (`src/png.ts`, a small reader of Chrome's 8-bit
 RGB and RGBA PNGs, on Node's own zlib), compared, and dropped. No screenshot is written to disk, to `scan.json`

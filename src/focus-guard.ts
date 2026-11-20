@@ -26,13 +26,32 @@ export const GUARD_WORLD = "a11y-genie-guard";
 /** Where, in the isolated world's own global object, the guard keeps whether it is held. */
 const STATE = "__a11yGenieGuard";
 
+/** The events of animations and transitions that setting an animation to its end and back can fire. */
+const ANIMATION_EVENTS = [
+  "animationstart",
+  "animationiteration",
+  "animationend",
+  "animationcancel",
+  "transitionrun",
+  "transitionstart",
+  "transitionend",
+  "transitioncancel",
+];
+
 /** Runs in each document, in the guard's world. Idempotent: a second run adds nothing. */
 const SOURCE = `(() => {
   if (globalThis.${STATE}) return;
-  const state = { held: false };
+  const state = { held: false, names: [] };
   Object.defineProperty(globalThis, ${JSON.stringify(STATE)}, { value: state });
   const stop = (event) => { if (state.held) event.stopImmediatePropagation(); };
   for (const type of ["blur", "focusout", "focus", "focusin"]) window.addEventListener(type, stop, true);
+  // The animation and transition events the check provokes by holding the page still: only those of the
+  // animations it named, and only while it names them.
+  const stopNamed = (event) => {
+    const name = event.animationName ?? event.propertyName;
+    if (state.names.includes(name)) event.stopImmediatePropagation();
+  };
+  for (const type of ${JSON.stringify(ANIMATION_EVENTS)}) window.addEventListener(type, stopNamed, true);
 })();`;
 
 const sessions = new WeakMap<Page, Promise<FocusGuard>>();
@@ -127,5 +146,34 @@ export class FocusGuard {
       }
     }
     if (held && failed) throw new Error("the focus guard could not be switched on");
+  }
+
+  /**
+   * Names the animations and transitions (by `animationName` and `propertyName`) whose events the page must not
+   * hear while the check holds them still: until `settle`. An empty list names none.
+   */
+  async still(names: readonly string[]): Promise<void> {
+    await this.everywhere(`globalThis.${STATE}.names = ${JSON.stringify(names)}`, false);
+  }
+
+  /**
+   * Waits for the browser to draw a couple of frames, in which it dispatches the events of what was set to its end
+   * and back, then lets those events through again. Never waits more than a fifth of a second.
+   */
+  async settle(): Promise<void> {
+    await this.everywhere(
+      `new Promise((done) => { setTimeout(done, 200); requestAnimationFrame(() => requestAnimationFrame(done)); })` +
+        `.then(() => { globalThis.${STATE}.names = []; })`,
+      true,
+    );
+    await this.everywhere(`globalThis.${STATE}.names = []`, false);
+  }
+
+  private async everywhere(expression: string, awaitPromise: boolean): Promise<void> {
+    for (const contextId of [...this.contexts]) {
+      await this.session
+        .send("Runtime.evaluate", { expression, contextId, awaitPromise })
+        .catch(() => this.contexts.delete(contextId));
+    }
   }
 }
