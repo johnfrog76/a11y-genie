@@ -15,7 +15,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 /** The product-intro deck's address, set here and only here. Emptying it takes the button off the page. */
-export const DECK_URL = "https://css-wasteland.com/decks/a11y-genie";
+export const DECK_URL: string = "https://css-wasteland.com/decks/a11y-genie";
 
 /** The marker in `site/index.html` the deck's button replaces. */
 export const DECK_MARKER = "<!-- deck-cta -->";
