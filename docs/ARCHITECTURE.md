@@ -623,6 +623,88 @@ such items a state. Fixtures: `focus-custom-ok.html`, `focus-hidden.html`, `focu
 `focus-animated.html`, `focus-watched.html`, `focus-elsewhere.html`; tests: `test/browser/focus-visible.test.ts`,
 `test/unit/focus-visible.test.ts`.
 
+### Reading the accessibility tree (`src/a11y-tree.ts`)
+
+Narration (spec 6.6, M9) reads, after each key of a flow, what the browser's accessibility tree says of the
+element focus is on, and writes the line a screen reader would say for it. This part is the reader and the line;
+the `narrate` command, its transcript and `genie/unnamed-step` come next. It is not a screen reader: it says what
+Chrome's tree holds, in words of its own, and NVDA, JAWS and VoiceOver each say it their own way.
+
+**Two sources, compared (V6).** Checked at Chrome 158 (headless, Playwright 1.65.1) on each control of
+`workflow.html` and `a11y-tree-sets.html`, focused, against Playwright's `locator.ariaSnapshot()` and the
+DevTools Protocol's `Accessibility.getPartialAXTree`:
+
+| Field | `ariaSnapshot()` | `getPartialAXTree` | Read from |
+| --- | --- | --- | --- |
+| role, name | yes | yes | the protocol |
+| heading level | `[level=1]` | `level` | the protocol |
+| checked, pressed, disabled, invalid, selected | `[checked]`, `[pressed]`... when they hold | `checked`, `pressed`... `"true"` or `"false"` | the protocol |
+| collapsed | missing: `[expanded]` shows only when true, so collapsed reads the same as a button that does not expand | `expanded: false` | the protocol |
+| required | missing | `required` | the protocol |
+| a menu button's popup | missing | `hasPopup: "menu"` | the protocol |
+| read only | missing | `readonly` | the protocol |
+| value | a text field's text, after `:` | `value` | the protocol |
+| `aria-valuetext` | missing | `valuetext` is empty | the element's attribute, in the isolated world |
+| position in a set ("2 of 3") | missing | missing, even with `aria-posinset` and `aria-setsize` | worked out, below |
+| `aria-activedescendant` | missing | `activedescendant`, with the node it points at | the protocol |
+
+So the reader uses the protocol for everything it gives, and `ariaSnapshot()` for nothing: the snapshot is
+YAML for a person to read, and leaves out `required`, a collapsed state and the popup. The keyboard walk already
+reads role and name from the same call (above).
+
+**A position in a set.** Neither source gives it, so the reader works it out, in this order. `aria-posinset` and
+`aria-setsize`, when the page gives them, read from the element in the isolated world. A native radio button with
+a name: its place among the radio buttons with the same name, the same form owner and the same document or shadow
+root, that are rendered, as HTML groups them. An item role (an option, a menu item, a tab, a tree item, a radio
+button by role): its place among the items of the same role in the nearest set in the tree (a list box, a menu, a
+tab list, a tree or its group, a radio group), found with `Accessibility.queryAXTree`, leaving out the items of
+sets nested in that one, so a tree item counts its siblings and not their children. An item the tree ignores
+(hidden) is not counted. Past 50 nested sets no position is given. A part the page gives overrides the part
+worked out; a position larger than its size is not given at all.
+
+**`aria-activedescendant`.** When the focused element points at one of its items (a combo box and its options),
+the item is what is read and named, as a screen reader reads it, and `activeDescendant` is set.
+
+**The spoken line.** The parts, each left out when empty, joined with `, `: the name; the role's words; the level,
+for a heading or a tree item; the states; the position in the set, as `2 of 3`; the value, unless it is the same
+as the name. The states are said in this order: `expanded` or `collapsed`; `checked`, `not checked` or
+`partly checked`; `pressed`, `not pressed` or `partly pressed`; then, only when they hold, `selected`, `disabled`,
+`read only`, `required` and `invalid`. The role's words come from `ROLE_WORDS` (`textbox` is `edit text`,
+`checkbox` is `check box`, `combobox` is `combo box`); a button with a menu popup is a `menu button`, and one with a
+pressed state a `toggle button`; a role the table does not list is said as the tree names it, its words split
+(`LabelText` is `label text`); `generic`, `none` and `presentation` say nothing. So:
+
+| Control in `workflow.html` | Spoken |
+| --- | --- |
+| the heading | `Account settings, heading, level 1` |
+| the email field | `Email, edit text, required` |
+| the button with no name | `button` |
+| the submit button | `Save, button` |
+| the field with a value | `Display name, edit text, Ada` |
+| the invalid field | `Invite code, edit text, invalid` |
+| the radio buttons | `Free, radio button, checked, 1 of 3`; `Team, radio button, not checked, 2 of 3`; `Business, radio button, not checked, 3 of 3` |
+| the checkbox | `Send me news, check box, checked` |
+| the toggle | `Bold, toggle button, pressed` |
+| the menu button | `Actions, menu button, collapsed`, and `Actions, menu button, expanded` once open |
+| the control marked disabled | `Archive, button, disabled` |
+| the link | `Privacy notes, link` |
+
+**Unnamed.** An element whose role says something and whose name is empty is `unnamed`, and its line starts at the
+role: `button`. That is what narration flags as a step with no name. An element whose role says nothing and has
+no name (a focusable `div`) is not `unnamed`, and its line is empty.
+
+**Page text is data.** Names and values are read up to 500 characters, made printable (escape sequences and
+controls taken out, on one line, `src/printable.ts`) and cut at the excerpt limit, 160 characters with `…`, before
+they reach the line (`a11y-tree-sets.html`, `walk-names.html`). Focus is found in an isolated world of the
+reader's own, as the walk finds it, so a page that replaces `document.activeElement` changes nothing
+(`walk-tampered.html`); every field the protocol gives back is checked before use.
+
+**The cost.** A read is five DevTools Protocol calls, two more when it follows `aria-activedescendant`, and for an
+item role whose position is worked out from the tree, one query for its items, one for each kind of set it may
+nest in, and one for each nested set. Fixtures: `workflow.html`, `a11y-tree-sets.html`, and the walk's `walk-shadow.html`,
+`walk-frame.html`, `walk-tampered.html` and `walk-names.html`; tests: `test/browser/a11y-tree.test.ts`,
+`test/unit/a11y-tree.test.ts`.
+
 ### Plain words (`src/plain.ts`)
 
 A finding's `plain` (what is wrong, and who it hurts) and `fix` (what to change), and the short `title` that

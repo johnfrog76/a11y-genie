@@ -41,7 +41,9 @@ Run all five before you ask for a review. CI runs the same five in that order, o
   `genie/focus-visible`, which compares screenshots read by `src/png.ts` and keeps them in memory only.
   `src/walk.ts` is the keyboard walk: Tab from the top of the page, each stop recorded in `scan.json`
   (`pages[].walks`); the skip link reads its first stops, the trap check where it went round, and the later
-  keyboard checks read the same walk.
+  keyboard checks read the same walk. `src/a11y-tree.ts` reads the focused element from the browser's
+  accessibility tree (role, name, states, value, its place in a set) and builds the line a screen reader would
+  say, name first, for narration (docs/ARCHITECTURE.md, *Reading the accessibility tree*).
 - `src/scan-command.ts` is `a11y-genie scan`: its flags, its run, its files and its lines, which `src/check-command.ts`
   (`a11y-genie check --baseline`) shares. `src/compare.ts` compares two scans (new, still, fixed);
   `src/baseline.ts` reads an earlier `scan.json` as untrusted input, checked with `src/json-schema.ts`.
