@@ -140,7 +140,7 @@ export async function withBrowser<T>(
   // Ctrl-C, a plain kill and a closed terminal close the browser, which deletes its profile folder, and then
   // exit 130, 143 or 129 (src/interrupt.ts). playwright-core's own handlers are off (`handleSIGINT`,
   // `handleSIGTERM` and `handleSIGHUP` are all true by default) so there is one, ours, and it sets the code:
-  // its own SIGTERM and SIGHUP handlers close the browser and then exit 0 or kill the process, racing ours.
+  // its own SIGTERM and SIGHUP handlers close every browser on their own, racing ours to close the same one.
   const forget = onInterrupted(() => browser.close());
   try {
     return await use(browser);
