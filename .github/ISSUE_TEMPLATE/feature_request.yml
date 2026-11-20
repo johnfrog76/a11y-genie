@@ -1,0 +1,28 @@
+name: Feature request
+description: Something A11y Genie does not do yet, or could do better.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for the idea. This issue is public: please don't paste a private site's address, a scan's
+        files, or anything from a sign-in.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you are trying to do
+      description: The task, and where A11y Genie gets in the way or falls short.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help
+      description: What you would like it to do. A command you would like to type is a good way to say it.
+    validations:
+      required: true
+  - type: textarea
+    id: else
+    attributes:
+      label: Anything else
+      description: Other ways you have tried, or tools that do it.

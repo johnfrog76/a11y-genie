@@ -1,0 +1,52 @@
+name: Bug report
+description: A11y Genie did something wrong, refused something it should not, or reported a finding that is wrong.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting it. **A security problem is not an issue:** please report it privately, as
+        [SECURITY.md](https://github.com/johnfrog76/a11y-genie/security/policy) says.
+
+        This issue is public. A scan's files (`scan.json`, `report.md`) quote the scanned page's HTML, its
+        addresses and the folders on your machine. Paste only the lines that show the problem, and never a
+        private site's address, a sign-in, a cookie or a `--storage-state` file.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: What `a11y-genie --version` prints, or the commit you built from.
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: What you ran
+      description: The command, with its flags.
+      render: sh
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: Paste the `Error:` and `Hint:` lines as they are, or the finding you think is wrong, with its rule (`axe/...` or `genie/...`).
+    validations:
+      required: true
+  - type: textarea
+    id: page
+    attributes:
+      label: A page that shows it
+      description: If a page is involved, the smallest HTML that shows the problem. A wrong finding from an `axe/` rule may belong to axe-core instead.
+      render: html
+  - type: input
+    id: system
+    attributes:
+      label: Your system
+      description: The operating system, the Node version (`node --version`), and the browser (Chrome, Edge, or Playwright's Chromium).
