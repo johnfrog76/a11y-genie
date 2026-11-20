@@ -108,9 +108,8 @@ none, and is still valid too. 1.3 added `options`, and the `offline` and `other-
 | `pages` | One per page. `key` (from the address asked for), `url` (where it ended, after redirects; the address asked for when it was not scanned), `requestedUrl`, `redirects` (how many were followed), `states`, `notScanned` and `stopped`, below. A run with `--config` has one entry per page of the file, in its order |
 | `pages[].states` | Every state the page was asked to scan, `default` first and then the `--states` or config states in the order given. A state also named in `notScanned` was asked for and not scanned. A page's states are merged into its findings: see *One finding per rule per page* below |
 | `pages[].notScanned` | Empty when everything asked of the page was scanned. Otherwise one `{ state, reason }` for each state that was not: the state's name (`default`, `menu-open`) and why, in A11y Genie's own words, such as `it redirected to an address that is not http: or https: (such as file:, chrome: or data:), and the browser stopped it`, `it did not answer: no answer within 30 seconds`, or `step 2 (click button 'Menu') failed: no such element was found, or it could not be clicked, within 10 seconds`. The other states are still scanned, and their findings are in the record. Anything in it makes the exit `1` |
-| `pages[].notScanned` | Empty when the page was scanned. Otherwise one `{ state, reason }`: the state (`default`) and why, in A11y Genie's own words, such as `it redirected to an address that is not http: or https: (such as file:, chrome: or data:), and the browser stopped it`. A page not scanned has no findings and makes the exit `1` |
 | `summary` | Violations by impact (`critical`, `serious`, `moderate`, `minor`), `advice`, `needsReview` and `notScanned` counts |
-| `findings` | Worst first. Each is a finding as above, plus `title`, `plain`, `fix`, `status`, `elementsCut` when some elements are not listed, and, on each element, `states`: the names of the states the element was found in, in the order the states were scanned (`["default"]` for a page scanned in one state). Each element's `html` is cut to 160 characters, with `…` where it was cut |
+| `findings` | Worst first. Each is a finding as above, plus `title`, `plain`, `fix`, `status`, `elementsCut` when some elements are not listed, and, on each element, `states`: the names of the states the element was found in, in the order the states were asked for, `default` first (`["default"]` for a page scanned in one state). Each element's `html` is cut to 160 characters, with `…` where it was cut |
 | `needsReview` | Worst first, as above; each element has `reason` and `states`, and the item has `elementsCut` when some are not listed |
 | `ignored`, `workflows` | `[]` until those features exist |
 | `checklist` | `null` until the checklist exists |
@@ -122,10 +121,12 @@ none, and is still valid too. 1.3 added `options`, and the `offline` and `other-
 its `id` is the same whatever the number of states; its elements are the elements any state found, each listed once and
 naming the states it was found in. Two elements are the same element when their axe-core `target` is the same. A merged
 finding keeps the wording (`help`, `fix`, an element's `html` and `failure`) of the first state that had it, and the
-worst `impact` any state gave. An element found only in `dark` lists `["dark"]`; one found in the default state and in
+worst `impact` any state gave; a *needs review* item merges the same way. An element found only in `dark` lists `["dark"]`; one found in the default state and in
 `dark` lists `["default", "dark"]`. So a bug that shows only with a menu open is the finding `axe/button-name@settings`
 with `states: ["menu-open"]`, and the same bug on the page from a state that never opens the menu is not there. A page
 asked for in states of which none was scanned has no findings, and `notScanned` says why for each.
+
+**Order is stable.** Findings are worst first (`order.ts`). Within a finding the elements are ordered by the first state each was found in (the order the states were asked for, `default` first) and then by `target`, in code-point order, so the order does not depend on the order axe-core listed them in. An element's `states` follow the order the states were asked for. The same scan run twice gives the same `scan.json` and `report.md`, apart from the times, the port and the versions. `report.md` adds *Found in the state(s)* under each element that was not found in the default state alone.
 
 **What was cut.** A finding lists at most 500 elements; `elementsCut` counts the rest. If `scan.json` would
 be larger than 50 MB, elements are dropped, least severe first and never the last one of a finding, and

@@ -132,4 +132,31 @@ describe("a record with states", () => {
     expect(record.summary.notScanned).toBe(2);
     expect(record.exit).toBe(1);
   });
+
+  it("writes the same scan.json and report.md whatever order axe-core listed findings and elements in", () => {
+    const flip = (run: typeof axe): typeof axe => ({
+      ...run,
+      findings: [...run.findings].reverse().map((f) => ({ ...f, elements: [...f.elements].reverse() })),
+      needsReview: [...run.needsReview].reverse().map((f) => ({ ...f, elements: [...f.elements].reverse() })),
+    });
+    const record = (run: typeof axe) =>
+      buildPagesRecord({
+        ...base,
+        pages: [
+          {
+            key: "page",
+            url: "http://127.0.0.1:1/page",
+            states: [
+              { name: "default", axe: run },
+              { name: "dark", axe: run },
+            ],
+          },
+        ],
+      });
+    const a = record(axe);
+    const b = record(flip(axe));
+    expect(JSON.stringify(b, null, 2)).toBe(JSON.stringify(a, null, 2));
+    expect(renderReport(b)).toBe(renderReport(a));
+    expect(JSON.stringify(record(axe))).toBe(JSON.stringify(a));
+  });
 });
