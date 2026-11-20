@@ -46,9 +46,9 @@ cookies and sign-ins are never opened. With no Chrome, it says so and downloads 
 (about 200 MB); `--no-download` refuses instead, and `--browser-channel chromium` uses that Chromium directly.
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) says how.
 
-## Build it from a clone
+## Quick start
 
-You need Node 24 or newer.
+A11y Genie is not on npm yet, so build it from a clone. You need Git and Node 24 or newer.
 
 ```sh
 git clone https://github.com/johnfrog76/a11y-genie.git
@@ -57,8 +57,34 @@ npm ci && npm run build && npm link
 a11y-genie --version
 ```
 
-`npm test`, `npm run lint` and `npm run typecheck` check it. [AGENTS.md](AGENTS.md) says how the repository
-is laid out and the rules a change must keep.
+`npm link` puts the `a11y-genie` command on your path. `npm unlink -g a11y-genie` takes it off again.
+
+## Usage
+
+Start the site you want to scan, then give A11y Genie one of its pages. Here the site runs on your own machine,
+on port 5173:
+
+```sh
+a11y-genie scan http://localhost:5173/
+```
+
+It prints what it found, worst first, and the last line names the folder it wrote: `scan.json` and
+`report.md`. The exit is 1 when it found a problem or could not scan the page, and 0 when it found none.
+Finding none does not mean there are none: the report says what a scan cannot see.
+[docs/EXIT-CODES.md](docs/EXIT-CODES.md) lists every exit code.
+
+Fix something, then rescan against that first scan. It says what is fixed, what is new and what is still open:
+
+```sh
+a11y-genie check --baseline <the folder it wrote>/scan.json http://localhost:5173/
+```
+
+`a11y-genie --help` lists every command and flag.
+
+## Work on it
+
+`npm test`, `npm run lint` and `npm run typecheck` check a change. [AGENTS.md](AGENTS.md) says how the
+repository is laid out and the rules a change must keep.
 
 ## Licence
 
