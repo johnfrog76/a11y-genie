@@ -146,7 +146,7 @@ export const READ_STRUCTURE = `function () {
   // whose whole value, exactly as written, is one of the five roles. A value of several tokens does not match.
   const scopes = (e) => {
     const role = e.getAttribute("role");
-    return role === null ? SECTIONING.includes(e.tagName) : SCOPING_ROLES.includes(role);
+    return role === null ? SECTIONING.includes(e.tagName) : SCOPING_ROLES.includes(role.trim().toLowerCase());
   };
   const parentOf = (el) => el.parentElement ?? (el.getRootNode() instanceof ShadowRoot ? el.getRootNode().host : null);
   const hidden = (el) => {

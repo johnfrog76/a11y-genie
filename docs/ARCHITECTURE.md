@@ -266,7 +266,7 @@ overrides `querySelector`, `matches` or `getAttribute` cannot hide its missing l
 the roles `banner`, `navigation`, `main` and `contentinfo`: a role attribute decides by its first token that is a known ARIA role (`<nav role="foo">` stays a navigation), and
 with none known `main` and `nav` are `main` and `navigation`, while `header` and `footer` are `banner` and
 `contentinfo` only outside a scoping ancestor: an `article`, `aside`, `main`, `nav` or `section` with no role
-attribute, or an element whose role attribute is exactly `article`, `complementary`, `main`, `navigation` or
+attribute, or an element whose role attribute, trimmed and in any case, is exactly `article`, `complementary`, `main`, `navigation` or
 `region` (the browser's own selector; an ancestor's role is not read by its first known token here, so
 `role="foo article"` does not scope, as in Chrome's accessibility tree). So a `div role="main"` counts, a
 `header` inside an `article` or a `div role="article"` does not, a `header` inside `section role="tabpanel"` does, and an element out of the accessibility tree (`display: none`,

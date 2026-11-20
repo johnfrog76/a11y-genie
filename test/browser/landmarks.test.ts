@@ -58,6 +58,7 @@ describe.skipIf(!hasChrome)("landmarks on the fixture pages (skipped where Chrom
     ["landmark-scoped-role-article.html", true],
     ["landmark-scoped-role-complementary.html", true],
     ["landmark-scoped-role-region.html", true],
+    ["landmark-scoped-role-article-case.html", true],
     ["landmark-unscoped-tabpanel.html", false],
     ["landmark-role-multi-token-article.html", false],
   ])("%s: genie/no-landmarks fires is %s", async (page, fires) => {
