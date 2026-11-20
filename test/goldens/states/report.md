@@ -13,9 +13,10 @@ Scanned `http://127.0.0.1:0000/states.html` with axe-core 0.0.0 in chrome 0.0.0.
 
 ## Findings, worst first
 
-### 1. Critical: A button has no name, so a screen reader announces it only as "button" and its user cannot tell what it does.
+### 1. Critical: Button with no name
 
 - Rule: `axe/button-name` · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/button-name?application=playwright>)
+- What's wrong: A button has no name, so a screen reader announces it only as "button" and its user cannot tell what it does.
 - WCAG: 4.1.2 Name, Role, Value: every control must have a name and say what kind of control it is
 - Page: `states.html`
 - Kind: violation
@@ -45,9 +46,10 @@ Scanned `http://127.0.0.1:0000/states.html` with axe-core 0.0.0 in chrome 0.0.0.
     Element's default semantics were not overridden with role="none" or role="presentation"
   ```
 
-### 2. Serious: Text is too faint against its background for many people to read, people with low vision among them, and anyone looking at a screen in bright light.
+### 2. Serious: Text too faint to read
 
 - Rule: `axe/color-contrast` · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/color-contrast?application=playwright>)
+- What's wrong: Text is too faint against its background for many people to read, people with low vision among them, and anyone looking at a screen in bright light.
 - WCAG: 1.4.3 Contrast (Minimum): text must stand out from its background
 - Page: `states.html`
 - Kind: violation

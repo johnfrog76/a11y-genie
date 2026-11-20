@@ -93,6 +93,25 @@ describe("a finding's words", () => {
     }
   });
 
+  it("head each finding with the table's short title, and say what is wrong on a line of its own", () => {
+    const record = recordFrom("impact-mix");
+    const report = renderReport(record);
+    record.findings.forEach((finding, index) => {
+      const words = RULE_WORDING[`axe/${finding.rule.id}`]!;
+      expect(report).toMatch(new RegExp(`^### ${index + 1}\\. \\w+: ${words.title}$`, "m"));
+      expect(report).toContain(`- What's wrong: ${finding.plain.replace(/([\\`*_[\]<>|])/g, "\\$1")}`);
+    });
+    expect(report.match(/^- What's wrong: /gm)).toHaveLength(record.findings.length);
+  });
+
+  it("head a finding outside the table with axe-core's help, as before, and say it once", () => {
+    const { results, violations } = unknownRules();
+    const report = renderReport(recordOf(results, "impact-mix"));
+    for (const v of violations)
+      expect(report).toMatch(new RegExp(`^### \\d+\\. \\w+: ${String(v.help)}$`, "m"));
+    expect(report).not.toContain("- What's wrong:");
+  });
+
   it("fall back to axe-core's help and failureSummary for a rule outside the table, in the JSON and the Markdown", () => {
     const { results, violations } = unknownRules();
     const record = recordOf(results, "impact-mix");

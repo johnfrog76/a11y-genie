@@ -209,8 +209,9 @@ module loads, and `rules` lists what is registered, so a rule not built yet is n
 
 Made from the record and nothing else. It holds, in order: what was scanned and with what, and where a
 redirect ended (saying so when that is another origin); a summary (the empty-scan sentence when nothing was
-found, and each page not scanned with its reason); the findings worst first, each headed by its `plain`, with
-its rule, its WCAG criteria each named in plain words (such as `1.4.3 Contrast (Minimum): text must stand out
+found, and each page not scanned with its reason); the findings worst first, each headed by a short title from
+`src/plain.ts` (axe-core's `help` for a rule it has no words for), with its rule, a *What's wrong* line
+with its `plain` where that differs from the title, its WCAG criteria each named in plain words (such as `1.4.3 Contrast (Minimum): text must stand out
 from its background`, from `src/plain.ts`, or the number alone for a criterion it has no words for; an advice
 finding gives them as context, since advice is never a WCAG failure), page, fix and elements (with how many are
 not listed, when some were cut; a contrast element also has a `Colours:` line naming the pair, such as

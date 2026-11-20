@@ -2,7 +2,13 @@ import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
 import { genieRules } from "../../src/genie-rules.js";
 import { wcagCriteria } from "../../src/map-axe.js";
-import { criterionInWords, CRITERION_WORDING, RULE_WORDING, wordingOf } from "../../src/plain.js";
+import {
+  criterionInWords,
+  CRITERION_WORDING,
+  RULE_WORDING,
+  TITLE_MAX_WORDS,
+  wordingOf,
+} from "../../src/plain.js";
 import "../../src/rules-command.js"; // imports every check, so every `genie/*` rule is registered
 import { GOLDEN_PAGES, readGoldenRecord } from "../helpers/goldens.js";
 
@@ -44,6 +50,20 @@ describe("the wording table", () => {
     }
   });
 
+  it.each(entries)(
+    `%s has a short title: a few words, at most ${TITLE_MAX_WORDS}, no full stop`,
+    (_key, entry) => {
+      for (const words of [entry, ...(entry.advice === undefined ? [] : [entry.advice])]) {
+        const title = words.title;
+        expect(title.trim()).not.toBe("");
+        expect(title).toBe(title.trim());
+        expect(title).not.toMatch(/[.\n]/);
+        expect(title.split(/\s+/).length).toBeLessThanOrEqual(TITLE_MAX_WORDS);
+        expect(title).not.toBe(words.plain);
+      }
+    },
+  );
+
   it("has an entry for every one of the product's own rules: a new check without wording fails here", () => {
     const own = genieRules().map((entry) => `genie/${entry.rule.id}`);
     expect(own.length).toBeGreaterThan(0);
@@ -71,6 +91,7 @@ describe("the wording table", () => {
     expect(Object.isFrozen(CRITERION_WORDING)).toBe(true);
     const words = wordingOf({ source: "axe", id: "button-name" }, "violation");
     expect(words).toEqual({
+      title: RULE_WORDING["axe/button-name"]!.title,
       plain: RULE_WORDING["axe/button-name"]!.plain,
       fix: RULE_WORDING["axe/button-name"]!.fix,
     });
@@ -83,6 +104,7 @@ describe("the wording table", () => {
     const skip = RULE_WORDING["genie/skip-link"]!;
     expect(wordingOf({ source: "genie", id: "skip-link" }, "advice")).toEqual(skip.advice);
     expect(wordingOf({ source: "genie", id: "skip-link" }, "violation")).toEqual({
+      title: skip.title,
       plain: skip.plain,
       fix: skip.fix,
     });
@@ -103,7 +125,10 @@ describe("the wording table", () => {
       for (const finding of readGoldenRecord(name).findings) {
         const words = wordingOf(finding.rule, finding.kind);
         expect(words, finding.id).toBeDefined();
-        expect({ plain: finding.plain, fix: finding.fix }, finding.id).toEqual(words);
+        expect({ plain: finding.plain, fix: finding.fix }, finding.id).toEqual({
+          plain: words!.plain,
+          fix: words!.fix,
+        });
       }
     }
   });

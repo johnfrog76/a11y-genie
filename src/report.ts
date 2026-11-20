@@ -8,7 +8,7 @@
 
 import { LIMITS, type Stopped } from "./context.js";
 import type { ColorPair, Impact } from "./finding.js";
-import { criterionInWords } from "./plain.js";
+import { criterionInWords, wordingOf } from "./plain.js";
 import { printable, printableLine } from "./printable.js";
 import {
   failureOnOneLine,
@@ -273,10 +273,13 @@ export function renderReport(record: ScanRecord): string {
   if (record.findings.length > 0) {
     out.push("## Findings, worst first", "");
     record.findings.forEach((finding, index) => {
+      // The table's short title heads the finding; a rule it has no words for keeps axe-core's help, as `plain` does.
+      const title = wordingOf(finding.rule, finding.kind)?.title ?? finding.plain;
       out.push(
-        `### ${index + 1}. ${IMPACT_LABEL[finding.impact]}: ${plainText(finding.plain)}`,
+        `### ${index + 1}. ${IMPACT_LABEL[finding.impact]}: ${plainText(title)}`,
         "",
         ruleLine(finding.rule),
+        ...(title === finding.plain ? [] : [`- What's wrong: ${plainText(finding.plain)}`]),
         ...wcagLines(finding.rule, finding.kind),
         `- Page: ${inlineCode(finding.page)}`,
         `- Kind: ${finding.kind}`,

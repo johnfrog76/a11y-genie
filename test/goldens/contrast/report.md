@@ -13,9 +13,10 @@ Scanned `http://127.0.0.1:0000/contrast.html` with axe-core 0.0.0 in chrome 0.0.
 
 ## Findings, worst first
 
-### 1. Serious: Text is too faint against its background for many people to read, people with low vision among them, and anyone looking at a screen in bright light.
+### 1. Serious: Text too faint to read
 
 - Rule: `axe/color-contrast` · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/color-contrast?application=playwright>)
+- What's wrong: Text is too faint against its background for many people to read, people with low vision among them, and anyone looking at a screen in bright light.
 - WCAG: 1.4.3 Contrast (Minimum): text must stand out from its background
 - Page: `contrast.html`
 - Kind: violation

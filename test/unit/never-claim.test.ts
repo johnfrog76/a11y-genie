@@ -49,11 +49,12 @@ describe("what a report says", () => {
     expect(neverClaimViolations(CANNOT_SEE.join("\n"))).toEqual([]);
   });
 
-  it("the wording table, every rule's plain, fix and advice and every criterion's words, claims nothing", () => {
+  it("the wording table, every rule's title, plain, fix and advice and every criterion's words, claims nothing", () => {
     const words = Object.values(RULE_WORDING).flatMap((entry) => [
+      entry.title,
       entry.plain,
       entry.fix,
-      ...(entry.advice === undefined ? [] : [entry.advice.plain, entry.advice.fix]),
+      ...(entry.advice === undefined ? [] : [entry.advice.title, entry.advice.plain, entry.advice.fix]),
     ]);
     const criteria = Object.values(CRITERION_WORDING).flatMap((entry) => [entry.name, entry.plain]);
     expect(words.length).toBeGreaterThan(0);

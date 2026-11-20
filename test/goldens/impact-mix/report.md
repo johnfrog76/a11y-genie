@@ -13,9 +13,10 @@ Scanned `http://127.0.0.1:0000/impact-mix.html` with axe-core 0.0.0 in chrome 0.
 
 ## Findings, worst first
 
-### 1. Critical: An image has no text alternative, so a person who cannot see it hears nothing about it from a screen reader, or only its file name.
+### 1. Critical: Image with no text alternative
 
 - Rule: `axe/image-alt` · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/image-alt?application=playwright>)
+- What's wrong: An image has no text alternative, so a person who cannot see it hears nothing about it from a screen reader, or only its file name.
 - WCAG: 1.1.1 Non-text Content: images and other non-text content need a text alternative
 - Page: `impact-mix.html`
 - Kind: violation
@@ -41,9 +42,10 @@ Scanned `http://127.0.0.1:0000/impact-mix.html` with axe-core 0.0.0 in chrome 0.
     Element's default semantics were not overridden with role="none" or role="presentation"
   ```
 
-### 2. Serious: Text is too faint against its background for many people to read, people with low vision among them, and anyone looking at a screen in bright light.
+### 2. Serious: Text too faint to read
 
 - Rule: `axe/color-contrast` · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/color-contrast?application=playwright>)
+- What's wrong: Text is too faint against its background for many people to read, people with low vision among them, and anyone looking at a screen in bright light.
 - WCAG: 1.4.3 Contrast (Minimum): text must stand out from its background
 - Page: `impact-mix.html`
 - Kind: violation
@@ -67,9 +69,10 @@ Scanned `http://127.0.0.1:0000/impact-mix.html` with axe-core 0.0.0 in chrome 0.
     Element has insufficient color contrast of 2.81 (foreground color: #9a9a9a, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1
   ```
 
-### 3. Moderate: A heading skips a level, such as an h2 followed by an h4, so a person who reads the page's outline through its headings looks for a section that is not there.
+### 3. Moderate: Heading that skips a level
 
 - Rule: `axe/heading-order` · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/heading-order?application=playwright>)
+- What's wrong: A heading skips a level, such as an h2 followed by an h4, so a person who reads the page's outline through its headings looks for a section that is not there.
 - Page: `impact-mix.html`
 - Kind: violation
 - Fix: Go down one level at a time: under an h2 comes an h3. To change how a heading looks, use CSS, not another level.
@@ -90,9 +93,10 @@ Scanned `http://127.0.0.1:0000/impact-mix.html` with axe-core 0.0.0 in chrome 0.
     Heading order invalid
   ```
 
-### 4. Minor: A heading has no text. A screen reader still announces it as a heading, so a person moving through the page by its headings lands on an empty one.
+### 4. Minor: Empty heading
 
 - Rule: `axe/empty-heading` · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/empty-heading?application=playwright>)
+- What's wrong: A heading has no text. A screen reader still announces it as a heading, so a person moving through the page by its headings lands on an empty one.
 - Page: `impact-mix.html`
 - Kind: violation
 - Fix: Give the heading text that names the section after it, or, if it is there only for its look, make it something other than a heading.
