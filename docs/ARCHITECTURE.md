@@ -353,6 +353,32 @@ test whether the link shows itself on focus or whether its target takes focus; t
 Advice never changes the exit code. Fixtures: `no-skip-link.html`, `no-skip-no-structure.html`,
 `skip-link-ok.html`, `skip-link-broken.html`, `few-tabbable.html`; test: `test/browser/skip-link.test.ts`.
 
+### Plain words (`src/plain.ts`)
+
+A finding's `plain` (what is wrong, and who it hurts) and `fix` (what to change), and the short `title` that
+heads it in the report, come from one table,
+`RULE_WORDING`, keyed by `<source>/<id>`, such as `axe/image-alt` or `genie/skip-link`. They are written for a
+reader who knows no WCAG, in plain facts and never in the genie's voice (D7), and never call a site accessible,
+compliant or conformant (C16). A second table, `CRITERION_WORDING`, names each WCAG criterion the rules carry,
+with what it asks in a few words; the report prints `1.4.3 Contrast (Minimum): text must stand out from its
+background`. A rule with no entry keeps axe-core's `help` and `failureSummary`, and a criterion with no entry
+reads as its number. The tables are data: no page text and nothing axe-core said goes into them, and the
+finding's element keeps axe-core's (or the check's) own words beside them.
+
+To add a rule's words:
+
+1. Add an entry to `RULE_WORDING`: a `title` of a few words (at most `TITLE_MAX_WORDS`, no full stop), and
+   `plain` and `fix`, a sentence or two each, ending with a full stop. Add
+   `advice` too when the rule's advice says something its violation does not, as `genie/skip-link` does.
+2. Add each WCAG criterion the rule carries to `CRITERION_WORDING`, if it is not there: its name as WCAG gives
+   it, and what it asks.
+3. Run `UPDATE_GOLDENS=1 npm test` if a golden page hits the rule, and read the diff: only words should change.
+
+`test/unit/plain.test.ts` holds the tables together: every registered `genie/*` rule has an entry (so a new
+check without words fails), every axe entry names a rule of the pinned axe-core, every axe-core rule a fixture
+page hits has an entry, and every criterion those rules carry has words, and every title is short. `test/unit/never-claim.test.ts` reads
+every entry, and `test/unit/report.test.ts` checks the fallback.
+
 ### The list of rules (`src/rules-command.ts`, `src/genie-rules.ts`)
 
 `a11y-genie rules` prints axe-core's rules from `axe.getRules()` at the installed version and the product's own

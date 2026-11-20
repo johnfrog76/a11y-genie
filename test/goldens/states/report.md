@@ -13,12 +13,14 @@ Scanned `http://127.0.0.1:0000/states.html` with axe-core 0.0.0 in chrome 0.0.0.
 
 ## Findings, worst first
 
-### 1. Critical: Buttons must have discernible text
+### 1. Critical: Button with no name
 
-- Rule: `axe/button-name` · WCAG 4.1.2 · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/button-name?application=playwright>)
+- Rule: `axe/button-name` · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/button-name?application=playwright>)
+- What's wrong: A button has no name, so a screen reader announces it only as "button" and its user cannot tell what it does.
+- WCAG: 4.1.2 Name, Role, Value: every control must have a name and say what kind of control it is
 - Page: `states.html`
 - Kind: violation
-- Fix: Fix any of the following: Element does not have inner text that is visible to screen readers; aria-label attribute does not exist or is empty; aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty; Element has no title attribute; Element does not have an implicit (wrapped) \<label\>; Element does not have an explicit \<label\>; Element's default semantics were not overridden with role="none" or role="presentation"
+- Fix: Give it a name: visible text inside the button, or an aria-label that says what it does, such as aria-label="Search".
 - Elements: 1
 
 - Element: `.unnamed`
@@ -31,12 +33,27 @@ Scanned `http://127.0.0.1:0000/states.html` with axe-core 0.0.0 in chrome 0.0.0.
 
   Found in the states: `menu-open`, `menu-dark`
 
-### 2. Serious: Elements must meet minimum color contrast ratio thresholds
+  What axe-core said:
 
-- Rule: `axe/color-contrast` · WCAG 1.4.3 · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/color-contrast?application=playwright>)
+  ```text
+  Fix any of the following:
+    Element does not have inner text that is visible to screen readers
+    aria-label attribute does not exist or is empty
+    aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty
+    Element has no title attribute
+    Element does not have an implicit (wrapped) <label>
+    Element does not have an explicit <label>
+    Element's default semantics were not overridden with role="none" or role="presentation"
+  ```
+
+### 2. Serious: Text too faint to read
+
+- Rule: `axe/color-contrast` · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/color-contrast?application=playwright>)
+- What's wrong: Text is too faint against its background for many people to read, people with low vision among them, and anyone looking at a screen in bright light.
+- WCAG: 1.4.3 Contrast (Minimum): text must stand out from its background
 - Page: `states.html`
 - Kind: violation
-- Fix: Fix any of the following: Element has insufficient color contrast of 1.53 (foreground color: #3a3a3a, background color: #1a1a1a, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1
+- Fix: Darken the text or lighten its background, or the other way round, until the contrast ratio is at least 4.5 to 1, or 3 to 1 for large text.
 - Elements: 1
 
 - Element: `p`
@@ -50,6 +67,13 @@ Scanned `http://127.0.0.1:0000/states.html` with axe-core 0.0.0 in chrome 0.0.0.
   Found in the state: `menu-dark`
 
   Colours: `#3a3a3a on #1a1a1a, 1.53, needs 4.5` (font 12.0pt (16px), normal)
+
+  What axe-core said:
+
+  ```text
+  Fix any of the following:
+    Element has insufficient color contrast of 1.53 (foreground color: #3a3a3a, background color: #1a1a1a, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1
+  ```
 
 ## What this scan cannot see
 

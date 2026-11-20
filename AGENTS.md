@@ -40,6 +40,8 @@ Run all five before you ask for a review. CI runs the same five in that order, o
 - `src/scan-command.ts` is `a11y-genie scan`: its flags, its run, its files and its lines, which `src/check-command.ts`
   (`a11y-genie check --baseline`) shares. `src/compare.ts` compares two scans (new, still, fixed);
   `src/baseline.ts` reads an earlier `scan.json` as untrusted input, checked with `src/json-schema.ts`.
+- `src/plain.ts` holds each finding's plain words and fix, by rule, and each WCAG criterion's name in plain words;
+  docs/ARCHITECTURE.md (*Plain words*) says how to add a rule's words.
 - `src/rules-command.ts` is `a11y-genie rules`; `src/genie-rules.ts` is the registry of the product's own
   `genie/*` rules, which each check registers itself in.
 - `src/banner.ts` holds the genie and his bottle, the drawing for a person at a terminal. Nothing prints it

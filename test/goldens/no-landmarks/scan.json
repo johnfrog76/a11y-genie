@@ -55,8 +55,8 @@
       "impact": "moderate",
       "page": "no-landmarks.html",
       "title": "Document should have one main landmark on no-landmarks.html",
-      "plain": "Document should have one main landmark",
-      "fix": "Fix all of the following: Document does not have a main landmark",
+      "plain": "The page has no main landmark, so a screen-reader user cannot jump straight to its main content.",
+      "fix": "Put the page's own content, everything but its header, navigation and footer, inside one main element.",
       "elements": [
         {
           "selector": "html",
@@ -88,8 +88,8 @@
       "impact": "moderate",
       "page": "no-landmarks.html",
       "title": "The page has no landmarks: no banner, navigation, main or contentinfo. on no-landmarks.html",
-      "plain": "The page has no landmarks: no banner, navigation, main or contentinfo.",
-      "fix": "Fix all of the following: The page has no landmark. Put the page's own content in a main element, and use header, nav and footer for its banner, its navigation and its footer, so that a person using a screen reader can jump between them.",
+      "plain": "The page has no landmarks at all: no header, navigation, main or footer region. A screen-reader user cannot jump between its parts and has to go through it from the top.",
+      "fix": "Put the page's own content in a main element, and use header, nav and footer for its banner, its navigation and its footer.",
       "elements": [
         {
           "selector": "body",
@@ -118,8 +118,8 @@
       "impact": "moderate",
       "page": "no-landmarks.html",
       "title": "All page content should be contained by landmarks on no-landmarks.html",
-      "plain": "All page content should be contained by landmarks",
-      "fix": "Fix any of the following: Some page content is not contained by landmarks",
+      "plain": "Some content sits outside every landmark, so a screen-reader user who moves through the page by its landmarks can miss it.",
+      "fix": "Put all of the page's content inside landmarks: header, nav, main, aside or footer. Content that belongs to none of the others goes in main.",
       "elements": [
         {
           "selector": "h1",

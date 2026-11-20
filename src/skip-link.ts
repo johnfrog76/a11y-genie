@@ -39,7 +39,7 @@ registerGenieRule({
 
 const ADVICE_FAILURE =
   "Fix all of the following:\n" +
-  "  No skip link. Landmarks and headings already let a screen-reader user jump past the navigation; " +
+  "  No skip link. Its landmarks or headings let a screen-reader user jump past the navigation; " +
   "a skip link does the same for someone using only a keyboard. " +
   "Add a link to #main as the first thing on the page, shown when it gets focus.";
 
