@@ -351,8 +351,12 @@ landmark or a heading, and a WCAG 2.4.1 **violation** (`moderate`) when it has n
 five tabbable elements before its main content (all of them when it has no main) is not checked. It is tagged
 `best-practice`, as `genie/no-landmarks` is, and the registry lists the violation's impact. The check does not
 test whether the link shows itself on focus or whether its target takes focus; the spec asks for neither.
+Every read it makes of the page (the focused element, the tabbable count, the body's opening tag) runs in an
+isolated world through a `FocusReader` of its own, so a page that overrides `document.activeElement`,
+`getAttribute`, `matches`, `querySelector` or `getElementById` cannot hide a missing skip link or fake one.
 Advice never changes the exit code. Fixtures: `no-skip-link.html`, `no-skip-no-structure.html`,
-`skip-link-ok.html`, `skip-link-broken.html`, `few-tabbable.html`; test: `test/browser/skip-link.test.ts`.
+`skip-link-ok.html`, `skip-link-broken.html`, `few-tabbable.html`, `skip-link-tampered.html`,
+`skip-link-hidden-tampered.html`; test: `test/browser/skip-link.test.ts`.
 
 ### The keyboard walk (`src/walk.ts`)
 
