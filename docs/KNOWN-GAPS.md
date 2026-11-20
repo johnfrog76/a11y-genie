@@ -14,7 +14,7 @@ has chosen to keep for now).
 | [G6](#g6-a-page-can-tamper-with-the-scan) | A page can tamper with the scan | Accepted |
 | [G7](#g7-a-public-name-can-point-at-a-private-address) | A public name can point at a private address | Accepted |
 
-Gaps G6 and G7 are security limits. [SECURITY.md](SECURITY.md) lists them too, with two more of the same kind
+Gaps G6 and G7 are security limits. [SECURITY.md](../SECURITY.md) lists them too, with two more of the same kind
 (below), and says how to report a way around one of A11y Genie's promises that is not on the list.
 
 ## G1: a card cannot be added to later
@@ -67,7 +67,7 @@ question for later.
 
 ## G6: a page can tamper with the scan
 
-**Status: accepted. This is a security limit, and it is also in [SECURITY.md](SECURITY.md).**
+**Status: accepted. This is a security limit, and it is also in [SECURITY.md](../SECURITY.md).**
 
 A page's own script shares the page with axe-core while it runs. It can replace DOM methods or prototypes, or
 `window.axe` itself, or change the page between axe-core's reads. A hostile page can therefore hide its own
@@ -78,7 +78,7 @@ isolated world is not tried yet.
 
 ## G7: a public name can point at a private address
 
-**Status: accepted. This is a security limit, and it is also in [SECURITY.md](SECURITY.md).**
+**Status: accepted. This is a security limit, and it is also in [SECURITY.md](../SECURITY.md).**
 
 By default, a public page cannot use the browser to reach the machine's own network: requests to loopback,
 link-local and private addresses are blocked unless you pass `--allow-private`. The rule judges a request's host
@@ -88,7 +88,7 @@ rebinding) is not caught. A check in the browser's request path that looks names
 
 ## Two more security limits
 
-[SECURITY.md](SECURITY.md) lists these as known gaps too. They belong to the same private-network rule:
+[SECURITY.md](../SECURITY.md) lists these as known gaps too. They belong to the same private-network rule:
 
 - **A dedicated worker's WebSocket.** A page's WebSockets, and its frames', are blocked from private addresses;
   one opened from a dedicated worker is not, because none of the browser's interception points sees it.
