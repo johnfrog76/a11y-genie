@@ -38,7 +38,7 @@ export const UNNAMED_STEP_RULE = {
  * The tags the rule carries, as `rules` lists them. They do not gate it: a flow someone asked to narrate is
  * always read, whatever `--tags` says. The `wcag2a` tag is left off on purpose: see docs/ARCHITECTURE.md.
  */
-export const UNNAMED_STEP_TAGS = ["cat.name-role-value", "wcag412"] as const;
+export const UNNAMED_STEP_TAGS = ["cat.name-role-value", "wcag2a", "wcag412"] as const;
 
 registerGenieRule({
   rule: { ...UNNAMED_STEP_RULE, wcag: [...UNNAMED_STEP_RULE.wcag] },

@@ -765,9 +765,8 @@ under *Narrated flows*. The golden is `test/goldens/narration/flow.txt`, from `w
 said and no name (`unnamed` of `Accessible`). A step that leaves focus where the step before it left it is not
 counted again, and the same element reached by two flows is one element of the finding. The finding is the page's, in
 the record's default state, and makes `narrate` exit 1 at the default `--fail-on`. It is registered with the tags
-`cat.name-role-value` and `wcag412`, and not `wcag2a` although the criterion is level A: a flow someone asked to
-narrate is always read, so `--tags` does not select it, and `rules --tags wcag2a` lists the same own rules as
-before. Its plain words are in `src/plain.ts`.
+`cat.name-role-value`, `wcag2a` and `wcag412`, like the other level-A own rules (decided 2026-11-19). The tags only
+change `rules --tags` listings: a flow someone asked to narrate is always read, whatever `--tags` says. Its plain words are in `src/plain.ts`.
 
 A `narrate` record is not a scan to compare with: plain `scan` skips it when it looks for the site's last scan
 (`previousScan`), and `check --baseline` refuses it. Fixtures: `workflow.html` (its form is `novalidate`, so
