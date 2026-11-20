@@ -1,9 +1,10 @@
-import { execFileSync, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SCANS_DIR_ENV } from "../../src/scans-folder.js";
+import { processesIn } from "../helpers/processes-in.js";
 import { channelArgs } from "../helpers/test-browser.js";
 import { testBrowserIsInstalled } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
@@ -80,23 +81,41 @@ describe.skipIf(!hasBrowser)("a run with a browser (skipped where the test brows
     await server.close();
   });
 
-  async function waitForProfile(shared: string): Promise<void> {
+  // Browser processes whose command line names this test's shared temp folder: the ones the child started.
+  function browsersIn(shared: string): string[] {
+    return processesIn(shared).map((found) => found.command);
+  }
+
+  // Waits for this run's own browser, not for a profile folder or a socket an earlier test left: the browser
+  // process is up once its command line names the shared folder, and the page request has arrived once the
+  // hanging server holds a connection beyond the ones it held before this run started.
+  async function waitForBrowser(shared: string, heldBefore: number): Promise<void> {
     const deadline = Date.now() + 20_000;
-    const profiles = () =>
-      readdirSync(shared)
-        .filter((name) => name.startsWith("a11y-genie-"))
-        .flatMap((name) => readdirSync(join(shared, name)))
-        .filter((name) => name.startsWith("playwright_chromiumdev_profile-"));
-    while (profiles().length === 0 || held.size === 0) {
+    // Windows has no `ps`, so there only the page request is waited for.
+    while ((process.platform !== "win32" && browsersIn(shared).length === 0) || held.size <= heldBefore) {
       if (Date.now() > deadline) throw new Error("the scan never reached the page");
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
   }
 
+  // Starts a scan of the hanging page and waits until its browser is up. The scan is stopped if it never gets
+  // there, so a failed wait never leaves a scan or its browser running.
+  async function startHanging(shared: string) {
+    const heldBefore = held.size;
+    const run = start(["scan", `http://127.0.0.1:${hangPort}/`], shared, folder());
+    try {
+      await waitForBrowser(shared, heldBefore);
+    } catch (error) {
+      run.child.kill("SIGKILL");
+      await run.done;
+      throw error;
+    }
+    return run;
+  }
+
   it("the browser's profile lands in the process's own folder, not beside it", async () => {
     const shared = folder();
-    const { child, done } = start(["scan", `http://127.0.0.1:${hangPort}/`], shared, folder());
-    await waitForProfile(shared);
+    const { child, done } = await startHanging(shared);
     const top = readdirSync(shared);
     expect(top).toHaveLength(1);
     expect(top[0]).toMatch(/^a11y-genie-/);
@@ -121,20 +140,11 @@ describe.skipIf(!hasBrowser)("a run with a browser (skipped where the test brows
 
   it("Ctrl-C (exit 130) leaves nothing in the shared temp folder", async () => {
     const shared = folder();
-    const { child, done } = start(["scan", `http://127.0.0.1:${hangPort}/`], shared, folder());
-    await waitForProfile(shared);
+    const { child, done } = await startHanging(shared);
     child.kill("SIGINT");
     expect((await done).status).toBe(130);
     expect(readdirSync(shared)).toEqual([]);
   });
-
-  // Browser processes whose command line names this test's shared temp folder: the ones the child started.
-  function browsersIn(shared: string): string[] {
-    const marker = basename(shared);
-    return execFileSync("ps", ["-ww", "-axo", "pid,command"], { encoding: "utf8" })
-      .split("\n")
-      .filter((line) => line.includes(marker));
-  }
 
   // SIGTERM is not delivered on Windows, and SIGHUP there arrives only when the console window closes, so a
   // test cannot send either to a spawned process: both skip on win32.
@@ -147,8 +157,7 @@ describe.skipIf(!hasBrowser)("a run with a browser (skipped where the test brows
       `${signal} (exit ${code}) leaves no temp folder and no browser (skipped on win32, which does not deliver it)`,
       async () => {
         const shared = folder();
-        const { child, done } = start(["scan", `http://127.0.0.1:${hangPort}/`], shared, folder());
-        await waitForProfile(shared);
+        const { child, done } = await startHanging(shared);
         expect(browsersIn(shared).length, "the browser is up").toBeGreaterThan(0);
         child.kill(signal);
         const result = await done;
@@ -166,8 +175,7 @@ describe.skipIf(!hasBrowser)("a run with a browser (skipped where the test brows
 
   it("a killed run (SIGKILL) leaves at most one folder, named a11y-genie-*", async () => {
     const shared = folder();
-    const { child, done } = start(["scan", `http://127.0.0.1:${hangPort}/`], shared, folder());
-    await waitForProfile(shared);
+    const { child, done } = await startHanging(shared);
     child.kill("SIGKILL");
     await done;
     // The browser it started may take a moment to notice; whatever is left is inside the one folder.
