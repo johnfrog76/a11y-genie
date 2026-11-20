@@ -141,6 +141,8 @@ A round is: work some findings, then rescan once. Rounds are counted by rescans.
   see why each line changed.
 - **A fix is proved only by a rescan.** Until `check` reads it `fixed`, it is a change, not a fix. Don't say
   otherwise, to the person or in a commit message.
+- **Check each change landed before you rescan.** Read the line back, or diff the file. A rescan after an edit
+  that silently failed shows nothing fixed, and costs a round of the budget for nothing.
 
 For contrast, `colorPair` gives the measured `ratio` and the `required` one: change the colour until the ratio
 clears what is required, in the design's own colours where the project has them. For a missing
