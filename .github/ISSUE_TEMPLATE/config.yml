@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security problem
+    url: https://github.com/johnfrog76/a11y-genie/security/policy
+    about: Please report it privately, as the security policy says. Never in a public issue.
+  - name: How to contribute
+    url: https://github.com/johnfrog76/a11y-genie/blob/main/CONTRIBUTING.md
+    about: Set-up, the checks to run, and what makes an issue easy to act on.
