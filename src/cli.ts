@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { shouldShowBanner, withBanner } from "./banner.js";
 import { checkCommand } from "./check-command.js";
 import { packageInfo } from "./package-info.js";
 import { EXIT } from "./exit-codes.js";
@@ -126,7 +127,13 @@ async function main(args: string[]): Promise<void> {
   if (args[0] === "rules") return rulesCommand(args.slice(1), HELP_HINT);
   if (args[0] === "prompt") return promptCommand(args.slice(1), HELP_HINT);
   if (args.length === 0 || args.includes("--help")) {
-    process.stdout.write(HELP);
+    const show = shouldShowBanner({
+      isTTY: process.stdout.isTTY,
+      columns: process.stdout.columns,
+      env: process.env,
+      json: false,
+    });
+    process.stdout.write(withBanner(HELP, show));
   } else {
     throw new Refusal(`unknown command or flag: ${args[0]}`, HELP_HINT);
   }

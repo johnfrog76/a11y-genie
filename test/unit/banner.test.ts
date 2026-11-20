@@ -1,7 +1,15 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { BANNER, BANNER_LINES, BANNER_MAX_COLUMNS, BANNER_MAX_LINES } from "../../src/banner.js";
+import {
+  BANNER,
+  BANNER_LINES,
+  BANNER_MAX_COLUMNS,
+  BANNER_MAX_LINES,
+  type BannerContext,
+  shouldShowBanner,
+  withBanner,
+} from "../../src/banner.js";
 
 const README = readFileSync(fileURLToPath(new URL("../../README.md", import.meta.url)), "utf8");
 
@@ -36,5 +44,46 @@ describe("the genie and his bottle", () => {
     const hero = /^# A11y Genie\n\n```text\n([\s\S]*?)```\n/.exec(README);
     expect(hero).not.toBeNull();
     expect(hero?.[1]).toBe(BANNER);
+  });
+});
+
+describe("when the drawing is shown", () => {
+  const terminal: BannerContext = { isTTY: true, columns: 100, env: {}, json: false };
+  const widest = Math.max(...BANNER_LINES.map((line) => line.length));
+
+  const table: [string, Partial<BannerContext>, boolean][] = [
+    ["at a wide terminal", {}, true],
+    ["when the terminal is exactly as wide as the drawing", { columns: widest }, true],
+    ["when the terminal is one column too narrow", { columns: widest - 1 }, false],
+    ["when the width is not known", { columns: undefined }, true],
+    ["when the terminal reports no width (0)", { columns: 0 }, true],
+    ["under --json", { json: true }, false],
+    ["when the stream is not a terminal", { isTTY: false }, false],
+    ["when isTTY is not set", { isTTY: undefined }, false],
+    ["in CI", { env: { CI: "true" } }, false],
+    ["with CI=1", { env: { CI: "1" } }, false],
+    ["with CI=yes", { env: { CI: "yes" } }, false],
+    ["with CI=TRUE", { env: { CI: "TRUE" } }, false],
+    ["with CI empty", { env: { CI: "" } }, true],
+    ["with CI=0", { env: { CI: "0" } }, true],
+    ["with CI=false", { env: { CI: "false" } }, true],
+    ["with CI=False", { env: { CI: "False" } }, true],
+  ];
+  it.each(table)("%s", (_name, change, shown) => {
+    expect(shouldShowBanner({ ...terminal, ...change })).toBe(shown);
+  });
+
+  it("gives the same answer with and without NO_COLOR, since the drawing has no colour", () => {
+    expect(shouldShowBanner({ ...terminal, env: { NO_COLOR: "1" } })).toBe(shouldShowBanner(terminal));
+    expect(shouldShowBanner({ ...terminal, env: { NO_COLOR: "1", CI: "1" } })).toBe(false);
+  });
+
+  it("puts the drawing and an empty line above the text only when told to", () => {
+    expect(withBanner("text\n", true)).toBe(`${BANNER}\ntext\n`);
+    expect(withBanner("text\n", false)).toBe("text\n");
+  });
+
+  it("prints no escape sequence", () => {
+    expect(withBanner("text\n", true)).not.toContain("\x1b");
   });
 });
