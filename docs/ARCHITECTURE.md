@@ -404,9 +404,10 @@ report is a pure function of the record, so a stored `scan.json` can write it ag
   Without it, the summary goes to stdout.
 - **Never into the project.** Nothing is written in the folder the command runs from, or the scanned
   project. Scans go to the per-user scans folder or `--out` (docs/JSON.md says where).
-- **The schema is checked without a validator dependency.** `test/helpers/json-schema.ts` is a small
+- **The schema is checked without a validator dependency.** `src/json-schema.ts` is a small
   validator for exactly the keywords `schema/scan-1.json` uses, and throws on any other, so the schema cannot
-  outgrow it. The schema test runs it over every golden and over a record the browser test has just made.
+  outgrow it. The schema test runs it over every golden and over a record the browser test has just made, and
+  `check` runs it over its baseline before it reads anything from it.
 - **Goldens.** `test/goldens/<page>/scan.json` and `report.md` for the four first fixture pages and `no-landmarks` are written
   by `test/browser/goldens.test.ts` in the real Chrome, after the port, the times and the versions of this
   tool, axe-core and the browser are replaced by fixed values (`test/helpers/goldens.ts`). The rule count is
