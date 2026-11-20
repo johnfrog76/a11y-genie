@@ -13,12 +13,12 @@ Scanned `http://127.0.0.1:0000/impact-mix.html` with axe-core 0.0.0 in chrome 0.
 
 ## Findings, worst first
 
-### 1. Critical: Images must have alternative text
+### 1. Critical: An image has no text alternative, so a person who cannot see it hears nothing about it from a screen reader, or only its file name.
 
 - Rule: `axe/image-alt` · WCAG 1.1.1 · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/image-alt?application=playwright>)
 - Page: `impact-mix.html`
 - Kind: violation
-- Fix: Fix any of the following: Element does not have an alt attribute; aria-label attribute does not exist or is empty; aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty; Element has no title attribute; Element's default semantics were not overridden with role="none" or role="presentation"
+- Fix: Add an alt attribute that says what the image shows or what it is for. If it is only decoration, use alt="" so that screen readers skip it.
 - Elements: 1
 
 - Element: `img`
@@ -29,12 +29,23 @@ Scanned `http://127.0.0.1:0000/impact-mix.html` with axe-core 0.0.0 in chrome 0.
   <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" width="40" height="40">
   ```
 
-### 2. Serious: Elements must meet minimum color contrast ratio thresholds
+  What axe-core said:
+
+  ```text
+  Fix any of the following:
+    Element does not have an alt attribute
+    aria-label attribute does not exist or is empty
+    aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty
+    Element has no title attribute
+    Element's default semantics were not overridden with role="none" or role="presentation"
+  ```
+
+### 2. Serious: Text is too faint against its background for many people to read, people with low vision among them, and anyone looking at a screen in bright light.
 
 - Rule: `axe/color-contrast` · WCAG 1.4.3 · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/color-contrast?application=playwright>)
 - Page: `impact-mix.html`
 - Kind: violation
-- Fix: Fix any of the following: Element has insufficient color contrast of 2.81 (foreground color: #9a9a9a, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1
+- Fix: Darken the text or lighten its background, or the other way round, until the contrast ratio is at least 4.5 to 1, or 3 to 1 for large text.
 - Elements: 1
 
 - Element: `p`
@@ -47,12 +58,19 @@ Scanned `http://127.0.0.1:0000/impact-mix.html` with axe-core 0.0.0 in chrome 0.
 
   Colours: `#9a9a9a on #ffffff, 2.81, needs 4.5` (font 12.0pt (16px), normal)
 
-### 3. Moderate: Heading levels should only increase by one
+  What axe-core said:
+
+  ```text
+  Fix any of the following:
+    Element has insufficient color contrast of 2.81 (foreground color: #9a9a9a, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1
+  ```
+
+### 3. Moderate: A heading skips a level, such as an h2 followed by an h4, so a person who reads the page's outline through its headings looks for a section that is not there.
 
 - Rule: `axe/heading-order` · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/heading-order?application=playwright>)
 - Page: `impact-mix.html`
 - Kind: violation
-- Fix: Fix any of the following: Heading order invalid
+- Fix: Go down one level at a time: under an h2 comes an h3. To change how a heading looks, use CSS, not another level.
 - Elements: 1
 
 - Element: `h3`
@@ -63,12 +81,19 @@ Scanned `http://127.0.0.1:0000/impact-mix.html` with axe-core 0.0.0 in chrome 0.
   <h3>Skipped a level</h3>
   ```
 
-### 4. Minor: Headings should not be empty
+  What axe-core said:
+
+  ```text
+  Fix any of the following:
+    Heading order invalid
+  ```
+
+### 4. Minor: A heading has no text. A screen reader still announces it as a heading, so a person moving through the page by its headings lands on an empty one.
 
 - Rule: `axe/empty-heading` · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/empty-heading?application=playwright>)
 - Page: `impact-mix.html`
 - Kind: violation
-- Fix: Fix any of the following: Element does not have text that is visible to screen readers; aria-label attribute does not exist or is empty; aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty; Element has no title attribute
+- Fix: Give the heading text that names the section after it, or, if it is there only for its look, make it something other than a heading.
 - Elements: 1
 
 - Element: `h2`
@@ -77,6 +102,16 @@ Scanned `http://127.0.0.1:0000/impact-mix.html` with axe-core 0.0.0 in chrome 0.
 
   ```text
   <h2></h2>
+  ```
+
+  What axe-core said:
+
+  ```text
+  Fix any of the following:
+    Element does not have text that is visible to screen readers
+    aria-label attribute does not exist or is empty
+    aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty
+    Element has no title attribute
   ```
 
 ## What this scan cannot see

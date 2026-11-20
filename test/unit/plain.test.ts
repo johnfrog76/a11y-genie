@@ -4,6 +4,7 @@ import { genieRules } from "../../src/genie-rules.js";
 import { wcagCriteria } from "../../src/map-axe.js";
 import { criterionInWords, CRITERION_WORDING, RULE_WORDING, wordingOf } from "../../src/plain.js";
 import "../../src/rules-command.js"; // imports every check, so every `genie/*` rule is registered
+import { GOLDEN_PAGES, readGoldenRecord } from "../helpers/goldens.js";
 
 const axe = createRequire(import.meta.url)("axe-core") as {
   getRules(): { ruleId: string; tags: string[] }[];
@@ -95,6 +96,16 @@ describe("the wording table", () => {
     expect(wordingOf({ source: "genie", id: "button-name" }, "violation")).toBeUndefined();
     expect(wordingOf({ source: "axe", id: "__proto__" } as never, "violation")).toBeUndefined();
     expect(wordingOf({ source: "axe", id: "toString" } as never, "violation")).toBeUndefined();
+  });
+
+  it("every golden's findings carry the table's words", () => {
+    for (const name of GOLDEN_PAGES) {
+      for (const finding of readGoldenRecord(name).findings) {
+        const words = wordingOf(finding.rule, finding.kind);
+        expect(words, finding.id).toBeDefined();
+        expect({ plain: finding.plain, fix: finding.fix }, finding.id).toEqual(words);
+      }
+    }
   });
 });
 

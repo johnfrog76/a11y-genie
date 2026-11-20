@@ -145,8 +145,9 @@ describe.skipIf(!hasChrome)("click on a non-control (skipped where Chrome is not
     expect(record.summary.needsReview).toBe(1);
     const report = renderReport(record);
     expect(report).toContain("`genie/click-on-non-control`");
-    // Markdown escapes the angle brackets of <button>.
-    expect(report).toContain("Make it a \\<button\\> with the same handler and the same text.");
+    // The fix line is the wording table's; the check's own words stay with the element, fenced.
+    expect(report).toContain("- Fix: Make it a button element with the same handler and the same text.");
+    expect(report).toContain("What the check said:");
     expect(report).toContain("## Needs review");
   });
 });

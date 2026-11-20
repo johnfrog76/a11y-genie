@@ -13,12 +13,12 @@ Scanned `http://127.0.0.1:0000/contrast.html` with axe-core 0.0.0 in chrome 0.0.
 
 ## Findings, worst first
 
-### 1. Serious: Elements must meet minimum color contrast ratio thresholds
+### 1. Serious: Text is too faint against its background for many people to read, people with low vision among them, and anyone looking at a screen in bright light.
 
 - Rule: `axe/color-contrast` · WCAG 1.4.3 · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/color-contrast?application=playwright>)
 - Page: `contrast.html`
 - Kind: violation
-- Fix: Fix any of the following: Element has insufficient color contrast of 2.81 (foreground color: #9a9a9a, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1
+- Fix: Darken the text or lighten its background, or the other way round, until the contrast ratio is at least 4.5 to 1, or 3 to 1 for large text.
 - Elements: 1
 
 - Element: `p`
@@ -30,6 +30,13 @@ Scanned `http://127.0.0.1:0000/contrast.html` with axe-core 0.0.0 in chrome 0.0.
   ```
 
   Colours: `#9a9a9a on #ffffff, 2.81, needs 4.5` (font 12.0pt (16px), normal)
+
+  What axe-core said:
+
+  ```text
+  Fix any of the following:
+    Element has insufficient color contrast of 2.81 (foreground color: #9a9a9a, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1
+  ```
 
 ## What this scan cannot see
 

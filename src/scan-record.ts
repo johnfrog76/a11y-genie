@@ -10,6 +10,7 @@ import { LIMITS, type Limits, type Stopped } from "./context.js";
 import { atOrAbove, DEFAULT_FAIL_ON } from "./rule-flags.js";
 import { mergeStates } from "./merge-states.js";
 import { orderFindings } from "./order.js";
+import { wordingOf } from "./plain.js";
 import { escapeJsonControls } from "./printable.js";
 
 /**
@@ -53,9 +54,9 @@ export interface RecordFinding {
   impact: Impact;
   page: string;
   title: string;
-  /** Until plain-language fixes are written, axe-core's `help`. */
+  /** What is wrong and who it hurts, from src/plain.ts; axe-core's `help` for a rule it has no words for. */
   plain: string;
-  /** Until plain-language fixes are written, axe-core's `failureSummary`. Never empty. */
+  /** What to change, from src/plain.ts; axe-core's `failureSummary` for a rule it has no words for. Never empty. */
   fix: string;
   elements: RecordElement[];
   /** How many of the finding's elements are not listed: past the limit per finding, or cut to fit. */
@@ -183,8 +184,8 @@ export function failureOnOneLine(text: string): string {
 }
 
 /**
- * The fix for a finding, from axe-core's `failureSummary` for its first element; where axe-core gave
- * none, from its `help`. Never empty, so no finding is without a fix.
+ * The fix for a finding whose rule src/plain.ts has no words for: axe-core's `failureSummary` for its first
+ * element; where axe-core gave none, its `help`. Never empty, so no finding is without a fix.
  */
 export function fixOf(finding: Finding): string {
   for (const element of finding.elements) {
@@ -221,6 +222,7 @@ function toRecordFinding(
 ): RecordFinding {
   const help = oneLine(finding.rule.help);
   const { elements, cut } = keptElements(finding.elements, limits);
+  const words = wordingOf(finding.rule, finding.kind);
   return {
     id: finding.id,
     rule: finding.rule,
@@ -228,8 +230,8 @@ function toRecordFinding(
     impact: finding.impact,
     page: finding.page,
     title: `${help === "" ? finding.rule.id : help} on ${finding.page}`,
-    plain: help === "" ? finding.rule.id : help,
-    fix: fixOf(finding as Finding),
+    plain: words?.plain ?? (help === "" ? finding.rule.id : help),
+    fix: words?.fix ?? fixOf(finding as Finding),
     elements,
     ...(cut > 0 ? { elementsCut: cut } : {}),
     status: "new",

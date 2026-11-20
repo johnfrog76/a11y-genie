@@ -137,11 +137,18 @@ What an agent can rely on in major version 1: per finding `id`, `rule.source`, `
 `fix`; per element `selector` and `html`; at the top `schema`, `exit`, `summary` and `pages[].notScanned`.
 `notScanned` is in 1.0 too, always empty there.
 
-**`plain` and `fix` until plain-language fixes are written.** `plain` is axe-core's `help` for the rule. `fix`
-is axe-core's `failureSummary` for the finding's first element, on one line ("Fix any of the following:" then
-its messages, separated by semicolons); where axe-core gave none, it is the rule's `help` and `helpUrl`. A
-finding always has a fix. `title` is the `help` and the page. `status` is `new` until a scan is compared
-with the one before it. Each element's `failure` stays as axe-core wrote it, newlines included.
+**Where `plain` and `fix` come from.** Both are A11y Genie's own words, written for a reader who knows no WCAG,
+from the wording table in `src/plain.ts`: `plain` says what is wrong and who it hurts, `fix` what to change,
+in a sentence or two each. The table has words for every `genie/*` rule, for every axe-core rule a fixture page
+makes fire (`button-name`, `color-contrast`, `empty-heading`, `heading-order`, `image-alt`,
+`landmark-no-duplicate-main`, `landmark-one-main`, `page-has-heading-one`, `region`) and for `link-name`. An
+advice finding takes the rule's advice words where it has them (`genie/skip-link` does). The words are fixed
+data: nothing from the page and nothing axe-core said goes into them. For a rule the table has no words for,
+`plain` is axe-core's `help` for the rule, and `fix` is axe-core's `failureSummary` for the finding's first
+element, on one line ("Fix any of the following:" then its messages, separated by semicolons); where axe-core
+gave none, it is the rule's `help` and `helpUrl`. A finding always has a fix. `title` is the `help` and the
+page. `status` is `new` until a scan is compared with the one before it. Each element's `failure` stays as
+axe-core, or the product's own check, wrote it, newlines included; `report.md` shows it under the element.
 
 `summary` counts findings (one per rule per page), not elements. `toolkit` is not written yet.
 
@@ -202,9 +209,11 @@ module loads, and `rules` lists what is registered, so a rule not built yet is n
 
 Made from the record and nothing else. It holds, in order: what was scanned and with what, and where a
 redirect ended (saying so when that is another origin); a summary (the empty-scan sentence when nothing was
-found, and each page not scanned with its reason); the findings worst first, each with its rule, WCAG
-criteria, page, fix and elements (with how many are not listed, when some were cut; a contrast element also
-has a `Colours:` line naming the pair, such as `#9a9a9a on #ffffff, 2.81, needs 4.5`, from the record's numbers); *Needs review*, when
+found, and each page not scanned with its reason); the findings worst first, each headed by its `plain`, with
+its rule, WCAG criteria, page, fix and elements (with how many are
+not listed, when some were cut; a contrast element also has a `Colours:` line naming the pair, such as
+`#9a9a9a on #ffffff, 2.81, needs 4.5`, from the record's numbers; and each element says what axe-core or the
+check said about it, where that was not already said above it); *Needs review*, when
 axe-core could not decide something; *What the page tried, and was stopped*, when it opened dialogs or
 pop-ups or started downloads, with the first few quoted; and *What this scan cannot see*, the same fixed
 list in every report, last.

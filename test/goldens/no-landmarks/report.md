@@ -13,12 +13,12 @@ Scanned `http://127.0.0.1:0000/no-landmarks.html` with axe-core 0.0.0 in chrome 
 
 ## Findings, worst first
 
-### 1. Moderate: Document should have one main landmark
+### 1. Moderate: The page has no main landmark, so a screen-reader user cannot jump straight to its main content.
 
 - Rule: `axe/landmark-one-main` · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/landmark-one-main?application=playwright>)
 - Page: `no-landmarks.html`
 - Kind: violation
-- Fix: Fix all of the following: Document does not have a main landmark
+- Fix: Put the page's own content, everything but its header, navigation and footer, inside one main element.
 - Elements: 1
 
 - Element: `html`
@@ -29,12 +29,19 @@ Scanned `http://127.0.0.1:0000/no-landmarks.html` with axe-core 0.0.0 in chrome 
   <html lang="en">
   ```
 
-### 2. Moderate: The page has no landmarks: no banner, navigation, main or contentinfo.
+  What axe-core said:
+
+  ```text
+  Fix all of the following:
+    Document does not have a main landmark
+  ```
+
+### 2. Moderate: The page has no landmarks at all: no header, navigation, main or footer region. A screen-reader user cannot jump between its parts and has to go through it from the top.
 
 - Rule: `genie/no-landmarks` · WCAG 1.3.1, 2.4.1
 - Page: `no-landmarks.html`
 - Kind: violation
-- Fix: Fix all of the following: The page has no landmark. Put the page's own content in a main element, and use header, nav and footer for its banner, its navigation and its footer, so that a person using a screen reader can jump between them.
+- Fix: Put the page's own content in a main element, and use header, nav and footer for its banner, its navigation and its footer.
 - Elements: 1
 
 - Element: `body`
@@ -45,12 +52,19 @@ Scanned `http://127.0.0.1:0000/no-landmarks.html` with axe-core 0.0.0 in chrome 
   <body style="background: #ffffff; color: #000000">
   ```
 
-### 3. Moderate: All page content should be contained by landmarks
+  What the check said:
+
+  ```text
+  Fix all of the following:
+    The page has no landmark. Put the page's own content in a main element, and use header, nav and footer for its banner, its navigation and its footer, so that a person using a screen reader can jump between them.
+  ```
+
+### 3. Moderate: Some content sits outside every landmark, so a screen-reader user who moves through the page by its landmarks can miss it.
 
 - Rule: `axe/region` · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/region?application=playwright>)
 - Page: `no-landmarks.html`
 - Kind: violation
-- Fix: Fix any of the following: Some page content is not contained by landmarks
+- Fix: Put all of the page's content inside landmarks: header, nav, main, aside or footer. Content that belongs to none of the others goes in main.
 - Elements: 2
 
 - Element: `h1`
@@ -59,6 +73,13 @@ Scanned `http://127.0.0.1:0000/no-landmarks.html` with axe-core 0.0.0 in chrome 
 
   ```text
   <h1>No landmarks fixture</h1>
+  ```
+
+  What axe-core said:
+
+  ```text
+  Fix any of the following:
+    Some page content is not contained by landmarks
   ```
 
 - Element: `p`

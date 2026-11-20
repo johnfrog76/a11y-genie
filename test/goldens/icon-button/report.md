@@ -13,12 +13,12 @@ Scanned `http://127.0.0.1:0000/icon-button.html` with axe-core 0.0.0 in chrome 0
 
 ## Findings, worst first
 
-### 1. Critical: Buttons must have discernible text
+### 1. Critical: A button has no name, so a screen reader announces it only as "button" and its user cannot tell what it does.
 
 - Rule: `axe/button-name` · WCAG 4.1.2 · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/button-name?application=playwright>)
 - Page: `icon-button.html`
 - Kind: violation
-- Fix: Fix any of the following: Element does not have inner text that is visible to screen readers; aria-label attribute does not exist or is empty; aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty; Element has no title attribute; Element does not have an implicit (wrapped) \<label\>; Element does not have an explicit \<label\>; Element's default semantics were not overridden with role="none" or role="presentation"
+- Fix: Give it a name: visible text inside the button, or an aria-label that says what it does, such as aria-label="Search".
 - Elements: 1
 
 - Element: `button`
@@ -29,6 +29,19 @@ Scanned `http://127.0.0.1:0000/icon-button.html` with axe-core 0.0.0 in chrome 0
   <button type="button">
           <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
             <path d="M2 2h12v12H2z" fill="#00…
+  ```
+
+  What axe-core said:
+
+  ```text
+  Fix any of the following:
+    Element does not have inner text that is visible to screen readers
+    aria-label attribute does not exist or is empty
+    aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty
+    Element has no title attribute
+    Element does not have an implicit (wrapped) <label>
+    Element does not have an explicit <label>
+    Element's default semantics were not overridden with role="none" or role="presentation"
   ```
 
 ## What this scan cannot see

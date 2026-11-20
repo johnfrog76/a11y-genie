@@ -1,7 +1,7 @@
 /**
  * `report.md`: the Markdown report, made from a scan record and nothing else. It never says a site is
  * accessible, compliant or conformant, or that it passes WCAG (spec 2.1); a scan with no findings says how
- * much it checked. Text from the page is quoted in a fence, cut at 160 characters, and labelled as quoted,
+ * much it checked. Each finding's words come from src/plain.ts. Text from the page is quoted in a fence, cut at 160 characters, and labelled as quoted,
  * and every piece of text in it, the page's and axe-core's, has its terminal escapes and control characters
  * stripped first (src/printable.ts).
  */
@@ -82,7 +82,13 @@ function colorPairLine(pair: ColorPair): string {
   return font === "" ? text : `${text} (font ${plainText(font)})`;
 }
 
-function elementLines(element: RecordElement, fix: string, reason?: string): string[] {
+/** Words said about one element, under their label: axe-core's or the check's, or why it could not be decided. */
+interface Said {
+  label: string;
+  text: string;
+}
+
+function elementLines(element: RecordElement, said?: Said): string[] {
   const lines = [
     `- Element: ${inlineCode(element.selector)}`,
     "",
@@ -97,18 +103,27 @@ function elementLines(element: RecordElement, fix: string, reason?: string): str
       `  Found in the ${element.states.length === 1 ? "state" : "states"}: ${element.states.map(inlineCode).join(", ")}`,
     );
   }
-  // The finding's fix line already says what axe-core said about its first element; say it again only where it differs.
   if (element.colorPair !== undefined) lines.push("", `  Colours: ${colorPairLine(element.colorPair)}`);
-  const why = reason ?? (failureOnOneLine(element.failure) === fix ? "" : element.failure);
-  if (why.trim() !== "") {
-    lines.push(
-      "",
-      reason === undefined ? "  What axe-core said:" : "  Why it could not be decided:",
-      "",
-      ...indent(fenced(why)),
-    );
+  if (said !== undefined && said.text.trim() !== "") {
+    lines.push("", `  ${said.label}`, "", ...indent(fenced(said.text)));
   }
   return lines;
+}
+
+/**
+ * What axe-core, or the product's own check, said about each element of a finding, said once: an element whose
+ * words were already said above it, on the finding's Fix line or by an element before it, says nothing again.
+ */
+function findingElementLines(finding: RecordFinding): string[] {
+  const label = finding.rule.source === "axe" ? "What axe-core said:" : "What the check said:";
+  const said = new Set([finding.fix]);
+  const out: string[] = [];
+  for (const element of finding.elements) {
+    const words = failureOnOneLine(element.failure);
+    out.push(...elementLines(element, said.has(words) ? undefined : { label, text: element.failure }), "");
+    said.add(words);
+  }
+  return out;
 }
 
 /** "Asked for X; after 2 redirects it ended on Y, another origin." Empty when it ended where it was asked. */
@@ -256,7 +271,7 @@ export function renderReport(record: ScanRecord): string {
         `- Elements: ${elementCount(finding.elements.length, finding.elementsCut, record.limits?.elementsPerFinding ?? LIMITS.elementsPerFinding)}`,
         "",
       );
-      for (const element of finding.elements) out.push(...elementLines(element, finding.fix), "");
+      out.push(...findingElementLines(finding));
     });
   }
 
@@ -276,7 +291,12 @@ export function renderReport(record: ScanRecord): string {
         );
       }
       out.push("");
-      for (const element of item.elements) out.push(...elementLines(element, "", element.reason), "");
+      for (const element of item.elements) {
+        out.push(
+          ...elementLines(element, { label: "Why it could not be decided:", text: element.reason }),
+          "",
+        );
+      }
     }
   }
 
