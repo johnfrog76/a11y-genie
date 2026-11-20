@@ -468,18 +468,30 @@ that is no longer shown counts as focus on no element: Chrome can leave focus on
 just hidden until it moves focus to the page itself.
 
 **The modal dialog.** A dialog keeps focus inside on purpose. When every element of the cycle is inside one shown
-modal dialog (`role="dialog"` or `"alertdialog"`, or a `dialog` element, with `aria-modal="true"` or opened by
-`showModal()`), and Escape takes focus out of the cycle and the dialog is no longer shown, it is not a trap
-(`modal-ok.html`). Then focus must be back on the control that opened it. The check cannot see which control
-that was, so it asks the page: when exactly one element outside the dialog names the dialog's `id` in
-`aria-controls`, that element is the opener, and focus anywhere else is `genie/focus-not-returned`. Without one,
-focus on no element is the finding, and focus on any element outside the dialog is taken as returned
-(`focus-not-returned.html`). A dialog is open only in the state that opens it, so these are found in a state
+modal dialog (`role="dialog"` or `"alertdialog"`, or a `dialog` element, with `aria-modal="true"`), and Escape
+takes focus out of the cycle and the dialog is no longer shown, it is not a trap (`modal-ok.html`). Then focus
+must be back on the control that opened it (`focus-not-returned.html`).
+
+**The opener rule.** The check cannot see which control opened a dialog, and it does not guess. The opener is
+known only when exactly one element outside the dialog names the dialog's `id` in `aria-controls`: then focus
+anywhere but that element, after Escape closed the dialog, is `genie/focus-not-returned`. When no element names
+it, or more than one does, there is no known opener: focus on no element is still the finding, and focus on any
+element outside the dialog is taken as returned.
+
+**A native modal dialog is not checked.** A `dialog` opened with `showModal()` is not checked for a trap, or for
+focus not returned, because Chrome hands Tab and Shift+Tab out of it to the browser's own controls, so the walk
+cannot show whether it holds focus. After the walk, `scanPage` asks the walk's isolated world whether the page's
+own document has a `dialog:modal`; if it has, the trap check does not run in that state, and the skip is never
+silent: the scan's *What this scan cannot see* (`cannotSee` in `scan.json`, and `report.md`) gets one line for
+the page after the fixed list, naming the states: "A dialog on `<page>` (in the state `<state>`) was opened with
+showModal(); A11y Genie cannot walk the keyboard inside a native modal dialog, so check by hand that Tab stays in
+it and Escape closes it (WCAG 2.1.2)." A page without one adds nothing, so the list stays the fixed one
+(`native-modal.html`). A dialog is open only in the state that opens it, so these are found in a state
 such as `delete-dialog: click css '#open'`.
 
-**What it does not see.** A trap inside a frame of another origin. A `dialog` opened with `showModal()` lets
-Tab out to the browser's own controls in Chrome, so its walk ends `left`, and where focus goes when it closes
-is not checked. Focus not returned after a dialog closed by anything but Escape.
+**What it does not see.** A trap inside a frame of another origin. A native modal dialog (above). A
+`dialog:modal` inside a frame or a shadow root, which the native-dialog question does not read. Focus not
+returned after a dialog closed by anything but Escape.
 
 **The cost.** Nothing on a walk that ends `left` or `max-tabs`. Otherwise, the walk's second lap of the cycle
 (as many presses as the cycle has stops, inside `--max-tabs`), then at most that many Shift+Tab presses, one

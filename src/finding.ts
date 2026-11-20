@@ -116,4 +116,9 @@ export interface AxeScan {
   needsReview: NeedsReview[];
   /** The keyboard walk of the page (src/walk.ts); absent from results recorded without a browser. */
   walk?: Walk;
+  /**
+   * Present when a native `dialog` was open as a modal (`showModal()`) after the walk: the trap check cannot
+   * walk inside one (src/keyboard-trap.ts), so the record says so in `cannotSee`.
+   */
+  nativeModal?: true;
 }

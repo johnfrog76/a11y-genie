@@ -2,7 +2,12 @@ import { AxeBuilder } from "@axe-core/playwright";
 import type { Page } from "playwright-core";
 import type { AxeScan } from "./finding.js";
 import { CLICK_ON_NON_CONTROL_TAGS, checkClickOnNonControl } from "./click-on-non-control.js";
-import { checkKeyboardTrap, FOCUS_NOT_RETURNED_TAGS, KEYBOARD_TRAP_TAGS } from "./keyboard-trap.js";
+import {
+  checkKeyboardTrap,
+  FOCUS_NOT_RETURNED_TAGS,
+  KEYBOARD_TRAP_TAGS,
+  nativeModalOpen,
+} from "./keyboard-trap.js";
 import { checkLandmarks } from "./landmarks.js";
 import { mapAxeResults, pageKeyOf } from "./map-axe.js";
 import { orderFindings } from "./order.js";
@@ -71,7 +76,10 @@ export async function scanPage(
     tags === null || ruleTags.some((t) => tags.includes(t));
   const trapTags = wants(KEYBOARD_TRAP_TAGS);
   const returnTags = wants(FOCUS_NOT_RETURNED_TAGS);
-  const trap = trapTags || returnTags ? await checkKeyboardTrap(page, pageKey, walk) : {};
+  // A native modal dialog (showModal()) is not checked for a trap, since Chrome hands Tab out of it to the
+  // browser's own controls; the record names it in `cannotSee` instead. Asked before Escape could close it.
+  const nativeModal = trapTags || returnTags ? await nativeModalOpen(page) : false;
+  const trap = (trapTags || returnTags) && !nativeModal ? await checkKeyboardTrap(page, pageKey, walk) : {};
   const findings = [
     noLandmarks,
     click?.finding,
@@ -83,6 +91,7 @@ export async function scanPage(
   return {
     ...scan,
     walk,
+    ...(nativeModal ? { nativeModal: true as const } : {}),
     findings: findings.length === 0 ? scan.findings : orderFindings([...scan.findings, ...findings]),
     needsReview:
       needsReview.length === 0 ? scan.needsReview : orderFindings([...scan.needsReview, ...needsReview]),

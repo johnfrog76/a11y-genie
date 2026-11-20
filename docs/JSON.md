@@ -101,8 +101,9 @@ and `target.commit` from `--commit`; a 1.4 record has none of them, and is still
 still-open finding; a 1.5 record has none, and is still valid too. 1.7 added
 `pages[].walks`, the keyboard walk of each state (*The keyboard walk*, below); a 1.6 record has none, and is still
 valid too. 1.8 added `stopsCut` on a walk (below); a 1.7 record has none, and is still valid too. 1.9 added a
-walk's `cycled` end and its `cycleFrom` (below), and the findings `genie/keyboard-trap` and
-`genie/focus-not-returned`; a 1.8 record has none of them, and is still valid too.
+walk's `cycled` end and its `cycleFrom` (below), the findings `genie/keyboard-trap` and
+`genie/focus-not-returned`, and the `cannotSee` line for a native modal dialog; a 1.8 record has none of them,
+and is still valid too.
 
 | Field | What it holds |
 | --- | --- |
@@ -122,7 +123,7 @@ walk's `cycled` end and its `cycleFrom` (below), and the findings `genie/keyboar
 | `needsReview` | Worst first, as above; each element has `reason` and `states`, and the item has `elementsCut` when some are not listed |
 | `ignored`, `workflows` | `[]` until those features exist |
 | `checklist` | `null` until the checklist exists |
-| `cannotSee` | The fixed list of what a scan cannot see: the same lines that end `report.md` |
+| `cannotSee` | What a scan cannot see: the same lines that end `report.md`. The fixed list, then, from 1.9, one line for each page where a native `dialog` was open by `showModal()`, naming the page and its states, which the trap check does not walk (docs/ARCHITECTURE.md, *The keyboard trap*). A page without one adds nothing |
 | `options` | Added in 1.3. The flags that changed what the scan did or how it exited: `failOn` (`critical`, `serious`, `moderate` or `minor`; `minor` by default), `sameOrigin` and `offline` (booleans). `--tags` is `engine.tags`. The report says so when any is set |
 | `baseline` | On a `check` only: `path`, the `--baseline` as it was given; `startedAt`, when the baseline's scan began; `commit`, the baseline's own `target.commit`; and `notScanned`, each `{ page, state }` the baseline asked for and did not scan |
 | `limits` | The limits the page was held to: `pageSeconds` (60), `redirects` (10), `elementsPerFinding` (500), `excerptChars` (160), `scanJsonBytes` (52428800, 50 MB). docs/ARCHITECTURE.md, *Hostile pages*, says what each does |

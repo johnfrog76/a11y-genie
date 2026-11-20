@@ -17,8 +17,10 @@
  * are `genie/keyboard-trap`, critical, WCAG 2.1.2.
  *
  * A modal dialog keeps focus inside on purpose. When every element of the cycle is inside one visible dialog
- * (`role="dialog"` or `"alertdialog"`, or a `dialog` element) that is modal (`aria-modal="true"`, or a `dialog`
- * opened with `showModal()`), and Escape closes it, it is not a trap. Then focus must come back to the control
+ * (`role="dialog"` or `"alertdialog"`, or a `dialog` element) that is modal (`aria-modal="true"`), and Escape
+ * closes it, it is not a trap. A native `dialog` opened with `showModal()` is not checked at all: Chrome hands
+ * Tab out of it to the browser's own controls, so `scanPage` skips this check while one is open, and the
+ * record names it in `cannotSee` (`nativeModalOpen`, `nativeModalLine`). Then focus must come back to the control
  * that opened it. Focus on no element after the dialog closed is `genie/focus-not-returned`, moderate, WCAG
  * 2.4.3; so is focus on another element when exactly one element outside the dialog names it in
  * `aria-controls`, which makes that element its opener. With no such element, focus on any element outside
@@ -237,6 +239,38 @@ function dialogOf(value: unknown): Dialog | null {
   const target = targetOf(v.target);
   if (target === undefined || typeof v.html !== "string") return null;
   return { target, html: v.html.slice(0, HTML_CHARS), opener: targetOf(v.opener) ?? null };
+}
+
+/** Whether the page's own document has a native `dialog` open as a modal, by `showModal()`. */
+const NATIVE_MODAL_OPEN = `function () {
+  try { return document.querySelector("dialog:modal") !== null; } catch (e) { return false; }
+}`;
+
+/**
+ * Whether a native `dialog` is open as a modal (`dialog:modal`), read in the walk's isolated world. Chrome
+ * lets Tab and Shift+Tab out of such a dialog to the browser's own controls, so the walk cannot show whether
+ * the dialog holds focus. `scanPage` does not run the trap check on a page with one open, and the record
+ * says so in `cannotSee` instead (`nativeModalLine`). Only the page's own document is read.
+ */
+export async function nativeModalOpen(page: Page): Promise<boolean> {
+  const reader = await FocusReader.open(page);
+  try {
+    return (await reader.call(NATIVE_MODAL_OPEN)) === true;
+  } finally {
+    await reader.close();
+  }
+}
+
+/**
+ * The line added to "What this scan cannot see" for a page with a native modal dialog open in `states`. The
+ * page key and the state names come from the run (the address and the --states names), not from the page.
+ */
+export function nativeModalLine(pageKey: string, states: readonly string[]): string {
+  const where = states.length === 1 ? `the state ${states[0]}` : `the states ${states.join(", ")}`;
+  return (
+    `A dialog on ${pageKey} (in ${where}) was opened with showModal(); A11y Genie cannot walk the keyboard ` +
+    "inside a native modal dialog, so check by hand that Tab stays in it and Escape closes it (WCAG 2.1.2)."
+  );
 }
 
 /** What the check found on one page in one state: at most one finding of each rule. */
