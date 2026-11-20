@@ -7,9 +7,9 @@
  * 1. the computed `outline-style`, `outline-width`, `outline-color`, `box-shadow`, `border-color`,
  *    `background-color` and `text-decoration` of the element and of its first two ancestors; and
  * 2. a screenshot of the element padded by `PAD_PX` on each side, first as the Tab key left it (so
- *    `:focus-visible` applies), then with focus taken off it. Both are taken with Playwright's
- *    `animations: "disabled"` (a finite animation or transition is run to its end, so an animated ring is
- *    judged as it ends), the caret hidden, and a style that turns transitions off.
+ *    `:focus-visible` applies), then with focus taken off it. Both are taken with the page held
+ *    still (a finite animation or transition is set to its end while paused, so an animated ring
+ *    is judged as it ends, then put back as it was), the caret hidden, and a style that turns transitions off.
  *
  * A pixel has changed when one of its red, green and blue differs by more than `PIXEL_TOLERANCE`. When at least
  * `VISIBLE_SHARE` of the padded box's pixels changed, focus is visible. When no pixel changed and none of the
@@ -20,8 +20,8 @@
  * measurements the numbers were tuned on (V4).
  *
  * The page must not notice. Focus is taken off with `blur()` and given back with `focus()`, in an isolated
- * world, while listeners of that world on each window in the way stop the `blur`, `focusout`, `focus` and
- * `focusin` events before the page's own handlers see them. Focus ends where the Tab key put it, so the walk
+ * world, while a guard (src/focus-guard.ts), installed at document start and so ahead of any listener of the
+ * page's own, stops the `blur`, `focusout`, `focus` and `focusin` events before the page's handlers see them. Focus ends where the Tab key put it, so the walk
  * and the trap check read on as if nothing happened.
  *
  * The screenshots stay in memory, are compared, and are dropped. None is written to disk or to the record.
@@ -32,6 +32,7 @@
 
 import type { Page } from "playwright-core";
 import type { Finding, FindingElement, NeedsReview, NeedsReviewElement } from "./finding.js";
+import type { FocusGuard } from "./focus-guard.js";
 import { registerGenieRule } from "./genie-rules.js";
 import { changedPixels, decodePng } from "./png.js";
 import { FocusReader, type WalkStop } from "./walk.js";
@@ -148,7 +149,7 @@ const HELPERS = `
  */
 const HOLD = `function () {
   ${HELPERS}
-  globalThis.${HELD} = { el: this, guards: [], paused: [] };
+  globalThis.${HELD} = { el: this, paused: [] };
   return { box: boxOf(this), html: htmlOf(this), styles: stylesOf(this) };
 }`;
 
@@ -159,59 +160,44 @@ const STYLES = `function () {
   return held ? stylesOf(held.el) : null;
 }`;
 
-/**
- * Takes focus off the kept element. Before it, a listener on each window from the element's out to the top
- * stops the focus events in their capture phase, so the page's own handlers never see the blur, or the focus
- * that gives it back. Returns whether focus left it.
- */
+/** Takes focus off the kept element, with the guard held by the caller. Returns whether focus left it. */
 const BLUR = `function () {
   const held = globalThis.${HELD};
   if (!held) return false;
-  const stop = (event) => { event.stopImmediatePropagation(); };
-  let win = held.el.ownerDocument.defaultView;
-  while (win) {
-    for (const type of ["blur", "focusout", "focus", "focusin"]) {
-      win.addEventListener(type, stop, true);
-      held.guards.push([win, type, stop]);
-    }
-    let frame = null;
-    try { frame = win.frameElement; } catch (e) { frame = null; }
-    win = frame ? frame.ownerDocument.defaultView : null;
-  }
   held.el.blur();
   const root = held.el.getRootNode();
   return root.activeElement !== held.el;
 }`;
 
 /**
- * Gives focus back to the kept element, takes the listeners away, and forgets the element. Returns whether
- * focus is on it again.
+ * Gives focus back to the kept element, with the guard still held by the caller, and forgets the element.
+ * Returns whether focus is on it again.
  */
 const REFOCUS = `function () {
   const held = globalThis.${HELD};
   if (!held) return false;
   let back = false;
   try {
-    for (const animation of held.paused.splice(0)) { try { animation.play(); } catch (e) {} }
     held.el.focus({ preventScroll: true });
     back = held.el.getRootNode().activeElement === held.el;
   } finally {
-    for (const [win, type, stop] of held.guards) win.removeEventListener(type, stop, true);
     delete globalThis.${HELD};
   }
   return back;
 }`;
 
 /**
- * Holds the page still for a screenshot: every finite animation and transition, in the page and its same-origin
- * frames (shadow roots included), is run to its end, so a ring that grows in is judged as it ends; every
- * infinite one is paused where it is, and kept, for `RESUME` to play on. Playwright's own
- * `animations: "disabled"` is not used, because it cancels an infinite animation back to the element's style
- * without it, which hides a pulsing ring (V4).
+ * Holds the page still for a screenshot, in the page and its same-origin frames (shadow roots included). Each
+ * running animation and transition is paused, its `currentTime` kept, and a finite one is set to its end while
+ * paused, so a ring that grows in is judged as it ends. A paused animation set to its end is not finished, so
+ * no `finish`, `animationend` or `transitionend` event is heard. An infinite one is paused where it is.
+ * `RESUME` puts every one back. Playwright's own `animations: "disabled"` is not used, because it finishes the
+ * finite ones for good and cancels an infinite one back to the element's style without it, which hides a
+ * pulsing ring (V4).
  */
-const STILL = `function () {
+const STILL = `function (only) {
   const held = globalThis.${HELD};
-  const paused = held ? held.paused : [];
+  const kept = held ? held.paused : [];
   const docs = [document];
   for (let i = 0; i < docs.length && i < 50; i++) {
     for (const frame of docs[i].querySelectorAll("iframe, frame")) {
@@ -232,23 +218,39 @@ const STILL = `function () {
     try { animations = doc.getAnimations(); } catch (e) { animations = []; }
     for (const animation of animations) {
       try {
+        if (animation.playState !== "running") continue;
+        const name = animation.animationName ?? animation.transitionProperty ?? "";
+        // Asked with no names: only reads which are running. Asked with names: holds just those, which the
+        // guard was told to listen for before this call, so none of their events can slip past it.
+        if (only === null) { kept.push({ name }); continue; }
+        if (!only.includes(name)) continue;
         const end = animation.effect ? animation.effect.getComputedTiming().endTime : 0;
-        if (end === Infinity) {
-          if (animation.playState === "running") { animation.pause(); paused.push(animation); }
-        } else {
-          animation.finish();
-        }
+        const time = animation.currentTime;
+        const rate = animation.playbackRate;
+        animation.pause();
+        kept.push({ animation, time, rate, at: performance.now(), name });
+        if (typeof end === "number" && end !== Infinity) animation.currentTime = rate < 0 ? 0 : end;
       } catch (e) {}
     }
   }
-  return true;
+  return only === null ? kept.splice(0).map((k) => k.name) : true;
 }`;
 
-/** Plays on the infinite animations `STILL` paused. */
+/** Puts back what `STILL` held: each animation at the time it was paused at, plus the time since, playing again. */
 const RESUME = `function () {
   const held = globalThis.${HELD};
   if (!held) return;
-  for (const animation of held.paused.splice(0)) { try { animation.play(); } catch (e) {} }
+  for (const { animation, time, rate, at } of held.paused.splice(0)) {
+    try {
+      if (animation.playbackRate === rate) {
+        // Put back at the time it was paused at, plus the time that has passed since, as it would have run.
+        const end = animation.effect ? animation.effect.getComputedTiming().endTime : 0;
+        const now = time + (performance.now() - at) * rate;
+        animation.currentTime = typeof end === "number" ? Math.max(0, Math.min(now, end)) : now;
+      }
+      animation.play();
+    } catch (e) {}
+  }
 }`;
 
 /** The element's box in the top page's window, and the window's size, as read and checked. */
@@ -380,6 +382,7 @@ export class FocusVisibleCheck {
     private readonly page: Page,
     private readonly pageKey: string,
     private readonly reader: FocusReader,
+    private readonly guard: FocusGuard,
   ) {}
 
   /** Looks at the stop focus is on now. Never throws for what the page does: a stop it cannot measure is *needs review*. */
@@ -415,24 +418,41 @@ export class FocusVisibleCheck {
     this.shots += 1;
     let verdict: Verdict;
     try {
-      const shot = async (): Promise<Buffer> => {
-        await this.reader.call(STILL);
+      // Each shot is taken with the page held still, and its styles read in that same stillness, so an animated
+      // ring is judged as it ends; the animations are put back before the next thing happens.
+      const shot = async (): Promise<{ png: Buffer; styles: string[][] | undefined }> => {
+        // Which animations are running, read first with nothing held; the guard is told to stop their events
+        // before any of them is set to its end, so no event can be dispatched between the two. Those are the
+        // ones held; they are let through again once they have been put back and the browser has caught up.
+        const running = await this.reader.call(STILL, null);
+        const names = Array.isArray(running) ? running.filter((n): n is string => typeof n === "string") : [];
+        await this.guard.still(names);
+        await this.reader.call(STILL, names);
         try {
           // `caret: "initial"`: Playwright's own caret hiding writes a style attribute on every field and leaves
           // it behind, empty; the caret is hidden by `NO_TRANSITIONS` instead.
-          return await this.page.screenshot({ clip, caret: "initial", scale: "css", style: NO_TRANSITIONS });
+          const png = await this.page.screenshot({
+            clip,
+            caret: "initial",
+            scale: "css",
+            style: NO_TRANSITIONS,
+          });
+          return { png, styles: stylesOf(await this.reader.call(STYLES)) };
         } finally {
           await this.reader.call(RESUME);
+          await this.guard.settle();
         }
       };
-      const focusedShot = await shot();
-      // Read after the screenshot, which has run any animation to its end.
-      const focusedStyles = stylesOf(await this.reader.call(STYLES));
+      const focused = await shot();
+      await this.guard.hold(true);
       if ((await this.reader.call(BLUR)) !== true) throw new Error("focus did not leave the element");
-      const unfocusedShot = await shot();
-      const unfocusedStyles = stylesOf(await this.reader.call(STYLES));
+      const unfocused = await shot();
       await this.giveBack();
+      const focusedStyles = focused.styles;
+      const unfocusedStyles = unfocused.styles;
       if (focusedStyles === undefined || unfocusedStyles === undefined) throw new Error("unreadable styles");
+      const focusedShot = focused.png;
+      const unfocusedShot = unfocused.png;
       const a = decodePng(focusedShot);
       const b = decodePng(unfocusedShot);
       const share = changedPixels(a, b, PIXEL_TOLERANCE) / (a.width * a.height);
@@ -448,6 +468,8 @@ export class FocusVisibleCheck {
   /** Puts focus back on the kept element, if it is kept; when that fails, the check stops taking screenshots. */
   private async giveBack(): Promise<void> {
     const back = await this.reader.call(REFOCUS).catch(() => false);
+    // Last: the events the refocus fired have been stopped before the guard is let go.
+    await this.guard.hold(false).catch(() => undefined);
     if (back !== true) this.stopped = true;
   }
 

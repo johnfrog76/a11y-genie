@@ -1,0 +1,38 @@
+<!doctype html>
+<!--
+  Fixture: a page that listens for focus on `window`, in the capture phase, from the first line of its script: the
+  first listeners in line. It counts every blur, focusout, focus and focusin it hears, on `body`'s data attributes.
+  The focus-visible check takes focus off each stop and gives it back, and the page must hear none of that, so
+  the counts are the same with the check as without it (test/browser/focus-visible.test.ts).
+  Must fire:     genie/focus-visible on #one and #two, whose outline is taken away
+  Must not fire: any axe-core rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Listening for focus</title>
+    <script>
+      for (const type of ["blur", "focusout", "focus", "focusin"]) {
+        window.addEventListener(
+          type,
+          () => {
+            const d = document.body.dataset;
+            d[type] = String(Number(d[type] ?? 0) + 1);
+          },
+          true,
+        );
+      }
+    </script>
+    <style>
+      a:focus { outline: none; }
+    </style>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <main>
+      <h1>Listening for focus</h1>
+      <p><a id="one" href="#one">One</a></p>
+      <p><a id="two" href="#two">Two</a></p>
+    </main>
+  </body>
+</html>

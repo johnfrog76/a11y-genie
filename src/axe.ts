@@ -14,6 +14,7 @@ import { mapAxeResults, pageKeyOf } from "./map-axe.js";
 import { orderFindings } from "./order.js";
 import { BEST_PRACTICE_TAG } from "./rule-flags.js";
 import { checkSkipLink, focusedIsSkipLink, SKIP_LINK_STOPS } from "./skip-link.js";
+import { FocusGuard } from "./focus-guard.js";
 import { FocusReader, walkPage, type Walk } from "./walk.js";
 
 /**
@@ -74,8 +75,13 @@ export async function scanPage(
   let noSkipLink: Finding | undefined;
   let seen: FocusVisibleResult;
   const reader = bestPractice || focusVisibleTags ? await FocusReader.open(page) : undefined;
+  // The guard that shields the page from the check's blur and refocus (src/focus-guard.ts). It is first in line
+  // when `FocusGuard.install` ran before the page loaded, as `runScan` does.
+  const guard = reader !== undefined && focusVisibleTags ? await FocusGuard.of(page) : undefined;
   const focusVisible =
-    reader !== undefined && focusVisibleTags ? new FocusVisibleCheck(page, pageKey, reader) : undefined;
+    reader !== undefined && guard !== undefined
+      ? new FocusVisibleCheck(page, pageKey, reader, guard)
+      : undefined;
   let walk: Walk;
   try {
     walk = await walkPage(page, {

@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { scanPage } from "../../src/axe.js";
 import { withBrowser } from "../../src/browser.js";
 import type { AxeScan, Finding, NeedsReview } from "../../src/finding.js";
+import { FocusGuard } from "../../src/focus-guard.js";
 import { MAX_SCREENSHOT_STOPS } from "../../src/focus-visible.js";
 import { wordingOf } from "../../src/plain.js";
 import { runScan } from "../../src/run-scan.js";
@@ -29,6 +30,8 @@ describe.skipIf(!hasChrome)("focus visible (skipped where Chrome is not installe
     review: NeedsReview | undefined;
     /** What the page itself recorded, from its `body` data attributes, after the scan. */
     data: Record<string, string>;
+    /** What the page's own `window.report()` said after the scan, when it has one. */
+    report: string | undefined;
   }
 
   /** Scans a fixture page, or `html` set as its content, with `tags` (`--tags`) when given. */
@@ -37,12 +40,16 @@ describe.skipIf(!hasChrome)("focus visible (skipped where Chrome is not installe
       const context = await browser.newContext();
       const attempted = await guardContext(context, server.origin);
       const tab = await context.newPage();
+      // Before the page loads, as `runScan` does: the guard is then first in line.
+      await FocusGuard.install(tab);
       await tab.goto(server.url(page));
       if (html !== undefined) await tab.setContent(html);
       const result = await scanPage(tab, undefined, tags, { maxTabs: 1000 });
       const data = (await tab.evaluate("({ ...document.body.dataset })")) as Record<string, string>;
+      const report = (await tab.evaluate("window.report?.()")) as string | undefined;
       expect(attempted).toEqual([]);
       return {
+        report,
         result,
         finding: result.findings.find((f) => f.rule.id === "focus-visible"),
         review: result.needsReview.find((n) => n.rule.id === "focus-visible"),
@@ -128,6 +135,50 @@ describe.skipIf(!hasChrome)("focus visible (skipped where Chrome is not installe
     expect(withIt.data).toEqual(without.data);
     // The menu closed once, when the walk's own Tab left it, not when the check took focus off a link in it.
     expect(withIt.data.closed).toBe("1");
+  });
+
+  it("focus-listening.html: a capture listener on window, added at load, hears the same events with the check as without it", async () => {
+    const without = await scan("focus-listening.html", ["wcag2a", "best-practice"]);
+    const withIt = await scan("focus-listening.html", ["wcag2a", "best-practice", "wcag2aa"]);
+    expect(without.finding).toBeUndefined();
+    expect(withIt.finding?.elements.map((e) => e.selector)).toEqual(["#one", "#two"]);
+    // The walk's own two Tabs and its wrap-around: the page hears them, and nothing the check did.
+    expect(Number(without.data.focusin)).toBeGreaterThan(0);
+    expect(withIt.data).toEqual(without.data);
+  });
+
+  it("focus-running.html: a running animation and transition keep their time and play state, and fire no end event", async () => {
+    const read = (s: Scanned) =>
+      JSON.parse(s.report ?? "null") as {
+        elapsed: number;
+        animations: { id: string; time: number; state: string }[];
+      };
+    const without = await scan("focus-running.html", ["wcag2a", "best-practice"]);
+    const withIt = await scan("focus-running.html", ["wcag2a", "best-practice", "wcag2aa"]);
+    expect(withIt.finding?.elements.map((e) => e.selector)).toEqual(["#one", "#two"]);
+    const a = read(without);
+    const b = read(withIt);
+    expect(b.animations.map((x) => [x.id, x.state])).toEqual(a.animations.map((x) => [x.id, x.state]));
+    expect(b.animations.map((x) => x.id).sort()).toEqual(["animation", "transition"]);
+    for (const x of b.animations) {
+      expect(x.state).toBe("running");
+      // Each is where the page's own clock says it should be, as it is without the check: not at its end, and
+      // not behind by the time the check held it still.
+      expect(x.time).toBeLessThan(30_000);
+      expect(Math.abs(x.time - b.elapsed)).toBeLessThan(500);
+    }
+    expect(withIt.data).toEqual({});
+    for (const name of [
+      "animationend",
+      "transitionend",
+      "animationcancel",
+      "transitioncancel",
+      "finish",
+      "cancel",
+    ]) {
+      expect(withIt.data[name], name).toBeUndefined();
+    }
+    expect(withIt.data).toEqual(without.data);
   });
 
   it("the walk and the trap check read the same with the check as without it", async () => {

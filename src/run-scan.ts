@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import type { Browser, BrowserContext, Page } from "playwright-core";
 import { scanPage } from "./axe.js";
+import { FocusGuard } from "./focus-guard.js";
 import { actionSteps, applyMedia, runSteps, SETTLE_MS, StepFailure } from "./drive.js";
 import type { BrowserChannel } from "./browser.js";
 import { withChosenBrowser, type BrowserChoiceDeps } from "./browser-choice.js";
@@ -520,6 +521,8 @@ export async function runScan(options: RunScanOptions): Promise<ScanRecord> {
           });
           await options.onContext?.(context);
           const tab = await context.newPage();
+          // Before the page loads, so the focus guard is first in line in its documents (src/focus-guard.ts).
+          await FocusGuard.install(tab).catch(() => undefined);
           await guard.watchMainPage(tab);
           await applyMedia(tab, state.steps);
           const loaded = await loadAndScan(tab, guard, options, limits, { url: spec.url, key, state, first });

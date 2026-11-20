@@ -588,10 +588,22 @@ indicator drawn away from the element (outside it, its two nearest ancestors' st
 is not seen; check focus by hand where a design draws it elsewhere (WCAG 2.4.7)."
 
 **Animations (V4).** A ring that comes in by a transition or an animation is judged as it ends. Before each
-screenshot, every finite animation and transition of the page, its same-origin frames and the shadow roots the
-element is in is run to its end (`Animation.finish()`), and a style turns transitions off for as long as the
-screenshot takes (Playwright's `style` option, which reaches shadow roots and frames). An infinite animation is
-paused where it is, and played on after the screenshot. Playwright's own `animations: "disabled"` is not used,
+screenshot, every running animation and transition of the page, its same-origin frames and the shadow roots the
+element is in is paused, its `currentTime` kept, and a finite one is set to its end while paused; a style turns
+transitions off for as long as the screenshot takes (Playwright's `style` option, which reaches shadow roots and
+frames). An infinite animation is paused where it is. After the screenshot each one is put back at the time it
+was paused at plus the time that has passed since, and played on, so it ends where it would have without the
+check, not early and not late. Nothing is finished, so no `finish` event fires; setting a paused CSS animation or
+transition to its end does queue its `animationend` or `transitionend`, so the guard (`src/focus-guard.ts`)
+also stops those two kinds of event, and `animationstart`, `animationiteration`, `animationcancel`,
+`transitionrun`, `transitionstart` and `transitioncancel`, for the animations the check named (it names them, with the guard, before it sets any of them to its end, so no
+event can be dispatched in between, and holds only those), until three frames have been
+drawn after they are put back (the browser dispatches animation events in the step that opens a frame, before that
+frame's `requestAnimationFrame` callbacks, so the wait follows frames and not a clock; only a page that draws no
+frames, such as a hidden one, ends it at a ten-second cap); the page's other animations' events pass. The styles of the focused and the
+unfocused element are read inside the same stillness, so an animated ring is judged as it ends
+(`focus-running.html`: a 60 s animation and transition, running when the check reaches them, are within half a
+second of where the page's own clock puts them, with no end event heard). Playwright's own `animations: "disabled"` is not used,
 because it cancels an infinite animation back to the style without it: with it, `#pulse`'s ring was gone from the
 focused screenshot (0 pixels changed, needs review). With neither, `#slide` and `#grow`, whose rings start after
 a second, were photographed before them and read as findings. The caret is hidden by the same style.
@@ -599,16 +611,23 @@ Playwright's own `caret: "hide"` is not used either: it writes a `style` attribu
 there, empty, which changed the HTML the trap check quotes.
 
 **The page is left as it was.** Focus is taken off the element with `blur()` and given back with `focus()`
-(`preventScroll`) in the isolated world. For that moment, listeners of the isolated world on each window from the
-element's own to the top stop the `blur`, `focusout`, `focus` and `focusin` events in their capture phase, so the
-page's own handlers never see them: a menu that closes when focus leaves it stays open (`focus-watched.html`,
-whose counts of focus and blur events, and whose walk, are the same with the check as without it). Focus ends on
+(`preventScroll`) in the isolated world. For that moment, a guard (`src/focus-guard.ts`) stops the `blur`,
+`focusout`, `focus` and `focusin` events, so the page's own handlers never see them: a menu that closes when
+focus leaves it stays open (`focus-watched.html`, whose counts of focus and blur events, and whose walk, are the
+same with the check as without it). The guard is first in line: `runScan` installs it before the page navigates
+(`FocusGuard.install`, `Page.addScriptToEvaluateOnNewDocument` into an isolated world of its own, in every
+document the page opens, frames included), and it sits dormant, with capture-phase listeners on `window` for the
+four events that do nothing, until the check switches it on around its blur and refocus and off after. So a
+listener of the page's own on `window` in the capture phase, added at load, is behind it and hears nothing
+(`focus-listening.html`, `focus-running.html`, whose counts are the same with the check as without it). Verified in Chrome: a
+listener added from an isolated world and stopping an event with `stopImmediatePropagation()` stops the page's
+own main-world listeners after it on the same target, as the browser keeps one list of listeners per target.
+A scan of a page that was already loaded when it began (a caller that did not install the guard) gets a late
+guard, behind whatever the page added; `runScan` never does. Focus ends on
 the element Tab put it on, so the walk's next Tab goes on from there, and the trap check reads the same walk and
 the same trap with the check as without it (`trap.html`, `trap-stuck.html`, `walk-order.html`, `walk-shadow.html`,
 `walk-frame.html`). If focus cannot be given back, the check takes no more screenshots on that walk, and the rest
-of its stops are *needs review*. What the page can still notice: a listener of its own on `window` in the capture
-phase, added before the check's, hears the events; the screenshot style is a `style` element added and removed;
-and an animation run to its end fires its `animationend` or `transitionend`, as it would have later.
+of its stops are *needs review*. What the page can still notice: the screenshot style is a `style` element added and removed.
 
 **The screenshots stay in memory.** Each pair is decoded in Node (`src/png.ts`, a small reader of Chrome's 8-bit
 RGB and RGBA PNGs, on Node's own zlib), compared, and dropped. No screenshot is written to disk, to `scan.json`
@@ -620,14 +639,14 @@ on a laptop (a page of 30 buttons, 2.2 s with the check and 0.3 s without; 100 b
 most `MAX_SCREENSHOT_STOPS` (100) stops of each walk get screenshots, about 7 s; each stop after them is a
 *needs review* item saying it was not looked at, and why. With the default `--max-tabs` of 200 that is at most 100
 such items a state. Fixtures: `focus-custom-ok.html`, `focus-hidden.html`, `focus-faint.html`,
-`focus-animated.html`, `focus-watched.html`, `focus-elsewhere.html`; tests: `test/browser/focus-visible.test.ts`,
+`focus-animated.html`, `focus-watched.html`, `focus-listening.html`, `focus-elsewhere.html`; tests: `test/browser/focus-visible.test.ts`,
 `test/unit/focus-visible.test.ts`.
 
 ### Reading the accessibility tree (`src/a11y-tree.ts`)
 
 Narration (spec 6.6, M9) reads, after each key of a flow, what the browser's accessibility tree says of the
 element focus is on, and writes the line a screen reader would say for it. This part is the reader and the line;
-the `narrate` command, its transcript and `genie/unnamed-step` come next. It is not a screen reader: it says what
+the `narrate` command, its transcript and `genie/unnamed-step` are in *Narration*, below. It is not a screen reader: it says what
 Chrome's tree holds, in words of its own, and NVDA, JAWS and VoiceOver each say it their own way.
 
 **Two sources, compared (V6).** Checked at Chrome 158 (headless, Playwright 1.65.1) on each control of

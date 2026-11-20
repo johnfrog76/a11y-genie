@@ -36,7 +36,7 @@ export const UNNAMED_STEP_RULE = {
 
 /**
  * The tags the rule carries, as `rules` lists them. They do not gate it: a flow someone asked to narrate is
- * always read, whatever `--tags` says. The `wcag2a` tag is left off on purpose: see docs/ARCHITECTURE.md.
+ * always read, whatever `--tags` says. `wcag2a` is there like on the other level-A own rules (docs/ARCHITECTURE.md).
  */
 export const UNNAMED_STEP_TAGS = ["cat.name-role-value", "wcag2a", "wcag412"] as const;
 
