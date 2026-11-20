@@ -579,6 +579,14 @@ of its two nearest ancestors: an outline with a large `outline-offset` changes `
 element out of the findings, and at most it is *needs review*: the check is never wrong about an indicator drawn
 that way.
 
+**Where a scan can be wrong.** An indicator drawn by something else, and more than 4 px away, changes nothing the
+check reads: focus shown only on a sibling (`#save` in `focus-elsewhere.html`, whose status line 40 px below fills
+in), or only by a pseudo-element (`#help`, whose `::after` bar sits 12 px below it; pseudo-elements' styles are not
+read). Both are read as no visible change, and are findings, though a person can see where focus is. The test
+holds this limit as it is, and *What this scan cannot see* has a fixed line for it, in every record: "A focus
+indicator drawn away from the element (outside it, its two nearest ancestors' styles, and a few pixels around it)
+is not seen; check focus by hand where a design draws it elsewhere (WCAG 2.4.7)."
+
 **Animations (V4).** A ring that comes in by a transition or an animation is judged as it ends. Before each
 screenshot, every finite animation and transition of the page, its same-origin frames and the shadow roots the
 element is in is run to its end (`Animation.finish()`), and a style turns transitions off for as long as the
@@ -612,7 +620,7 @@ on a laptop (a page of 30 buttons, 2.2 s with the check and 0.3 s without; 100 b
 most `MAX_SCREENSHOT_STOPS` (100) stops of each walk get screenshots, about 7 s; each stop after them is a
 *needs review* item saying it was not looked at, and why. With the default `--max-tabs` of 200 that is at most 100
 such items a state. Fixtures: `focus-custom-ok.html`, `focus-hidden.html`, `focus-faint.html`,
-`focus-animated.html`, `focus-watched.html`; tests: `test/browser/focus-visible.test.ts`,
+`focus-animated.html`, `focus-watched.html`, `focus-elsewhere.html`; tests: `test/browser/focus-visible.test.ts`,
 `test/unit/focus-visible.test.ts`.
 
 ### Plain words (`src/plain.ts`)

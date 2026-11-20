@@ -81,6 +81,7 @@ Automated rules find only some problems. A person has to check what they cannot.
 
 - Whether focus follows the reading order when you press Tab (WCAG 2.4.3).
 - Whether the focus indicator is easy to see against every background it lands on (WCAG 2.4.7, 1.4.11).
+- A focus indicator drawn away from the element (outside it, its two nearest ancestors' styles, and a few pixels around it) is not seen; check focus by hand where a design draws it elsewhere (WCAG 2.4.7).
 - Whether every image's alternative text says what the image is for (WCAG 1.1.1).
 - Whether headings and labels describe what follows them (WCAG 2.4.6).
 - Whether anything is shown by colour alone (WCAG 1.4.1).

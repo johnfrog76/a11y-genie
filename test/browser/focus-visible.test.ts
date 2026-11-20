@@ -5,6 +5,7 @@ import type { AxeScan, Finding, NeedsReview } from "../../src/finding.js";
 import { MAX_SCREENSHOT_STOPS } from "../../src/focus-visible.js";
 import { wordingOf } from "../../src/plain.js";
 import { runScan } from "../../src/run-scan.js";
+import { CANNOT_SEE } from "../../src/scan-record.js";
 import { chromeIsInstalled, guardContext } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 
@@ -88,6 +89,17 @@ describe.skipIf(!hasChrome)("focus visible (skipped where Chrome is not installe
       expect(finding, page).toBeUndefined();
       expect(review, page).toBeUndefined();
     }
+  });
+
+  it("focus-elsewhere.html: an indicator drawn away from the element is not seen, as What this scan cannot see says", async () => {
+    // A known limit: the indicator is on a sibling 40 px away, and on a pseudo-element 12 px away, so neither a
+    // style the check reads nor a pixel of the padded box changes. The fixed list names it (CANNOT_SEE).
+    const { finding, review } = await scan("focus-elsewhere.html");
+    expect(finding?.elements.map((e) => e.selector)).toEqual(["#save", "#help"]);
+    expect(review).toBeUndefined();
+    expect(CANNOT_SEE.some((line) => line.startsWith("A focus indicator drawn away from the element"))).toBe(
+      true,
+    );
   });
 
   it("focus-faint.html: a change too faint to see is needs review, not a finding", async () => {

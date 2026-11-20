@@ -1,0 +1,43 @@
+<!doctype html>
+<!--
+  Fixture: focus shown away from the element, where the check does not look. Its indicator can be seen, but it is
+  drawn neither by the element's styles nor by its two nearest ancestors', and further than 4 px from it.
+  Must fire:     genie/focus-visible on #save and #help. This is a known limit, not a bug in the page: a scan
+                 reads it as no visible change, which is why "What this scan cannot see" names it
+                 (test/browser/focus-visible.test.ts).
+  Must not fire: any axe-core rule
+  #save's focus shows only on a sibling 40 px below it, a status line that fills in; #help's shows only as a bar
+  drawn by its own ::after pseudo-element, 12 px below it.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Focus shown elsewhere</title>
+    <style>
+      button { outline: none; }
+      .status { margin-top: 40px; padding: 4px; }
+      #save:focus-visible ~ .status { background: #1a5fb4; color: #ffffff; }
+      #help { position: relative; margin-top: 24px; }
+      #help:focus-visible::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -12px;
+        height: 3px;
+        background: #1a5fb4;
+      }
+    </style>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <main>
+      <h1>Focus shown elsewhere</h1>
+      <div>
+        <button id="save" type="button">Save</button>
+        <p class="status">Saves your changes</p>
+      </div>
+      <div><button id="help" type="button">Help</button></div>
+    </main>
+  </body>
+</html>
