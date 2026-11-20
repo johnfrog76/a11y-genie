@@ -38,12 +38,14 @@ export const SCHEMA_VERSION = "1.9";
 /**
  * What a scan cannot see: the questions a person has to answer, because automated rules cannot. Fixed
  * text, the same in every report, with any number of findings or none. It is the guided checklist's seed
- * list (spec 6.7), in the checklist's order. A record's `cannotSee` is this list, then a line for each page
+ * list (spec 6.7), in the checklist's order, with one line of the product's own after the focus indicator's: where
+ * `genie/focus-visible` cannot see an indicator (src/focus-visible.ts). A record's `cannotSee` is this list, then a line for each page
  * where a native modal dialog was open (`nativeModalLine`, src/keyboard-trap.ts).
  */
 export const CANNOT_SEE: readonly string[] = [
   "Whether focus follows the reading order when you press Tab (WCAG 2.4.3).",
   "Whether the focus indicator is easy to see against every background it lands on (WCAG 2.4.7, 1.4.11).",
+  "A focus indicator drawn away from the element (outside it, its two nearest ancestors' styles, and a few pixels around it) is not seen; check focus by hand where a design draws it elsewhere (WCAG 2.4.7).",
   "Whether every image's alternative text says what the image is for (WCAG 1.1.1).",
   "Whether headings and labels describe what follows them (WCAG 2.4.6).",
   "Whether anything is shown by colour alone (WCAG 1.4.1).",

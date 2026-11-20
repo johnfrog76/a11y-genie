@@ -46,6 +46,7 @@ describe("a11y-genie rules", () => {
     expect(stdout).toContain("genie/skip-link");
     expect(stdout).toContain("genie/keyboard-trap");
     expect(stdout).toContain("genie/focus-not-returned");
+    expect(stdout).toContain("genie/focus-visible");
     expect(stdout).toContain(`axe-core ${axe.version}`);
   });
 
@@ -69,9 +70,12 @@ describe("a11y-genie rules", () => {
     expect(doc.rules.some((r) => r.id === "no-landmarks")).toBe(true);
     for (const r of doc.rules)
       expect(r.tags.some((t) => ["wcag2aa", "best-practice"].includes(t))).toBe(true);
-    // A tag the product's own rules lack leaves them out; one tag of a rule's keeps it.
-    const wcag = JSON.parse(run("--tags", "wcag2aa", "--json").stdout) as Doc;
-    expect(wcag.rules.some((r) => r.source === "genie")).toBe(false);
+    // A tag no own rule carries leaves them all out; one tag of a rule's keeps it. `wcag2aa` keeps exactly the
+    // level-AA own rules, and `wcag2a` the level-A ones.
+    const none = JSON.parse(run("--tags", "wcag21aa", "--json").stdout) as Doc;
+    expect(none.rules.some((r) => r.source === "genie")).toBe(false);
+    const levelAA = JSON.parse(run("--tags", "wcag2aa", "--json").stdout) as Doc;
+    expect(levelAA.rules.filter((r) => r.source === "genie").map((r) => r.id)).toEqual(["focus-visible"]);
     const levelA = JSON.parse(run("--tags", "wcag2a", "--json").stdout) as Doc;
     expect(levelA.rules.filter((r) => r.source === "genie").map((r) => r.id)).toEqual([
       "click-on-non-control",
@@ -114,6 +118,12 @@ describe("a11y-genie rules", () => {
       impact: "moderate",
       wcag: ["2.4.3"],
       tags: ["cat.keyboard", "wcag2a", "wcag243"],
+    });
+    const focusVisible = doc.rules.find((r) => r.source === "genie" && r.id === "focus-visible");
+    expect(focusVisible).toMatchObject({
+      impact: "serious",
+      wcag: ["2.4.7"],
+      tags: ["cat.keyboard", "wcag2aa", "wcag247"],
     });
   });
 

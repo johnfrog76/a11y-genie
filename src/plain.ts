@@ -107,6 +107,12 @@ export const RULE_WORDING: Readonly<Record<string, RuleWording>> = Object.freeze
       "When Escape closes this dialog, focus does not go back to the control that opened it, so a keyboard or screen-reader user loses their place on the page and has to find it again.",
     fix: "When the dialog closes, move focus back to the control that opened it: keep a reference to that control when the dialog opens, and call its focus() method when it closes.",
   },
+  "genie/focus-visible": {
+    title: "No visible sign of keyboard focus",
+    plain:
+      "When the Tab key moves focus to this element, nothing about it changes on screen, so a person using a keyboard cannot see where they are on the page or what Enter will press.",
+    fix: "Give it a focus style that can be seen: do not remove the outline with outline: none unless something takes its place, such as an outline or a box-shadow ring in :focus-visible. If the page shows focus somewhere else, such as a highlight on another element, check it by hand.",
+  },
   "genie/keyboard-trap": {
     title: "Keyboard focus trapped in one part",
     plain:
@@ -160,6 +166,10 @@ export const CRITERION_WORDING: Readonly<Record<string, CriterionWording>> = Obj
     plain: "focus must move through the page in an order that keeps its meaning and use",
   },
   "2.4.4": { name: "Link Purpose (In Context)", plain: "each link must say where it goes" },
+  "2.4.7": {
+    name: "Focus Visible",
+    plain: "a keyboard user must be able to see which element has focus",
+  },
   "4.1.2": {
     name: "Name, Role, Value",
     plain: "every control must have a name and say what kind of control it is",

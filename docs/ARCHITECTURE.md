@@ -363,7 +363,8 @@ A link counts only when it belongs to the top document: its fragment is resolved
 `ownerDocument`, so a fragment link inside a same-origin frame, which scrolls only the frame, is not a skip link,
 while one in a shadow root is. Every read it makes of the page (the focused element, the tabbable count, the
 landmarks and headings, the body's opening tag) runs in an
-isolated world through a `FocusReader` of its own, so a page that overrides `document.activeElement`,
+isolated world through a `FocusReader` that `scanPage` opens for the walk's checks (the focus-visible check
+shares it), so a page that overrides `document.activeElement`,
 `getAttribute`, `matches`, `querySelector` or `getElementById` cannot hide a missing skip link or fake one.
 Advice never changes the exit code. Fixtures: `no-skip-link.html`, `no-skip-no-structure.html`,
 `skip-link-ok.html`, `skip-link-broken.html`, `few-tabbable.html`, `skip-link-tampered.html`,
@@ -374,8 +375,8 @@ Advice never changes the exit code. Fixtures: `no-skip-link.html`, `no-skip-no-s
 
 The walk (spec 6.5) presses Tab from the top of the page, up to `--max-tabs` times (default 200, at most 1000),
 and records where focus lands after each press: a *stop*. It is not a rule and makes no finding: it is a record,
-kept in `scan.json` as `pages[].walks` (docs/JSON.md), that the skip link and the trap check read, and the
-focus-visible check will read. It runs in every state that is scanned, last in `scanPage`, because it moves
+kept in `scan.json` as `pages[].walks` (docs/JSON.md), that the skip link, the trap check and the
+focus-visible check read. It runs in every state that is scanned, last in `scanPage`, because it moves
 focus, and whatever `--tags` says. Each state's walk is kept apart; walks are not merged across states, since
 a trap may exist in one state only.
 
@@ -422,7 +423,7 @@ element has (one entry per document, outermost first; a nested array is a path t
 ` >>> ` joins the parts in `selector`), its tag, the role and accessible name from the browser's own
 accessibility tree (`Accessibility.getPartialAXTree`), and `focusVisible`: whether the element matches
 `:focus-visible`, which says the browser would draw an indicator if the page's styles let it, not that one is
-seen (that is `genie/focus-visible`, M8). Each part of a selector is the element's `id` when that id is unique in
+seen (that is `genie/focus-visible`, below). Each part of a selector is the element's `id` when that id is unique in
 its own root, or a path of `:nth-of-type` steps up to one, as the click check's are; an element at the top of a
 shadow root is anchored with `:host >`, which `shadowRoot.querySelector` reads in Chrome, so the part matches
 that element and nothing deeper. A part longer than 1,000 characters is cut with `…`. The same unchanged page
@@ -444,7 +445,7 @@ taken out, on one line) and cut at 160 characters in `scan.json` (`walk-names.ht
 **For the checks that come next.** `FocusReader` is the walk's reader on its own: open it on a page, move to the
 top, read where focus is after any key, close it. A trap check can press Shift+Tab or Escape and read again with
 the same reader, and compare stops with `sameStop` (the same `target`). `walkPage` calls `onStop` after each stop
-is read, while focus is still on it; the skip link uses it, and a focus-visible check can take its screenshots
+is read, while focus is still on it; the skip link uses it, and the focus-visible check takes its screenshots
 there.
 
 `FocusReader.call` and `FocusReader.callOnFocused` run a check's own function in the reader's isolated world
@@ -514,6 +515,114 @@ returned after a dialog closed by anything but Escape.
 Escape and one Tab, and two or three DevTools Protocol calls after each press. Test:
 `test/browser/keyboard-trap.test.ts`.
 
+### Focus visible (`src/focus-visible.ts`)
+
+`genie/focus-visible` (spec 6.3, serious, WCAG 2.4.7) asks, at each stop of the keyboard walk, whether the Tab
+key's focus changed anything on screen. It is tagged `cat.keyboard`, `wcag2aa` and `wcag247`, as axe-core tags its
+own level AA rules, and runs under the default rule set or a `--tags` list with one of those. It runs inside the
+walk, from its `onStop`, while focus is still where Tab put it, through the one `FocusReader` that `scanPage` opens
+for the walk's checks and shares with the skip link; it presses no key.
+
+**Two comparisons.** For each stop, the element focused and the same element unfocused:
+
+1. the computed `outline-style`, `outline-width`, `outline-color`, `box-shadow`, `border-color`,
+   `background-color` and `text-decoration` of the element and of its first two ancestors (through a shadow
+   root's host), read in the isolated world. An outline whose style is `none` is not drawn, so its width and
+   colour are not compared; and
+2. a screenshot of the element's box padded by 4 px on each side (`PAD_PX`), in the top page's window
+   coordinates (a frame's offset added), cut to the window. The first is taken as Tab left it, so
+   `:focus-visible` applies; the second after focus is taken off it.
+
+A pixel has changed when one of its red, green and blue differs by more than 16 levels of 255
+(`PIXEL_TOLERANCE`). Then:
+
+| Changed pixels | Styles | Result |
+| --- | --- | --- |
+| 1% of the padded box or more (`VISIBLE_SHARE`) | any | visible: nothing |
+| none | none changed | **finding**: focus produced no visible change |
+| fewer than 1% | some changed | *needs review*: "the change may be too faint to see" |
+| some, fewer than 1% | none changed | *needs review*: a few pixels changed, and nothing a scan reads |
+
+So a finding needs both to say nothing changed. Anything in between is for a person to look at, never a finding.
+The check proves that focus produced no visible change, not that a change is enough: whether the indicator stands
+out against its background (WCAG 2.4.7 and 1.4.11) stays on *What this scan cannot see*. A stop it cannot
+photograph is *needs review* too: one outside the window (`#away` in `focus-hidden.html`, a link left at
+`left: -9999px` when it has focus), or one where the screenshot or its reading failed. A stop inside a frame of
+another origin is not looked at: focus inside it cannot be read.
+
+**The threshold (V4).** Measured at Chrome 158 (headless, Playwright 1.65.1), one CSS pixel to a device pixel, on
+the fixtures. The share is of the padded box's pixels that changed by more than 16 levels:
+
+| Fixture, element | Focus style | Changed | Styles changed | Result |
+| --- | --- | --- | --- | --- |
+| `clean.html`, `impact-mix.html`, `walk-long.html` (30 buttons), `walk-shadow.html`, `walk-frame.html`, `skip-link-ok.html` | the browser's own outline | 14% to 23% | outline | visible |
+| `focus-custom-ok.html` `#ring` | `outline: none`, a 3 px `box-shadow` ring | 27% | box-shadow | visible |
+| `focus-custom-ok.html` `#fill` | `outline: none`, the background filled | 51% | background-color | visible |
+| `focus-custom-ok.html` `#name` | `outline: none`, a 3 px border for a 1 px one | 19% | border-color | visible |
+| `skip-link-ok.html`, the skip link | moved into the window from `left: -9999px` | 48% | outline, border, background | visible |
+| `focus-hidden.html` `#plain-link`, `#plain-button` | `outline: none` and nothing else | 0 pixels | none | finding |
+| `focus-faint.html` `#faint-fill` | white background to `#f4f4f4` | 0 (854 pixels changed by 8 levels or more, none by more than 16) | background-color | needs review |
+| `focus-faint.html` `#faint-ring` | a 2 px outline in `#f6f6f6` on white | 0 (364 pixels by 8 or more) | outline | needs review |
+| `focus-animated.html` `#slide`, `#grow`, `#pulse` | a ring by a transition, by an animation, by an endless pulse | 25%, 25%, 24% | box-shadow | visible |
+
+The smallest visible change measured was 14% of the padded box, and every unchanged element changed no pixel at
+all, at any tolerance: the two screenshots are taken in the same run, of the same layout, so nothing but focus
+differs. The 1% the spec gives as the default is far inside that gap and is kept. The tolerance of 16 levels is
+what makes the faint fixtures faint: below it, a change is too small for many people to notice, and with no
+tolerance `#faint-fill` would count as fully changed. A smaller tolerance would pass the faint fixtures as
+visible; a much larger one would start to miss light focus colours.
+
+**Why a finding needs both to say nothing changed.** The screenshots see only the element and 4 px around it.
+An indicator drawn further out by the properties the check reads still changes one of them on the element or one
+of its two nearest ancestors: an outline with a large `outline-offset` changes `outline-style`, a wide ring changes
+`box-shadow`, a filled parent changes its `background-color`. So with no changed pixel, a style change keeps the
+element out of the findings, and at most it is *needs review*: the check is never wrong about an indicator drawn
+that way.
+
+**Where a scan can be wrong.** An indicator drawn by something else, and more than 4 px away, changes nothing the
+check reads: focus shown only on a sibling (`#save` in `focus-elsewhere.html`, whose status line 40 px below fills
+in), or only by a pseudo-element (`#help`, whose `::after` bar sits 12 px below it; pseudo-elements' styles are not
+read). Both are read as no visible change, and are findings, though a person can see where focus is. The test
+holds this limit as it is, and *What this scan cannot see* has a fixed line for it, in every record: "A focus
+indicator drawn away from the element (outside it, its two nearest ancestors' styles, and a few pixels around it)
+is not seen; check focus by hand where a design draws it elsewhere (WCAG 2.4.7)."
+
+**Animations (V4).** A ring that comes in by a transition or an animation is judged as it ends. Before each
+screenshot, every finite animation and transition of the page, its same-origin frames and the shadow roots the
+element is in is run to its end (`Animation.finish()`), and a style turns transitions off for as long as the
+screenshot takes (Playwright's `style` option, which reaches shadow roots and frames). An infinite animation is
+paused where it is, and played on after the screenshot. Playwright's own `animations: "disabled"` is not used,
+because it cancels an infinite animation back to the style without it: with it, `#pulse`'s ring was gone from the
+focused screenshot (0 pixels changed, needs review). With neither, `#slide` and `#grow`, whose rings start after
+a second, were photographed before them and read as findings. The caret is hidden by the same style.
+Playwright's own `caret: "hide"` is not used either: it writes a `style` attribute on every field and leaves it
+there, empty, which changed the HTML the trap check quotes.
+
+**The page is left as it was.** Focus is taken off the element with `blur()` and given back with `focus()`
+(`preventScroll`) in the isolated world. For that moment, listeners of the isolated world on each window from the
+element's own to the top stop the `blur`, `focusout`, `focus` and `focusin` events in their capture phase, so the
+page's own handlers never see them: a menu that closes when focus leaves it stays open (`focus-watched.html`,
+whose counts of focus and blur events, and whose walk, are the same with the check as without it). Focus ends on
+the element Tab put it on, so the walk's next Tab goes on from there, and the trap check reads the same walk and
+the same trap with the check as without it (`trap.html`, `trap-stuck.html`, `walk-order.html`, `walk-shadow.html`,
+`walk-frame.html`). If focus cannot be given back, the check takes no more screenshots on that walk, and the rest
+of its stops are *needs review*. What the page can still notice: a listener of its own on `window` in the capture
+phase, added before the check's, hears the events; the screenshot style is a `style` element added and removed;
+and an animation run to its end fires its `animationend` or `transitionend`, as it would have later.
+
+**The screenshots stay in memory.** Each pair is decoded in Node (`src/png.ts`, a small reader of Chrome's 8-bit
+RGB and RGBA PNGs, on Node's own zlib), compared, and dropped. No screenshot is written to disk, to `scan.json`
+or to the report; the record holds only the finding or the *needs review* item, with the element's selector and
+HTML excerpt, as any other check's.
+
+**The cost, and the cap.** Two screenshots and about a dozen DevTools Protocol calls a stop: about 65 ms a stop
+on a laptop (a page of 30 buttons, 2.2 s with the check and 0.3 s without; 100 buttons, 6.9 s and 0.3 s). So at
+most `MAX_SCREENSHOT_STOPS` (100) stops of each walk get screenshots, about 7 s; each stop after them is a
+*needs review* item saying it was not looked at, and why. With the default `--max-tabs` of 200 that is at most 100
+such items a state. Fixtures: `focus-custom-ok.html`, `focus-hidden.html`, `focus-faint.html`,
+`focus-animated.html`, `focus-watched.html`, `focus-elsewhere.html`; tests: `test/browser/focus-visible.test.ts`,
+`test/unit/focus-visible.test.ts`.
+
 ### Plain words (`src/plain.ts`)
 
 A finding's `plain` (what is wrong, and who it hurts) and `fix` (what to change), and the short `title` that
@@ -550,11 +659,13 @@ fails when it is, at the pinned version). The own rules come from one registry, 
 calls `registerGenieRule` in its module (`src/landmarks.ts` does, for `genie/no-landmarks`, `moderate`, tagged
 `best-practice`; `src/click-on-non-control.ts` does, for `genie/click-on-non-control`, `serious`, tagged
 `cat.keyboard`, `wcag2a`, `wcag211` and `wcag412`; `src/keyboard-trap.ts` does, for `genie/keyboard-trap`,
-`critical`, and `genie/focus-not-returned`, `moderate`, both tagged `cat.keyboard` and `wcag2a`), and
+`critical`, and `genie/focus-not-returned`, `moderate`, both tagged `cat.keyboard` and `wcag2a`;
+`src/focus-visible.ts` does, for `genie/focus-visible`, `serious`, tagged `cat.keyboard`, `wcag2aa` and `wcag247`), and
 `src/rules-command.ts` imports that module. A check added later registers itself and
 imports it there, and a rule not built yet is not listed. `--tags` keeps the rules that carry any of the tags,
 as axe-core's own `--tags` runs them, so a list without `best-practice` leaves the landmark rules out, and one
-without `wcag2a` (or another of its tags) leaves out `genie/click-on-non-control`.
+without `wcag2a` (or another of its tags) leaves out `genie/click-on-non-control`, and one without `wcag2aa` (or
+`cat.keyboard` or `wcag247`) leaves out `genie/focus-visible`.
 
 ### The rule flags (`src/rule-flags.ts`)
 

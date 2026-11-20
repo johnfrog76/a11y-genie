@@ -1,0 +1,27 @@
+<!doctype html>
+<!--
+  Fixture: focus styles that change something, but too faintly to see.
+  Must fire:     genie/focus-visible as needs review (not a finding) on #faint-fill and #faint-ring
+  Must not fire: genie/focus-visible as a finding; any axe-core rule
+  #faint-fill turns its white background #f4f4f4 (11 levels of 255); #faint-ring draws an outline in #f6f6f6
+  on white (test/browser/focus-visible.test.ts).
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Faint focus</title>
+    <style>
+      #faint-fill { background: #ffffff; }
+      #faint-fill:focus { outline: none; background: #f4f4f4; }
+      #faint-ring:focus { outline: 2px solid #f6f6f6; }
+    </style>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <main>
+      <h1>Faint focus</h1>
+      <p><a id="faint-fill" href="#more">Read more</a></p>
+      <p><a id="faint-ring" href="#next">Next page</a></p>
+    </main>
+  </body>
+</html>

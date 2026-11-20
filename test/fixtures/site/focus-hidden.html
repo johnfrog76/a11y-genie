@@ -1,0 +1,29 @@
+<!doctype html>
+<!--
+  Fixture: focus styles taken away with outline: none, and nothing put in their place.
+  Must fire:     genie/focus-visible on #plain-link and #plain-button
+  Needs review:  genie/focus-visible on #away, a link that stays outside the window when it has focus,
+                 so no screenshot of it can be taken
+  Must not fire: genie/focus-visible on #kept, which keeps the browser's own outline; any axe-core rule
+  (test/browser/focus-visible.test.ts, claim C8).
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hidden focus</title>
+    <style>
+      .no-ring:focus { outline: none; }
+      #away { position: absolute; left: -9999px; }
+    </style>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <main>
+      <h1>Hidden focus</h1>
+      <p><a id="plain-link" class="no-ring" href="#more">Read more</a></p>
+      <p><button id="plain-button" class="no-ring" type="button">Save</button></p>
+      <p><button id="kept" type="button">Cancel</button></p>
+      <p><a id="away" href="#help">Help</a></p>
+    </main>
+  </body>
+</html>
