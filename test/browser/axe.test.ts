@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { scanPage } from "../../src/axe.js";
+import { FocusGuard } from "../../src/focus-guard.js";
 import { withBrowser } from "../../src/browser.js";
 import type { AxeScan } from "../../src/finding.js";
 import { chromeIsInstalled, guardContext } from "../helpers/browser-guard.js";
@@ -34,6 +35,7 @@ describe.skipIf(!hasChrome)("axe-core on the fixture pages (skipped where Chrome
       const context = await browser.newContext();
       const attempted = await guardContext(context, server.origin);
       const tab = await context.newPage();
+      await FocusGuard.install(tab);
       await tab.goto(server.url(page));
       if (inPage) await tab.evaluate(inPage);
       return [await scanPage(tab), attempted];
