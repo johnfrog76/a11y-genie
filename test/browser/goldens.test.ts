@@ -1,7 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { renderReport } from "../../src/report.js";
+import { parseStateFlags } from "../../src/scan-plan.js";
 import { runScan } from "../../src/run-scan.js";
-import { expectGolden, GOLDEN_PAGES, normalise } from "../helpers/goldens.js";
+import { expectGolden, GOLDEN_PAGES, GOLDEN_STATES, normalise } from "../helpers/goldens.js";
 import { chromeIsInstalled, guardContext } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 import { validate } from "../helpers/json-schema.js";
@@ -28,6 +29,7 @@ describe.skipIf(!hasChrome)("goldens for the fixture pages (skipped where Chrome
     const attempted: string[][] = [];
     const record = await runScan({
       url: server.url(`${name}.html`),
+      pages: [{ url: server.url(`${name}.html`), states: parseStateFlags(GOLDEN_STATES[name] ?? []) }],
       channel: "chrome",
       onContext: async (context) => {
         attempted.push(await guardContext(context, server.origin));

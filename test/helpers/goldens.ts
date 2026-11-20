@@ -8,7 +8,26 @@ import type { ScanRecord } from "../../src/scan-record.js";
 export const GOLDEN_DIR = fileURLToPath(new URL("../goldens/", import.meta.url));
 
 /** The pages the goldens cover: the four first ones in the order the spec lists them, then `no-landmarks`. */
-export const GOLDEN_PAGES = ["clean", "contrast", "icon-button", "impact-mix", "no-landmarks"] as const;
+export const GOLDEN_PAGES = [
+  "clean",
+  "contrast",
+  "icon-button",
+  "impact-mix",
+  "no-landmarks",
+  "states",
+] as const;
+
+/**
+ * The `--states` values a golden scans the page with, besides `default`. A page not named here is scanned in
+ * its default state only. `states.html` is scanned with the menu open, and then dark with the menu open, so the
+ * unnamed menu button fails in both and its element lists both states.
+ */
+export const GOLDEN_STATES: Readonly<Record<string, readonly string[]>> = {
+  states: [
+    "menu-open: click button 'Menu'; wait menu",
+    "menu-dark: colorScheme dark; click button 'Menu'; wait menu",
+  ],
+};
 
 export function goldenPath(page: string, file: "scan.json" | "report.md"): string {
   return `${GOLDEN_DIR}${page}/${file}`;
