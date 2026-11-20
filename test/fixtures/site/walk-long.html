@@ -1,0 +1,30 @@
+<!doctype html>
+<!--
+  Fixture: more Tab stops than a short --max-tabs: thirty buttons. With --max-tabs 10 the walk stops at ten
+  and says it reached the limit (test/browser/walk.test.ts).
+  Must not fire: any rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>A long walk</title>
+  </head>
+  <body>
+    <main>
+      <h1>A long walk</h1>
+      <ol id="list"></ol>
+    </main>
+    <script>
+      const list = document.getElementById("list");
+      for (let i = 1; i <= 30; i++) {
+        const item = document.createElement("li");
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = "Button " + i;
+        item.append(button);
+        list.append(item);
+      }
+    </script>
+  </body>
+</html>

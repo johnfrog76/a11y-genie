@@ -1,0 +1,25 @@
+<!doctype html>
+<!--
+  Fixture: names that are data. One button's name carries terminal escape sequences and control characters,
+  which the walk takes out; the other's is 300 characters long, which scan.json cuts at 160
+  (test/browser/walk.test.ts).
+  Must not fire: any rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Names that are data</title>
+  </head>
+  <body>
+    <main>
+      <h1>Names that are data</h1>
+      <p><button type="button" id="escapes">Escapes</button></p>
+      <p><button type="button" id="long">Long</button></p>
+    </main>
+    <script>
+      document.getElementById("escapes").setAttribute("aria-label", "\u001b[31mRed\u001b[0m and \u0007bell‮");
+      document.getElementById("long").setAttribute("aria-label", "Long ".repeat(60).trim());
+    </script>
+  </body>
+</html>

@@ -1,0 +1,40 @@
+<!doctype html>
+<!--
+  Fixture: a positive tabindex goes first, in the order of its number, and hidden or disabled controls are
+  not Tab stops. The walk: "Second in source, first by tabindex" (tabindex 1), "First in source, second by
+  tabindex" (tabindex 2), then in source order "Plain link", "Plain button" and the div with tabindex 0,
+  then focus leaves the page (test/browser/walk.test.ts). None of the hidden, disabled or tabindex -1
+  controls is a stop.
+  Must not fire: tabindex is allowed to fire (a positive tabindex is a best-practice warning); no other rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Walk order</title>
+    <style>
+      .gone {
+        display: none;
+      }
+      .unseen {
+        visibility: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Walk order</h1>
+      <p><button type="button" tabindex="2">First in source, second by tabindex</button></p>
+      <p><a href="#plain">Plain link</a></p>
+      <p><button type="button" class="gone">Not shown</button></p>
+      <p><button type="button" class="unseen">Not seen</button></p>
+      <p><button type="button" hidden>Hidden</button></p>
+      <p><button type="button" disabled>Disabled</button></p>
+      <p><button type="button" tabindex="-1">Out of the order</button></p>
+      <div inert><button type="button">Inert</button></div>
+      <p><button type="button">Plain button</button></p>
+      <p><button type="button" tabindex="1">Second in source, first by tabindex</button></p>
+      <div id="custom" tabindex="0" role="button" aria-label="Custom control">Custom</div>
+    </main>
+  </body>
+</html>

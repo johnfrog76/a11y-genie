@@ -4,6 +4,8 @@
  * are the spec's (4.5). docs/JSON.md documents them.
  */
 
+import type { Walk } from "./walk.js";
+
 /** axe-core's four impacts, worst first. The product's own checks use the same four. */
 export const IMPACTS = ["critical", "serious", "moderate", "minor"] as const;
 export type Impact = (typeof IMPACTS)[number];
@@ -112,4 +114,6 @@ export interface AxeScan {
   findings: Finding[];
   /** Worst first, by the same rule. */
   needsReview: NeedsReview[];
+  /** The keyboard walk of the page (src/walk.ts); absent from results recorded without a browser. */
+  walk?: Walk;
 }

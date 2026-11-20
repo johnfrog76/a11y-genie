@@ -1,0 +1,22 @@
+<!doctype html>
+<!--
+  Fixture: the keyboard walk goes into a frame of the same origin.
+  The walk: "Before", then "In the frame" inside walk-frame-inner.html, then "After", then focus leaves the
+  page (test/browser/walk.test.ts).
+  Must not fire: any rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Walk through a frame</title>
+  </head>
+  <body>
+    <main>
+      <h1>Walk through a frame</h1>
+      <p><a href="#before">Before</a></p>
+      <iframe id="inner" title="The inner page" src="walk-frame-inner.html"></iframe>
+      <p><button type="button">After</button></p>
+    </main>
+  </body>
+</html>
