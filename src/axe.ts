@@ -1,6 +1,6 @@
 import { AxeBuilder } from "@axe-core/playwright";
 import type { Page } from "playwright-core";
-import type { AxeScan } from "./finding.js";
+import type { AxeScan, Finding } from "./finding.js";
 import { CLICK_ON_NON_CONTROL_TAGS, checkClickOnNonControl } from "./click-on-non-control.js";
 import {
   checkKeyboardTrap,
@@ -13,7 +13,7 @@ import { mapAxeResults, pageKeyOf } from "./map-axe.js";
 import { orderFindings } from "./order.js";
 import { BEST_PRACTICE_TAG } from "./rule-flags.js";
 import { checkSkipLink, focusedIsSkipLink, SKIP_LINK_STOPS } from "./skip-link.js";
-import { walkPage } from "./walk.js";
+import { FocusReader, walkPage, type Walk } from "./walk.js";
 
 /**
  * Runs axe-core on a page that is already loaded, and maps what it found (src/map-axe.ts).
@@ -60,17 +60,25 @@ export async function scanPage(
       ? await checkClickOnNonControl(page, pageKey)
       : undefined;
   // The keyboard walk (src/walk.ts). At its first stops it asks whether focus is on a skip link.
+  // The skip link reads the page through a reader of its own, in an isolated world, out of the page's reach.
   let skipLinkSeen = false;
-  const walk = await walkPage(page, {
-    ...(options.maxTabs === undefined ? {} : { maxTabs: options.maxTabs }),
-    onStop: async (stop) => {
-      if (bestPractice && !skipLinkSeen && stop.index <= SKIP_LINK_STOPS) {
-        skipLinkSeen = await focusedIsSkipLink(page);
-      }
-    },
-  });
-  // No skip link (src/skip-link.ts).
-  const noSkipLink = bestPractice ? await checkSkipLink(page, pageKey, skipLinkSeen) : undefined;
+  let noSkipLink: Finding | undefined;
+  const skipReader = bestPractice ? await FocusReader.open(page) : undefined;
+  let walk: Walk;
+  try {
+    walk = await walkPage(page, {
+      ...(options.maxTabs === undefined ? {} : { maxTabs: options.maxTabs }),
+      onStop: async (stop) => {
+        if (skipReader !== undefined && !skipLinkSeen && stop.index <= SKIP_LINK_STOPS) {
+          skipLinkSeen = await focusedIsSkipLink(skipReader);
+        }
+      },
+    });
+    // No skip link (src/skip-link.ts).
+    noSkipLink = skipReader ? await checkSkipLink(page, pageKey, skipLinkSeen, skipReader) : undefined;
+  } finally {
+    await skipReader?.close();
+  }
   // Where the walk went round: a keyboard trap, or a modal dialog that does not give focus back (src/keyboard-trap.ts).
   const wants = (ruleTags: readonly string[]): boolean =>
     tags === null || ruleTags.some((t) => tags.includes(t));

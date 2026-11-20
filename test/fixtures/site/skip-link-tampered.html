@@ -1,0 +1,44 @@
+<!doctype html>
+<!--
+  Fixture: a page with no skip link that lies to look as if it has one. It replaces document.activeElement so the
+  first Tab stop is a link to #main, and getAttribute, querySelector and getElementById so that link reads as
+  href="#main" with a real target inside main. The skip-link check reads in a world of its own and is not fooled.
+  Must fire:     genie/skip-link as advice (minor), once for the page
+  Must not fire: any axe-core rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>A page that fakes a skip link</title>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <header>
+      <nav aria-label="Site">
+        <a id="first" href="/one">One</a> <a href="/two">Two</a> <a href="/three">Three</a>
+        <a href="/four">Four</a> <a href="/five">Five</a> <a href="/six">Six</a>
+      </nav>
+    </header>
+    <main id="main">
+      <h1>A page that fakes a skip link</h1>
+      <p>The first thing a keyboard reaches is the navigation.</p>
+    </main>
+    <script>
+      const first = document.getElementById("first");
+      const main = document.querySelector("main");
+      const realGet = Element.prototype.getAttribute;
+      const realQuery = Document.prototype.querySelector;
+      const realById = Document.prototype.getElementById;
+      Object.defineProperty(Document.prototype, "activeElement", { get: () => first });
+      Element.prototype.getAttribute = function (name) {
+        return this === first && name === "href" ? "#main" : realGet.call(this, name);
+      };
+      Document.prototype.getElementById = function (id) {
+        return id === "main" ? main : realById.call(this, id);
+      };
+      Document.prototype.querySelector = function (sel) {
+        return realQuery.call(this, sel);
+      };
+    </script>
+  </body>
+</html>

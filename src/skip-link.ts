@@ -13,6 +13,7 @@ import type { Finding } from "./finding.js";
 import { registerGenieRule } from "./genie-rules.js";
 import { hasLandmark } from "./landmarks.js";
 import { BEST_PRACTICE_TAG } from "./rule-flags.js";
+import type { FocusReader } from "./walk.js";
 
 export const SKIP_LINK_RULE = {
   source: "genie",
@@ -49,8 +50,8 @@ const VIOLATION_FAILURE =
   "Add a link to #main as the first thing on the page, shown when it gets focus, " +
   "and put the page's own content in a main element with that id.";
 
-/** Runs in the page: how many tabbable elements come before `main`, or all of them when there is no main. */
-const COUNT_TABBABLE = `(() => {
+/** Runs in the isolated world (`FocusReader.call`): how many tabbable elements come before `main`, or all of them when there is no main. */
+const COUNT_TABBABLE = `function () {
   const main = document.querySelector("main, [role=main]");
   const sel = "a[href], button, input:not([type=hidden]), select, textarea, summary, [tabindex], [contenteditable=true]";
   let n = 0;
@@ -62,11 +63,11 @@ const COUNT_TABBABLE = `(() => {
     n++;
   }
   return n;
-})()`;
+}`;
 
-/** Runs in the page: whether the focused element is a link to an element that is `main` or inside it. */
-const FOCUSED_IS_SKIP_LINK = `(() => {
-  const el = document.activeElement;
+/** Runs in the isolated world with `this` as the focused element: whether it is element a link to an element that is `main` or inside it. */
+const FOCUSED_IS_SKIP_LINK = `function () {
+  const el = this;
   if (!el || el.tagName !== "A") return false;
   const href = el.getAttribute("href") ?? "";
   if (!href.startsWith("#") || href.length < 2) return false;
@@ -76,17 +77,23 @@ const FOCUSED_IS_SKIP_LINK = `(() => {
   if (!target) return false;
   const main = document.querySelector("main, [role=main]");
   return main !== null && main.contains(target);
-})()`;
+}`;
+
+/** Runs in the isolated world: the body's opening tag, for the finding's snippet. */
+const BODY_OPENING_TAG = `function () {
+  return document.body.cloneNode(false).outerHTML.replace(/<\\/body>$/, "");
+}`;
 
 /** How many of the keyboard walk's first stops the check reads (src/walk.ts). */
 export const SKIP_LINK_STOPS = TABS_READ;
 
 /**
- * Whether the element focus is on now is a skip link. The keyboard walk asks it at each of its first three
+ * Whether the element focus is on now is a skip link, read in the reader's isolated world, so a page that
+ * overrides `activeElement`, `getAttribute` or `querySelector` changes nothing it sees. The keyboard walk asks it at each of its first three
  * stops (`SKIP_LINK_STOPS`), so the check needs no Tab presses of its own (spec 6.5: the same walk feeds 6.4).
  */
-export async function focusedIsSkipLink(page: Page): Promise<boolean> {
-  return (await page.evaluate(FOCUSED_IS_SKIP_LINK)) === true;
+export async function focusedIsSkipLink(reader: FocusReader): Promise<boolean> {
+  return (await reader.callOnFocused(FOCUSED_IS_SKIP_LINK)) === true;
 }
 
 /**
@@ -97,14 +104,13 @@ export async function checkSkipLink(
   page: Page,
   pageKey: string,
   skipLinkSeen: boolean,
+  reader: FocusReader,
 ): Promise<Finding | undefined> {
-  const tabbable: unknown = await page.evaluate(COUNT_TABBABLE);
+  const tabbable: unknown = await reader.call(COUNT_TABBABLE);
   if (typeof tabbable !== "number" || tabbable < MIN_TABBABLE) return undefined;
   if (skipLinkSeen) return undefined;
   const structure = (await hasLandmark(page)) || (await page.getByRole("heading").count()) > 0;
-  const html: unknown = await page.evaluate(
-    "document.body.cloneNode(false).outerHTML.replace(/<\\/body>$/, '')",
-  );
+  const html: unknown = await reader.call(BODY_OPENING_TAG);
   return {
     id: `genie/skip-link@${pageKey}`,
     rule: { ...SKIP_LINK_RULE, wcag: [...SKIP_LINK_RULE.wcag] },

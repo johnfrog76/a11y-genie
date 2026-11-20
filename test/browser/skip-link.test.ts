@@ -70,6 +70,19 @@ describe.skipIf(!hasChrome)(
       expect(skip).toMatchObject({ kind: "advice", impact: "minor" });
     });
 
+    it("skip-link-tampered.html: a page that fakes a skip link still has none", async () => {
+      const { result, skip } = await scan("skip-link-tampered.html");
+      expect(result.findings).toHaveLength(1);
+      expect(skip).toMatchObject({ kind: "advice", impact: "minor" });
+    });
+
+    it("skip-link-hidden-tampered.html: a page that hides its skip link still has one", async () => {
+      // axe-core runs in the page's own world and is fooled (it reports the link as content outside a landmark);
+      // the skip-link check is not.
+      const { skip } = await scan("skip-link-hidden-tampered.html");
+      expect(skip).toBeUndefined();
+    });
+
     it("few-tabbable.html is not checked: two Tab stops before main is nothing much to skip", async () => {
       const { result } = await scan("few-tabbable.html");
       expect(result.findings).toEqual([]);

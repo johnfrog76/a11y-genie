@@ -1,0 +1,39 @@
+<!doctype html>
+<!--
+  Fixture: a page with a real skip link that lies to look as if it has none. It replaces document.activeElement
+  with the body, and getAttribute and querySelector so the link points elsewhere and the main is missing. The
+  skip-link check reads in a world of its own and still finds the skip link.
+  Must not fire: genie/skip-link (axe-core runs in the page's own world and does report the link as outside a landmark)
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>A page that hides its skip link</title>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <a href="#main">Skip to main content</a>
+    <header>
+      <nav aria-label="Site">
+        <a href="/one">One</a> <a href="/two">Two</a> <a href="/three">Three</a>
+        <a href="/four">Four</a> <a href="/five">Five</a>
+      </nav>
+    </header>
+    <main id="main">
+      <h1>A page that hides its skip link</h1>
+      <p>The first thing a keyboard reaches is the skip link.</p>
+    </main>
+    <script>
+      const skip = document.querySelector("a");
+      const realGet = Element.prototype.getAttribute;
+      const realQuery = Document.prototype.querySelector;
+      Object.defineProperty(Document.prototype, "activeElement", { get: () => document.body });
+      Element.prototype.getAttribute = function (name) {
+        return this === skip && name === "href" ? "/elsewhere" : realGet.call(this, name);
+      };
+      Document.prototype.querySelector = function (sel) {
+        return sel === "main, [role=main]" ? null : realQuery.call(this, sel);
+      };
+    </script>
+  </body>
+</html>
