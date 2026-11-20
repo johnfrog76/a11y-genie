@@ -72,7 +72,7 @@ export async function scanPage(
   const focusVisibleTags = wants(FOCUS_VISIBLE_TAGS);
   let skipLinkSeen = false;
   let noSkipLink: Finding | undefined;
-  let seen: FocusVisibleResult = {};
+  let seen: FocusVisibleResult;
   const reader = bestPractice || focusVisibleTags ? await FocusReader.open(page) : undefined;
   const focusVisible =
     reader !== undefined && focusVisibleTags ? new FocusVisibleCheck(page, pageKey, reader) : undefined;
