@@ -1,9 +1,10 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { CRITERION_WORDING, RULE_WORDING } from "../../src/plain.js";
+import { renderHtmlReport } from "../../src/html-report.js";
 import { emptyScanSentence, renderReport } from "../../src/report.js";
 import { CANNOT_SEE } from "../../src/scan-record.js";
-import { GOLDEN_PAGES, readGolden, readGoldenRecord } from "../helpers/goldens.js";
+import { GOLDEN_DIR, GOLDEN_PAGES, readGolden, readGoldenRecord } from "../helpers/goldens.js";
 import { neverClaimViolations, PROMPT_WORD_LIST } from "../helpers/never-claim.js";
 
 describe("the phrase list (C16)", () => {
@@ -78,9 +79,14 @@ describe("what the prompt file says", () => {
 });
 
 describe("what a report says", () => {
-  it.each(GOLDEN_PAGES)("%s.html: neither golden claims anything", (name) => {
+  it.each(GOLDEN_PAGES)("%s.html: no golden claims anything, report.html included", (name) => {
     expect(neverClaimViolations(readGolden(name, "report.md"))).toEqual([]);
     expect(neverClaimViolations(readGolden(name, "scan.json"))).toEqual([]);
+    expect(neverClaimViolations(readGolden(name, "report.html"))).toEqual([]);
+  });
+
+  it("the check report's HTML golden claims nothing", () => {
+    expect(neverClaimViolations(readFileSync(`${GOLDEN_DIR}check/report.html`, "utf8"))).toEqual([]);
   });
 
   it("the empty scan's report and sentence claim nothing, and still say what it cannot see", () => {
@@ -90,6 +96,10 @@ describe("what a report says", () => {
     expect(neverClaimViolations(report)).toEqual([]);
     expect(report).toContain(emptyScanSentence(record));
     expect(report).toContain("## What this scan cannot see");
+    const page = renderHtmlReport(record);
+    expect(neverClaimViolations(page)).toEqual([]);
+    expect(page).toContain(emptyScanSentence(record));
+    expect(page).toContain('<h2 id="cannot-see">What this scan cannot see</h2>');
   });
 
   it("the fixed text of what a scan cannot see claims nothing", () => {

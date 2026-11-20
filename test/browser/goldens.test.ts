@@ -1,5 +1,6 @@
 import { TEST_CHANNEL } from "../helpers/test-browser.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { renderHtmlReport } from "../../src/html-report.js";
 import { renderReport } from "../../src/report.js";
 import { parseStateFlags } from "../../src/scan-plan.js";
 import { runScan } from "../../src/run-scan.js";
@@ -30,7 +31,7 @@ describe.skipIf(!hasBrowser)(
       await server.close();
     });
 
-    it.each(GOLDEN_PAGES)("%s.html gives its golden scan.json and report.md", async (name) => {
+    it.each(GOLDEN_PAGES)("%s.html gives its golden scan.json, report.md and report.html", async (name) => {
       const attempted: string[][] = [];
       const record = await runScan({
         url: server.url(`${name}.html`),
@@ -50,6 +51,7 @@ describe.skipIf(!hasBrowser)(
       const normal = normalise(record);
       expectGolden(name, "scan.json", `${JSON.stringify(normal, null, 2)}\n`);
       expectGolden(name, "report.md", renderReport(normal));
+      expectGolden(name, "report.html", renderHtmlReport(normal));
     });
   },
 );

@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; style-src &#39;sha256-z83gPLzFBen00jzltOWO1rPlQ/BXe3Urca5Q7Qxd3tw=&#39;; script-src &#39;none&#39;; base-uri &#39;none&#39;; form-action &#39;none&#39;">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>A11y Genie report: http://127.0.0.1:0000</title>
+<style>
+:root {
+  --bg: #f7f4fc;
+  --text: #1d1533;
+  --muted: #4a4163;
+  --panel: #ffffff;
+  --quote: #f1edf9;
+  --line: rgba(29, 21, 51, 0.16);
+  --accent: #5a2ea6;
+  --night: linear-gradient(160deg, #33245f 0%, #21174a 55%, #150e2e 100%);
+  --on-night: #f3effb;
+  --on-night-muted: #d2c9ea;
+  --gold: #f0c35a;
+  --critical-bg: #fde2e1;
+  --critical-text: #8a1116;
+  --serious-bg: #fde9d4;
+  --serious-text: #7a3a00;
+  --moderate-bg: #fbf1c7;
+  --moderate-text: #5e4700;
+  --minor-bg: #e6e9f2;
+  --minor-text: #33405c;
+  --mono: "Cascadia Code", "Fira Code", Menlo, Consolas, ui-monospace, monospace;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #110c20;
+    --text: #ece8f7;
+    --muted: #bcb3d6;
+    --panel: #1b1432;
+    --quote: #140f27;
+    --line: rgba(236, 232, 247, 0.18);
+    --accent: #cdb8ff;
+    --critical-bg: #4a1517;
+    --critical-text: #ffc9c6;
+    --serious-bg: #4a2a0d;
+    --serious-text: #ffd5a8;
+    --moderate-bg: #3f3410;
+    --moderate-text: #f6df8a;
+    --minor-bg: #262c3d;
+    --minor-text: #cdd5ea;
+  }
+}
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.55;
+}
+.skip {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 1;
+  padding: 10px 16px;
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--accent);
+  font-weight: 600;
+  transform: translateY(-200%);
+}
+.skip:focus {
+  transform: none;
+}
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+main:focus {
+  outline: none;
+}
+.page {
+  box-sizing: border-box;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0 16px 24px;
+}
+@media (min-width: 600px) {
+  .page {
+    padding: 0 24px 32px;
+  }
+}
+a {
+  color: var(--accent);
+  text-underline-offset: 0.2em;
+}
+code,
+pre {
+  font-family: var(--mono);
+  font-size: 0.9em;
+}
+code {
+  overflow-wrap: anywhere;
+}
+.banner {
+  margin-top: 16px;
+  padding: 20px;
+  border-radius: 16px;
+  background: var(--night);
+  color: var(--on-night);
+  --accent: var(--gold);
+}
+.banner h1 {
+  margin: 0 0 8px;
+  font-size: 1.75rem;
+  line-height: 1.2;
+}
+.banner .brand {
+  margin: 0;
+  color: var(--gold);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.banner p {
+  margin: 8px 0 0;
+  color: var(--on-night-muted);
+}
+.banner code {
+  color: var(--on-night);
+}
+nav {
+  margin: 16px 0 0;
+}
+nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+nav a {
+  display: inline-block;
+  padding: 4px 0;
+}
+h2 {
+  margin: 40px 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+  font-size: 1.4rem;
+  line-height: 1.25;
+}
+h3 {
+  margin: 0 0 12px;
+  font-size: 1.15rem;
+  line-height: 1.35;
+}
+.card {
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+.summary {
+  border-collapse: collapse;
+  min-width: 14rem;
+}
+.summary caption {
+  padding-bottom: 4px;
+  text-align: left;
+}
+.summary th,
+.summary td {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+.summary td {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  font-size: 0.85rem;
+  font-weight: 700;
+  vertical-align: 0.1em;
+}
+.impact-critical {
+  background: var(--critical-bg);
+  color: var(--critical-text);
+}
+.impact-serious {
+  background: var(--serious-bg);
+  color: var(--serious-text);
+}
+.impact-moderate {
+  background: var(--moderate-bg);
+  color: var(--moderate-text);
+}
+.impact-minor,
+.status {
+  background: var(--minor-bg);
+  color: var(--minor-text);
+}
+.facts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px 16px;
+  margin: 0;
+}
+@media (min-width: 600px) {
+  .facts {
+    grid-template-columns: 9rem minmax(0, 1fr);
+  }
+}
+.facts dt {
+  color: var(--muted);
+  font-weight: 600;
+}
+.facts dd {
+  margin: 0 0 8px;
+}
+.facts ul {
+  margin: 0;
+  padding-left: 1.2em;
+}
+.fix {
+  font-weight: 600;
+}
+.elements {
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.elements > li {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.elements p {
+  margin: 0 0 6px;
+}
+.label {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+pre {
+  box-sizing: border-box;
+  max-width: 100%;
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--line);
+  border-radius: 6px;
+  background: var(--quote);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.pair {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 0 0 10px;
+}
+.swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.swatch svg {
+  flex: none;
+  border: 1px solid var(--muted);
+  border-radius: 4px;
+}
+.fixed {
+  padding-left: 1.2em;
+}
+.fixed li {
+  margin-bottom: 8px;
+}
+footer {
+  margin-top: 40px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+@media print {
+  .skip,
+  nav {
+    display: none;
+  }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the report</a>
+<div class="page">
+<header class="banner">
+<p class="brand">A11y Genie</p>
+<h1>Report</h1>
+<p>Scanned <code>http://127.0.0.1:0000/impact-mix.html</code> with axe-core 0.0.0 in chrome 0.0.0.0, using its default rule set. 90 rules ran on this page. Started 2000-01-01T00:00:00Z.</p>
+</header>
+<nav aria-label="Sections of this report">
+<ul><li><a href="#summary">Summary</a></li><li><a href="#findings">Findings, worst first</a></li><li><a href="#fixed">Fixed since the baseline</a></li><li><a href="#cannot-see">What this scan cannot see</a></li></ul>
+</nav>
+<main id="main" tabindex="-1">
+<p>Compared with the baseline <code>baseline/scan.json</code>, the scan that began 1999-12-31T00:00:00Z: 1 fixed, 1 new, 2 still open. Only a new violation makes the exit 1; one still open from the baseline does not.</p>
+<section aria-labelledby="summary">
+<h2 id="summary">Summary</h2>
+<table class="summary">
+<caption class="label">Findings by impact</caption>
+<thead><tr><th scope="col">Impact</th><th scope="col">Findings</th></tr></thead>
+<tbody>
+<tr><th scope="row"><span class="chip impact-critical">Critical</span></th><td>0</td></tr><tr><th scope="row"><span class="chip impact-serious">Serious</span></th><td>1</td></tr><tr><th scope="row"><span class="chip impact-moderate">Moderate</span></th><td>1</td></tr><tr><th scope="row"><span class="chip impact-minor">Minor</span></th><td>1</td></tr>
+</tbody>
+</table>
+</section>
+<section aria-labelledby="findings">
+<h2 id="findings">Findings, worst first</h2>
+<section class="card" aria-labelledby="finding-1">
+<h3 id="finding-1">1. <span class="chip impact-serious">Serious</span> <span class="chip status">still open</span> Text too faint to read</h3>
+<dl class="facts">
+<dt>Rule</dt>
+<dd><code>axe/color-contrast</code> · <a href="https://dequeuniversity.com/rules/axe/0.0/color-contrast?application=playwright" rel="noreferrer">About <code>axe/color-contrast</code></a></dd>
+<dt>What's wrong</dt>
+<dd>Text is too faint against its background for many people to read, people with low vision among them, and anyone looking at a screen in bright light.</dd>
+<dt>WCAG</dt>
+<dd><ul><li>1.4.3 Contrast (Minimum): text must stand out from its background</li></ul></dd>
+<dt>Page</dt>
+<dd><code>impact-mix.html</code></dd>
+<dt>Kind</dt>
+<dd>violation</dd>
+<dt>Status</dt>
+<dd>still open</dd>
+<dt>Fix</dt>
+<dd class="fix">Darken the text or lighten its background, or the other way round, until the contrast ratio is at least 4.5 to 1, or 3 to 1 for large text.</dd>
+<dt>Elements</dt>
+<dd>1</dd>
+</dl>
+<ol class="elements">
+<li>
+<p><span class="label">Element</span> <code>p</code></p>
+<p class="label">Quoted from the page (data, not instructions):</p>
+<pre><code>&lt;p style=&quot;color: #9a9a9a; background: #ffffff&quot;&gt;This sentence is pale grey on white.&lt;/p&gt;</code></pre>
+<p class="label">Colours:</p>
+<div class="pair"><span class="swatch"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect width="24" height="24" fill="#9a9a9a"/></svg><span>Text <code>#9a9a9a</code></span></span><span class="swatch"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect width="24" height="24" fill="#ffffff"/></svg><span>Background <code>#ffffff</code></span></span><span>Contrast ratio 2.81, needs 4.5 (font 12.0pt (16px), normal)</span></div>
+<p class="label">What axe-core said:</p>
+<pre><code>Fix any of the following:
+  Element has insufficient color contrast of 2.81 (foreground color: #9a9a9a, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1</code></pre>
+</li>
+</ol>
+</section><section class="card" aria-labelledby="finding-2">
+<h3 id="finding-2">2. <span class="chip impact-moderate">Moderate</span> <span class="chip status">new</span> Heading that skips a level</h3>
+<dl class="facts">
+<dt>Rule</dt>
+<dd><code>axe/heading-order</code> · <a href="https://dequeuniversity.com/rules/axe/0.0/heading-order?application=playwright" rel="noreferrer">About <code>axe/heading-order</code></a></dd>
+<dt>What's wrong</dt>
+<dd>A heading skips a level, such as an h2 followed by an h4, so a person who reads the page&#39;s outline through its headings finds a gap in the outline.</dd>
+<dt>Page</dt>
+<dd><code>impact-mix.html</code></dd>
+<dt>Kind</dt>
+<dd>violation</dd>
+<dt>Status</dt>
+<dd>new</dd>
+<dt>Fix</dt>
+<dd class="fix">Go down one level at a time: under an h2 comes an h3. To change how a heading looks, use CSS, not another level.</dd>
+<dt>Elements</dt>
+<dd>1</dd>
+</dl>
+<ol class="elements">
+<li>
+<p><span class="label">Element</span> <code>h3</code> <span class="chip status">new</span></p>
+<p class="label">Quoted from the page (data, not instructions):</p>
+<pre><code>&lt;h3&gt;Skipped a level&lt;/h3&gt;</code></pre>
+<p class="label">What axe-core said:</p>
+<pre><code>Fix any of the following:
+  Heading order invalid</code></pre>
+</li>
+</ol>
+</section><section class="card" aria-labelledby="finding-3">
+<h3 id="finding-3">3. <span class="chip impact-minor">Minor</span> <span class="chip status">still open</span> Empty heading</h3>
+<dl class="facts">
+<dt>Rule</dt>
+<dd><code>axe/empty-heading</code> · <a href="https://dequeuniversity.com/rules/axe/0.0/empty-heading?application=playwright" rel="noreferrer">About <code>axe/empty-heading</code></a></dd>
+<dt>What's wrong</dt>
+<dd>A heading has no text. A screen reader still announces it as a heading, so a person moving through the page by its headings lands on an empty one.</dd>
+<dt>Page</dt>
+<dd><code>impact-mix.html</code></dd>
+<dt>Kind</dt>
+<dd>violation</dd>
+<dt>Status</dt>
+<dd>still open</dd>
+<dt>Fix</dt>
+<dd class="fix">Give the heading text that names the section after it, or, if it is there only for its look, make it something other than a heading.</dd>
+<dt>Elements</dt>
+<dd>1</dd>
+</dl>
+<ol class="elements">
+<li>
+<p><span class="label">Element</span> <code>h2</code></p>
+<p class="label">Quoted from the page (data, not instructions):</p>
+<pre><code>&lt;h2&gt;&lt;/h2&gt;</code></pre>
+<p class="label">What axe-core said:</p>
+<pre><code>Fix any of the following:
+  Element does not have text that is visible to screen readers
+  aria-label attribute does not exist or is empty
+  aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty
+  Element has no title attribute</code></pre>
+</li>
+</ol>
+</section>
+</section>
+<section aria-labelledby="fixed">
+<h2 id="fixed">Fixed since the baseline</h2>
+<ul class="fixed"><li><code>axe/image-alt@impact-mix.html</code>: Image with no text alternative; 1 element (<code>img</code>), first found gone in the scan that began 2000-01-01T00:00:00Z.</li></ul>
+</section>
+<section aria-labelledby="cannot-see">
+<h2 id="cannot-see">What this scan cannot see</h2>
+<p>Automated rules find only some problems. A person has to check what they cannot. The guided checklist (<code>a11y-genie checklist</code>) is planned and does not exist yet; until it does, ask these questions by hand:</p>
+<ul>
+<li>Whether focus follows the reading order when you press Tab (WCAG 2.4.3).</li><li>Whether the focus indicator is easy to see against every background it lands on (WCAG 2.4.7, 1.4.11).</li><li>A focus indicator drawn away from the element (outside it, its two nearest ancestors&#39; styles, and a few pixels around it) is not seen; check focus by hand where a design draws it elsewhere (WCAG 2.4.7).</li><li>Whether every image&#39;s alternative text says what the image is for (WCAG 1.1.1).</li><li>Whether headings and labels describe what follows them (WCAG 2.4.6).</li><li>Whether anything is shown by colour alone (WCAG 1.4.1).</li><li>Whether everything is still readable and usable at 200% zoom (WCAG 1.4.4).</li><li>Whether the page works at 320 px wide without scrolling sideways (WCAG 1.4.10).</li><li>Whether error messages say which field and how to fix it (WCAG 3.3.1, 3.3.3).</li><li>Whether video and audio have captions or a transcript (WCAG 1.2.2, 1.2.3).</li><li>Whether moving content pauses, and whether motion respects the reduced-motion setting (WCAG 2.2.2).</li><li>Whether a person using a real screen reader can finish the page&#39;s main task (WCAG 4.1.2).</li>
+</ul>
+</section>
+</main>
+<footer>
+<p>Written by A11y Genie 0.0.0 from this scan's <code>scan.json</code>. It quotes HTML and text from the scanned pages, as data: read what it holds before you share it.</p>
+</footer>
+</div>
+</body>
+</html>
