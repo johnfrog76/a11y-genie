@@ -42,6 +42,13 @@ profile are inside it), until the system clears the temp folder.
 **Tests** get the same isolation: `test/setup/private-temp.ts` (a vitest setup file) gives each test file its own
 temp folder and removes it after the file, so test files that launch browsers side by side, or one that tests a
 missing browser, never share one. The shared one is in `A11Y_GENIE_TEST_SHARED_TMP`.
+The same setup file stops every browser a file left running: when the file ends, and again when the worker exits,
+it sends SIGKILL to each process whose command line names the file's own temp folder (`test/helpers/processes-in.ts`,
+read with `ps`, so not on Windows). A browser a test launches, or a command it spawns launches, always has that
+folder in its command line, so a test that fails or times out cannot leave one behind. It is not done after each
+failed test, because many files share one browser across their tests.
+`test/cli/browser-leak.test.ts` holds this: it runs `test/fixtures/leak/leak.fixture.ts`, tests built to fail and
+to time out with a browser open (the main run never includes that file), and looks for any process left.
 **Which browser the tests launch.** Playwright's own Chromium, headless, never the Google Chrome app: the browser
 tests take their channel from `test/helpers/test-browser.ts` (`A11Y_GENIE_TEST_CHANNEL`, `chromium` by default), and
 the commands they spawn get `--browser-channel` from it. The product is unchanged: a person still gets their
