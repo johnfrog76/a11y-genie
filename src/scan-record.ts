@@ -27,8 +27,9 @@ import type { Walk } from "./walk.js";
  * 1.6 added `fixedCut` on a still-open finding: fixed elements carried from a baseline and not listed. A 1.5
  * record has none.
  * 1.7 added `pages[].walks`, the keyboard walk of each state that was scanned. A 1.6 record has none.
+ * 1.8 added `stopsCut` on a walk: stops dropped from its end to hold `scan.json` to its size. A 1.7 record has none.
  */
-export const SCHEMA_VERSION = "1.7";
+export const SCHEMA_VERSION = "1.8";
 
 /**
  * What a scan cannot see: the questions a person has to answer, because automated rules cannot. Fixed
@@ -121,6 +122,8 @@ export interface RecordPage {
 /** One state's keyboard walk, as `scan.json` keeps it: each stop's name cut to the excerpt limit. */
 export interface RecordWalk extends Walk {
   state: string;
+  /** Added in 1.8: how many stops were dropped from the end of `stops` to hold `scan.json` to its size. */
+  stopsCut?: number;
 }
 
 /** The limits the scan held the page to, as `scan.json` records them. */
@@ -327,14 +330,59 @@ function elementBytes(element: unknown): number {
 }
 
 /**
- * Holds `scan.json` under the size limit. Elements are dropped from the end, least severe first (the
- * needs-review items, then the findings from the last up), each kept to at least one element and every
- * dropped one counted in `elementsCut`. If even that is too big, the page reads *not scanned*.
+ * Keeps the first `n` stops of every walk in `record` (in place), counting what each lost in `stopsCut`,
+ * added to any count it already had. `tabs`, `end` and `maxTabs` stay as the walk recorded them.
+ */
+function keepStops(record: ScanRecord, n: number): void {
+  for (const page of record.pages) {
+    for (const walk of page.walks ?? []) {
+      if (walk.stops.length <= n) continue;
+      walk.stopsCut = (walk.stopsCut ?? 0) + (walk.stops.length - n);
+      walk.stops.length = n;
+    }
+  }
+}
+
+/** A copy of `record` with every walk cut to its first `n` stops. */
+function withStops(record: ScanRecord, n: number): ScanRecord {
+  const copy = structuredClone(record);
+  keepStops(copy, n);
+  return copy;
+}
+
+/**
+ * Holds `scan.json` under the size limit, in this order:
+ *
+ * 1. Walks first. They are a record of where focus went, not findings, so they go before any finding does.
+ *    Every walk is cut to its first N stops, N the most that fits (found by halving the range), at least
+ *    one; each dropped stop is counted in the walk's `stopsCut`.
+ * 2. Then elements, from the end, least severe first (the needs-review items, then the findings from the
+ *    last up), each kept to at least one element and every dropped one counted in `elementsCut`.
+ * 3. If even that is too big, the page reads *not scanned*, and the walks lose their stops too.
  */
 export function fitToSize(record: ScanRecord, maxBytes: number): ScanRecord {
   let size = bytesOf(record);
   if (size <= maxBytes) return record;
+  const longest = Math.max(0, ...record.pages.flatMap((p) => (p.walks ?? []).map((w) => w.stops.length)));
+  if (longest > 1) {
+    // Fewer stops is never bigger, so the largest N that fits is found by halving the range [1, longest).
+    let low = 1;
+    let high = longest - 1;
+    let best: ScanRecord | undefined;
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      const trial = withStops(record, mid);
+      if (bytesOf(trial) <= maxBytes) {
+        best = trial;
+        low = mid + 1;
+      } else high = mid - 1;
+    }
+    if (best) return best;
+  }
   const fitted = structuredClone(record);
+  keepStops(fitted, 1);
+  size = bytesOf(fitted);
+  if (size <= maxBytes) return fitted;
   const items: { elements: unknown[]; elementsCut?: number }[] = [
     ...[...fitted.needsReview].reverse(),
     ...[...fitted.findings].reverse(),
@@ -357,6 +405,7 @@ export function fitToSize(record: ScanRecord, maxBytes: number): ScanRecord {
   if (bytesOf(fitted) <= maxBytes) return fitted;
 
   // Nothing of any page is left to show, so every page reads *not scanned*, not as having nothing found.
+  keepStops(fitted, 0);
   for (const page of fitted.pages) {
     page.notScanned = [
       {
