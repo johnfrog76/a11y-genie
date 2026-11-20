@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 562" width="320" height="562">
+  <!-- The genie and his bottle, drawn for the project's page: the same character as the terminal's ASCII
+       drawing (src/banner.ts). A rounded genie with big sleepy eyes and a lopsided smirk, a curl of smoke
+       for a crown, floating on puffs of mist above a tall bottle with a pointed stopper. Original art. -->
+  <defs>
+    <linearGradient id="skin" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8fdbe3" />
+      <stop offset="1" stop-color="#4fa9c2" />
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#9a7ee6" />
+      <stop offset="0.55" stop-color="#6a4bc0" />
+      <stop offset="1" stop-color="#4a3194" />
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe08a" />
+      <stop offset="1" stop-color="#e0a92e" />
+    </linearGradient>
+    <clipPath id="eye-left"><ellipse cx="116" cy="134" rx="31" ry="26" /></clipPath>
+    <clipPath id="eye-right"><ellipse cx="204" cy="134" rx="31" ry="26" /></clipPath>
+  </defs>
+
+  <g stroke="#1a1233" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <!-- The bottle: a pointed stopper, a tall neck, round shoulders. -->
+    <g transform="translate(0 22)">
+    <path d="M160 300 L184 342 H136 Z" fill="url(#gold)" />
+    <circle cx="160" cy="298" r="6" fill="url(#gold)" />
+    <rect x="132" y="340" width="56" height="10" rx="4" fill="url(#gold)" />
+    <path
+      d="M142 350 V392 C142 404 84 410 84 446 V494 C84 514 108 524 160 524 C212 524 236 514 236 494 V446 C236 410 178 404 178 392 V350 Z"
+      fill="url(#glass)"
+    />
+    <path d="M100 450 V492" stroke="#e8defc" stroke-width="5" opacity="0.55" fill="none" />
+    <path d="M110 430 q8 -6 16 0 q8 6 16 0 M178 430 q8 -6 16 0 q8 6 16 0" fill="none" stroke="#d9cff5" stroke-width="3" />
+    <rect x="118" y="456" width="84" height="38" rx="8" fill="#f6eed6" />
+    <text
+      x="160"
+      y="482"
+      text-anchor="middle"
+      font-family="ui-monospace, Menlo, Consolas, monospace"
+      font-size="21"
+      font-weight="700"
+      fill="#1a1233"
+      stroke="none"
+    >
+      a11y
+    </text>
+    </g>
+
+    <!-- The wisp from the bottle up to the mist. -->
+    <path d="M160 322 C150 314 170 306 160 296" fill="none" stroke="#e9e3fb" stroke-width="7" />
+
+    <!-- His body, tapering into the mist. -->
+    <path d="M98 196 C92 246 124 276 160 296 C196 276 228 246 222 196 Z" fill="url(#skin)" />
+    <path d="M118 236 C136 250 184 250 202 236" fill="none" stroke-width="3" opacity="0.6" />
+
+    <!-- The mist he floats on. -->
+    <g fill="#e9e3fb" stroke="#1a1233" stroke-width="3">
+      <circle cx="58" cy="282" r="20" />
+      <circle cx="86" cy="270" r="24" />
+      <circle cx="116" cy="284" r="20" />
+      <circle cx="262" cy="282" r="20" />
+      <circle cx="234" cy="270" r="24" />
+      <circle cx="204" cy="284" r="20" />
+      <path d="M118 290 C134 280 146 298 160 288 C174 278 186 298 202 290 C192 306 176 298 160 304 C144 298 128 306 116 290 Z" />
+    </g>
+
+    <!-- The curl of smoke he wears for a crown. -->
+    <path
+      d="M156 52 C144 30 158 8 182 14 C204 20 202 46 184 48 C172 49 168 36 178 32"
+      fill="none"
+      stroke="#e9e3fb"
+      stroke-width="13"
+    />
+    <path
+      d="M156 52 C144 30 158 8 182 14 C204 20 202 46 184 48 C172 49 168 36 178 32"
+      fill="none"
+      stroke-width="3"
+      opacity="0.85"
+    />
+
+    <!-- His head: wide and round. -->
+    <ellipse cx="160" cy="136" rx="112" ry="88" fill="url(#skin)" />
+
+    <!-- Big sleepy eyes: heavy lids over the top half, the pupils low. -->
+    <ellipse cx="116" cy="134" rx="31" ry="26" fill="#ffffff" />
+    <ellipse cx="204" cy="134" rx="31" ry="26" fill="#ffffff" />
+    <circle cx="120" cy="146" r="10" fill="#1a1233" stroke="none" />
+    <circle cx="208" cy="146" r="10" fill="#1a1233" stroke="none" />
+    <circle cx="124" cy="142" r="3" fill="#ffffff" stroke="none" />
+    <circle cx="212" cy="142" r="3" fill="#ffffff" stroke="none" />
+    <rect x="80" y="100" width="72" height="34" fill="#5fb6cb" stroke="none" clip-path="url(#eye-left)" />
+    <rect x="168" y="100" width="72" height="34" fill="#5fb6cb" stroke="none" clip-path="url(#eye-right)" />
+    <path d="M86 134 H146 M174 134 H234" fill="none" />
+    <ellipse cx="116" cy="134" rx="31" ry="26" fill="none" />
+    <ellipse cx="204" cy="134" rx="31" ry="26" fill="none" />
+    <path d="M90 100 C102 92 124 92 138 98 M182 96 C198 90 220 92 232 102" fill="none" stroke-width="5" />
+
+    <!-- Cheeks, and the lopsided smirk, higher on his left. -->
+    <ellipse cx="84" cy="176" rx="14" ry="8" fill="#f2a7c3" stroke="none" opacity="0.7" />
+    <ellipse cx="238" cy="172" rx="14" ry="8" fill="#f2a7c3" stroke="none" opacity="0.7" />
+    <path d="M122 182 C142 198 176 198 198 182 C206 176 212 170 216 162" fill="none" stroke-width="5" />
+    <path d="M212 158 C220 160 224 166 222 174" fill="none" stroke-width="3" />
+  </g>
+</svg>

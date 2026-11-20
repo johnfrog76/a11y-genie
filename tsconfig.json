@@ -13,6 +13,6 @@
     "rootDir": ".",
     "outDir": "dist"
   },
-  "include": ["src", "test", "*.config.ts"],
+  "include": ["src", "test", "scripts", "*.config.ts"],
   "exclude": ["test/fixtures"]
 }

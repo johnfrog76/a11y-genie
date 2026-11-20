@@ -52,6 +52,11 @@ Run all five before you ask for a review. CI runs the same five in that order, o
 - `src/steps.ts` parses the step grammar of `--states`, `--flow` and the config file into typed steps, and refuses
   a step that does not parse; `docs/STEPS.md` is the grammar and every refusal. `src/keys.ts` lists the key names
   a step may press, held by `test/unit/keys.test.ts` to the ones the installed playwright-core accepts.
+- `site/` is the project's page: plain HTML and CSS, no script, light and dark. `scripts/build-site.ts` builds it
+  into `_site/` (`npm run site`) with the button to watch the deck at its `DECK_URL`; emptying `DECK_URL`
+  takes the button off the page. `.github/workflows/pages.yml` publishes it, once the repository is public.
+  `test/unit/site.test.ts` checks the build and holds the page's words to rule 1; `test/browser/site.test.ts`
+  scans the page with A11y Genie and fails on any critical or serious finding. `site/` is not in the package.
 - `docs/ARCHITECTURE.md` says how the parts work and why, including what was checked against a real browser.
 - `docs/JSON.md` documents the finding's fields and axe-core's result shape at the pinned version.
 - `THIRD-PARTY-NOTICES.md` ships in the package, and so does `dist/`. Nothing else does: `files` in

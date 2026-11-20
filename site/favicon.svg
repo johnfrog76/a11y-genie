@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- The genie's bottle: the page's mark and its tab icon. -->
+  <g stroke="#1a1233" stroke-width="3" stroke-linejoin="round">
+    <path d="M32 3 L41 18 H23 Z" fill="#f0c35a" />
+    <path
+      d="M27 18 V27 C27 31 12 33 12 43 V54 C12 59 18 61 32 61 C46 61 52 59 52 54 V43 C52 33 37 31 37 27 V18 Z"
+      fill="#7b5cd0"
+    />
+    <path d="M19 44 V54" stroke="#e8defc" stroke-linecap="round" opacity="0.7" />
+  </g>
+</svg>

@@ -22,7 +22,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . && prettier --check .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "site": "node scripts/build-site.ts"
   },
   "dependencies": {
     "@axe-core/playwright": "4.14.0",
