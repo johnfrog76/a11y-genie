@@ -49,6 +49,26 @@ describe("the address classifier", () => {
     ["::ffff:169.254.169.254", "link-local"],
     ["::ffff:0.0.0.0", "unspecified"],
     ["::ffff:8.8.8.8", "public"],
+    // 64:ff9b::/96 (RFC 6052), judged by the IPv4 address in its last 32 bits
+    ["64:ff9b::7f00:1", "loopback"],
+    ["64:ff9b::a00:1", "private"],
+    ["64:ff9b::808:808", "public"],
+    ["64:ff9b::10.0.0.1", "private"],
+    ["[64:ff9b::10.0.0.1]", "private"],
+    ["64:FF9B::A00:1", "private"],
+    ["64:ff9b:0:0:0:0:a00:1", "private"],
+    ["0064:ff9b:0000:0000:0000:0000:0a00:0001", "private"],
+    ["64:ff9b::169.254.169.254", "link-local"],
+    ["64:ff9b::0.0.0.0", "unspecified"],
+    // 64:ff9b:1::/48 (RFC 8215) cannot be judged, so it is blocked
+    ["64:ff9b:1::a00:1", "private"],
+    ["64:ff9b:1::808:808", "private"],
+    ["64:ff9b:1:ffff::1", "private"],
+    ["64:FF9B:1::A00:1", "private"],
+    // outside both prefixes: ordinary IPv6
+    ["64:ff9c::a00:1", "public"],
+    ["64:ff9b:2::a00:1", "public"],
+    ["64:ff9b::1:a00:1", "public"],
   ])("%s is %s", (host, kind) => {
     expect(addressKind(host)).toBe(kind);
   });
@@ -96,6 +116,7 @@ describe("the address classifier", () => {
     expect(addressKindOfUrl("ws://[::1]:9000/socket")).toBe("loopback");
     expect(addressKindOfUrl("https://user:pass@192.168.1.1/admin")).toBe("private");
     expect(addressKindOfUrl("http://[::ffff:a9fe:a9fe]/latest/meta-data")).toBe("link-local");
+    expect(addressKindOfUrl("http://[64:ff9b::a00:1]/admin")).toBe("private");
     expect(addressKindOfUrl("https://example.com/")).toBe("public");
     expect(addressKindOfUrl("data:text/plain,hello")).toBeUndefined();
     expect(addressKindOfUrl("not a url")).toBeUndefined();

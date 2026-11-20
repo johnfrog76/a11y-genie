@@ -9,7 +9,9 @@
  * - private: `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, and IPv6 unique local `fc00::/7`;
  * - link-local: `169.254.0.0/16` and `fe80::/10`;
  * - unspecified: `0.0.0.0/8`, and `::`, which reach the machine itself on many systems;
- * - IPv4-mapped IPv6, `::ffff:0:0/96`, is judged by the IPv4 address inside it.
+ * - IPv4-mapped IPv6, `::ffff:0:0/96`, is judged by the IPv4 address inside it, and so is the NAT64
+ *   well-known prefix, `64:ff9b::/96` (RFC 6052), which a NAT64 gateway translates to that IPv4 address;
+ * - the local-use NAT64 prefix, `64:ff9b:1::/48` (RFC 8215), reads private (see `kindOfIpv6`).
  *
  * Anything else reads public, `100.64.0.0/10` (shared address space) among them, since the spec does not
  * list it.
@@ -63,13 +65,18 @@ function ipv6(host: string): number[] | undefined {
 }
 
 function kindOfIpv6(groups: number[]): AddressKind {
-  const [g0 = 0, , , , , g5 = 0, g6 = 0, g7 = 0] = groups;
+  const [g0 = 0, g1 = 0, g2 = 0, , , g5 = 0, g6 = 0, g7 = 0] = groups;
   const zeroUpTo = (n: number) => groups.slice(0, n).every((g) => g === 0);
   if (zeroUpTo(8)) return "unspecified";
   if (zeroUpTo(7) && g7 === 1) return "loopback";
-  if (zeroUpTo(5) && g5 === 0xffff) {
-    return kindOfIpv4([g6 >> 8, g6 & 0xff, g7 >> 8, g7 & 0xff]);
-  }
+  const embedded = (): AddressKind => kindOfIpv4([g6 >> 8, g6 & 0xff, g7 >> 8, g7 & 0xff]);
+  if (zeroUpTo(5) && g5 === 0xffff) return embedded();
+  // NAT64 well-known prefix 64:ff9b::/96 (RFC 6052): the IPv4 address is the last 32 bits, as in ::ffff:0:0/96.
+  if (g0 === 0x64 && g1 === 0xff9b && groups.slice(2, 6).every((g) => g === 0)) return embedded();
+  // NAT64 local-use prefix 64:ff9b:1::/48 (RFC 8215): a network picks its own prefix length inside it (RFC 6052
+  // section 2.2: 32, 40, 48, 56, 64 or 96), and the IPv4 address sits in a different place for each, so it
+  // cannot be read from the address alone. Blocked outright, as private.
+  if (g0 === 0x64 && g1 === 0xff9b && g2 === 1) return "private";
   if ((g0 & 0xfe00) === 0xfc00) return "private";
   if ((g0 & 0xffc0) === 0xfe80) return "link-local";
   return "public";
