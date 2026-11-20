@@ -4,6 +4,7 @@ import { packageInfo } from "./package-info.js";
 import { EXIT } from "./exit-codes.js";
 import { installInterruptHandler } from "./interrupt.js";
 import { printable } from "./printable.js";
+import { promptCommand } from "./prompt-command.js";
 import { Refusal } from "./refusal.js";
 import { rulesCommand } from "./rules-command.js";
 import { scanCommand } from "./scan-command.js";
@@ -16,6 +17,7 @@ Usage:
   a11y-genie --version
   a11y-genie --help
   a11y-genie rules [--tags <list>] [--json]
+  a11y-genie prompt
   a11y-genie scan <url> [--states "<name>: <steps>"]... [--json] [--out <folder>] [--format md,json]
                   [--browser-channel chrome|msedge|chromium] [--no-download] [--allow-private]
                   [--tags <list>] [--fail-on <impact>] [--same-origin] [--offline]
@@ -77,6 +79,9 @@ Commands:
              --json prints them as one JSON document (docs/JSON.md). It needs no browser and no network.
              Exit 0.
 
+  prompt     print the prompt file for a coding agent: how to run scan, fix, rescan on a project it can
+             edit, and when to stop. It needs no browser and no network. Exit 0.
+
 Exit codes: 0 no findings (for check, no new ones), 1 findings (for check, new ones) or not scanned,
 2 a refusal (one Error: line and one Hint: line, nothing written), 3 something unexpected, 130 Ctrl-C.
 
@@ -86,7 +91,6 @@ Commands (coming, none works yet):
   checklist  the questions a scan cannot answer
   ignore     set a finding aside, with a reason and a date
   report     write a report again from a stored scan
-  prompt     print the prompt file for a coding agent
 `;
 
 const HELP_HINT = "run a11y-genie --help to see what exists so far.";
@@ -100,6 +104,7 @@ async function main(args: string[]): Promise<void> {
   if (args[0] === "scan") return scanCommand(args.slice(1), HELP_HINT);
   if (args[0] === "check") return checkCommand(args.slice(1), HELP_HINT);
   if (args[0] === "rules") return rulesCommand(args.slice(1), HELP_HINT);
+  if (args[0] === "prompt") return promptCommand(args.slice(1), HELP_HINT);
   if (args.length === 0 || args.includes("--help")) {
     process.stdout.write(HELP);
   } else {

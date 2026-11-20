@@ -477,6 +477,17 @@ The comparison is a pure function of two records, so the browser tests and the u
   pages, states or tags, reads *not comparable* and says why; it is never a refusal, and it never changes the exit.
 - **`--commit`** (or `GITHUB_SHA`) is recorded as `target.commit`, and a fixed finding's `fixedIn` names it.
 
+**The loop, for an agent (`agentic/fix-loop.prompt.md`, `src/prompt-command.ts`).** `a11y-genie prompt` prints a
+prompt file that lets a coding agent run scan, fix, rescan on a project it can edit: a baseline with `scan`, then
+rounds of small fixes, each judged by `check --baseline` against that same baseline, never by the agent. It stops
+on one of six named stops (Clean, Budget spent, Stuck, Regression, Blocked, Refused) and prints one line per
+finding (`FIXED`, `OPEN`, `STUCK`, `NEW`, `BLOCKED`), then what was checked, what is still open and what a scan
+cannot see. Anything not scanned, or unverified, is Blocked: rounds cannot fix a page that did not load, and an
+unverified finding needs a new baseline with the same `--states`. The command reads the file from the package's
+own folder, not the working directory. `test/cli/prompt.test.ts` holds the file to the product: every command and
+flag it names is in `--help`, every field it names resolves in `schema/scan-1.json`, and the never-claim test reads
+it.
+
 **Selectors are stable between runs (V9).** Checked on 2026-11-19 with axe-core 4.14.1 in Chrome 158 (headless)
 on macOS: eight fixture pages (`impact-mix`, `contrast`, `icon-button`, `no-landmarks`, `states`,
 `needs-review`, `content-outside-landmarks`, `two-mains`), each scanned three times with nothing changed, gave the

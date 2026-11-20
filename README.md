@@ -30,6 +30,8 @@ and every report says what a scan cannot see.
 
 A11y Genie is in early development. Today `scan <url>` scans one page with axe-core in the installed
 Chrome and writes `scan.json` and `report.md`, worst first; [docs/JSON.md](docs/JSON.md) says what they hold.
+`a11y-genie prompt` prints the prompt file for a coding agent,
+[agentic/fix-loop.prompt.md](agentic/fix-loop.prompt.md): scan, fix, rescan with `check --baseline`, and when to stop.
 
 ## The browser
 
