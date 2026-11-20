@@ -16,11 +16,12 @@ You need Git and Node 24 or newer.
 git clone https://github.com/johnfrog76/a11y-genie.git
 cd a11y-genie
 npm ci
-npx playwright-core@1.65.1 install --no-shell chromium
+npx playwright-core install --no-shell chromium
 ```
 
-The last line downloads Playwright's Chromium (about 200 MB), once per machine. The tests run on it, never on
-your own Chrome.
+The last line downloads Playwright's Chromium (about 200 MB), once per machine, at the version the repository
+pins. Run it after `npm ci`, so it uses that pinned copy. The tests run on that Chromium, never on your own
+Chrome.
 
 ## Check a change
 
