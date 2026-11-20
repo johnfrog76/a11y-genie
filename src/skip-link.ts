@@ -11,7 +11,7 @@
 import type { Page } from "playwright-core";
 import type { Finding } from "./finding.js";
 import { registerGenieRule } from "./genie-rules.js";
-import { hasLandmark } from "./landmarks.js";
+import { readStructure } from "./landmarks.js";
 import { BEST_PRACTICE_TAG } from "./rule-flags.js";
 import type { FocusReader } from "./walk.js";
 
@@ -69,13 +69,18 @@ const COUNT_TABBABLE = `function () {
 const FOCUSED_IS_SKIP_LINK = `function () {
   const el = this;
   if (!el || el.tagName !== "A") return false;
+  // The link's own document: a fragment scrolls that document, so only the top one counts. A link in a
+  // shadow root belongs to the top document; one in a frame does not.
+  const doc = el.ownerDocument;
+  const view = doc.defaultView;
+  if (view === null || view.top !== view) return false;
   const href = el.getAttribute("href") ?? "";
   if (!href.startsWith("#") || href.length < 2) return false;
   let id = href.slice(1);
   try { id = decodeURIComponent(id); } catch {}
-  const target = document.getElementById(id);
+  const target = doc.getElementById(id);
   if (!target) return false;
-  const main = document.querySelector("main, [role=main]");
+  const main = doc.querySelector("main, [role=main]");
   return main !== null && main.contains(target);
 }`;
 
@@ -109,7 +114,8 @@ export async function checkSkipLink(
   const tabbable: unknown = await reader.call(COUNT_TABBABLE);
   if (typeof tabbable !== "number" || tabbable < MIN_TABBABLE) return undefined;
   if (skipLinkSeen) return undefined;
-  const structure = (await hasLandmark(page)) || (await page.getByRole("heading").count()) > 0;
+  const found = await readStructure(reader);
+  const structure = found.landmark || found.heading;
   const html: unknown = await reader.call(BODY_OPENING_TAG);
   return {
     id: `genie/skip-link@${pageKey}`,
