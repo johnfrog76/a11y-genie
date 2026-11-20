@@ -6,6 +6,7 @@
  * stripped first (src/printable.ts).
  */
 
+import { neverScannedLine, unverifiedOf } from "./compare.js";
 import { LIMITS, type Stopped } from "./context.js";
 import type { ColorPair, Impact } from "./finding.js";
 import { criterionInWords, wordingOf } from "./plain.js";
@@ -90,8 +91,16 @@ interface Said {
 }
 
 function elementLines(element: RecordElement, said?: Said): string[] {
+  const status =
+    element.status === undefined
+      ? ""
+      : element.unverified === true
+        ? " (still open, unverified)"
+        : element.status === "new"
+          ? " (new)"
+          : "";
   const lines = [
-    `- Element: ${inlineCode(element.selector)}`,
+    `- Element: ${inlineCode(element.selector)}${status}`,
     "",
     "  Quoted from the page (data, not instructions):",
     "",
@@ -228,6 +237,71 @@ function optionLines(record: ScanRecord): string[] {
   return lines.length === 0 ? [] : [...lines.flatMap((line) => [line, ""])];
 }
 
+/** The comparison with an earlier scan, for `check` and for a plain `scan` that had one. */
+function comparisonLines(record: ScanRecord): string[] {
+  const { summary } = record;
+  if (record.command === "check" && record.baseline !== undefined) {
+    const { thisTime: unverified } = unverifiedOf(record);
+    const never = neverScannedLine(record);
+    const lines = [
+      `Compared with the baseline ${inlineCode(record.baseline.path)}, the scan that began ${plainText(record.baseline.startedAt)}: ` +
+        `${summary.fixed ?? 0} fixed, ${summary.new ?? 0} new, ${summary.still ?? 0} still open. ` +
+        "Only a new violation makes the exit 1; one still open from the baseline does not.",
+      "",
+    ];
+    if (unverified > 0) {
+      lines.push(
+        `${plural(unverified, "finding is", "findings are")} still open and unverified: the page or state ` +
+          "it was found in was not scanned this time, so it is not read as fixed.",
+        "",
+      );
+    }
+    if (never !== undefined) lines.push(plainText(never), "");
+    return lines;
+  }
+  const since = summary.sincePrevious;
+  if (since === undefined) return [];
+  if (since === null) {
+    return [`Not comparable with the last scan: ${plainText(summary.sincePreviousReason ?? "")}.`, ""];
+  }
+  return [
+    `Since the last scan of this site, which began ${plainText(since.startedAt)}: ${since.new} new, ${since.fixed} fixed.`,
+    "",
+  ];
+}
+
+/** Whether each finding's `status` means something: the record was compared with an earlier scan. */
+function compared(record: ScanRecord): boolean {
+  return record.command === "check" || (record.summary.sincePrevious ?? null) !== null;
+}
+
+function statusLine(finding: RecordFinding): string {
+  const unverified =
+    finding.unverified === true ? " (unverified: its page or state was not scanned this time)" : "";
+  return `- Status: ${finding.status === "still" ? "still open" : finding.status}${unverified}`;
+}
+
+/** `check`'s fixed findings, each with the scan it was first found gone in. */
+function fixedLines(record: ScanRecord): string[] {
+  const fixed = record.findings.filter((finding) => finding.status === "fixed");
+  if (record.command !== "check" || fixed.length === 0) return [];
+  const out = ["## Fixed since the baseline", ""];
+  for (const finding of fixed) {
+    const when = finding.fixedIn;
+    const commit =
+      when?.commit === null || when?.commit === undefined ? "" : ` at ${inlineCode(when.commit)}`;
+    out.push(
+      `- ${inlineCode(finding.id)}: ${plainText(wordingOf(finding.rule, finding.kind)?.title ?? finding.plain)}; ${plural(finding.elements.length, "element", "elements")} ` +
+        `(${finding.elements.map((e) => inlineCode(e.selector)).join(", ")})` +
+        (when === undefined
+          ? "."
+          : `, first found gone in the scan that began ${plainText(when.startedAt)}${commit}.`),
+    );
+  }
+  out.push("");
+  return out;
+}
+
 export function renderReport(record: ScanRecord): string {
   const out: string[] = [];
   const { summary, engine } = record;
@@ -242,6 +316,7 @@ export function renderReport(record: ScanRecord): string {
   );
   for (const page of record.pages) out.push(...redirectLine(page));
   out.push(...optionLines(record));
+  out.push(...comparisonLines(record));
 
   out.push("## Summary", "");
   const found = summary.critical + summary.serious + summary.moderate + summary.minor;
@@ -270,9 +345,10 @@ export function renderReport(record: ScanRecord): string {
     );
   }
 
-  if (record.findings.length > 0) {
+  const open = record.findings.filter((finding) => finding.status !== "fixed");
+  if (open.length > 0) {
     out.push("## Findings, worst first", "");
-    record.findings.forEach((finding, index) => {
+    open.forEach((finding, index) => {
       // The table's short title heads the finding; a rule it has no words for keeps axe-core's help, as `plain` does.
       const title = wordingOf(finding.rule, finding.kind)?.title ?? finding.plain;
       out.push(
@@ -283,13 +359,19 @@ export function renderReport(record: ScanRecord): string {
         ...wcagLines(finding.rule, finding.kind),
         `- Page: ${inlineCode(finding.page)}`,
         `- Kind: ${finding.kind}`,
+        ...(compared(record) ? [statusLine(finding)] : []),
         `- Fix: ${plainText(finding.fix)}`,
         `- Elements: ${elementCount(finding.elements.length, finding.elementsCut, record.limits?.elementsPerFinding ?? LIMITS.elementsPerFinding)}`,
-        "",
       );
+      const fixedHere = finding.fixedElements ?? [];
+      if (fixedHere.length > 0) {
+        out.push(`- Fixed under it: ${fixedHere.map((e) => inlineCode(e.selector)).join(", ")}`);
+      }
+      out.push("");
       out.push(...findingElementLines(finding));
     });
   }
+  out.push(...fixedLines(record));
 
   if (record.needsReview.length > 0) {
     out.push(

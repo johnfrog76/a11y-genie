@@ -20,8 +20,11 @@ import { escapeJsonControls } from "./printable.js";
  * `pages[].stopped`.
  * 1.4 made `states` real: a page lists every state it was asked to scan, `notScanned` names each state that
  * could not be scanned, and an element lists the states it was found in. A 1.3 record has `["default"]` in each.
+ * 1.5 added `check`'s record (`command: "check"`, `baseline`, `summary.new`, `still` and `fixed`, and on findings
+ * `fixedIn`, `fixedElements`, `unverified`, and an element's `status`), plain `scan`'s `summary.sincePrevious`
+ * and `sincePreviousReason`, and `target.commit` from `--commit`. A 1.4 record has none of them.
  */
-export const SCHEMA_VERSION = "1.4";
+export const SCHEMA_VERSION = "1.5";
 
 /**
  * What a scan cannot see: the questions a person has to answer, because automated rules cannot. Fixed
@@ -45,6 +48,22 @@ export const CANNOT_SEE: readonly string[] = [
 export interface RecordElement extends FindingElement {
   /** The states of the page the element was found in, in the order they were scanned. `default` comes first. */
   states: string[];
+  /** On a `check` only: whether the element is new since the baseline, still failing, or fixed. */
+  status?: FindingStatus;
+  /** On a `check` only: a baseline element whose page or state was not scanned this time, so it reads `still`. */
+  unverified?: true;
+}
+
+/**
+ * A finding against an earlier scan (spec 4.5, 4.6). `new`: not in it, or with an element it did not have. `still`:
+ * in both. `fixed`: in it, and not found now; only a `check` lists fixed findings.
+ */
+export type FindingStatus = "new" | "still" | "fixed";
+
+/** The scan a finding was first found gone in. */
+export interface FixedIn {
+  startedAt: string;
+  commit: string | null;
 }
 
 export interface RecordFinding {
@@ -61,8 +80,14 @@ export interface RecordFinding {
   elements: RecordElement[];
   /** How many of the finding's elements are not listed: past the limit per finding, or cut to fit. */
   elementsCut?: number;
-  /** Always `new` until a scan is compared with the one before it. */
-  status: "new";
+  /** `new` with no earlier scan to compare with; otherwise against it (src/compare.ts). */
+  status: FindingStatus;
+  /** On a `check`, a fixed finding: the scan it was first found gone in, and that scan's `--commit`. */
+  fixedIn?: FixedIn;
+  /** On a `check`, a finding still open: the baseline's elements that no longer fail. */
+  fixedElements?: RecordElement[];
+  /** On a `check`: a finding of the baseline on a page or state not scanned this time. It reads `still`. */
+  unverified?: true;
 }
 
 export interface RecordNeedsReview extends Omit<NeedsReview, "elements"> {
@@ -97,7 +122,7 @@ export interface RecordLimits {
 export interface ScanRecord {
   schema: string;
   tool: { name: string; version: string };
-  command: "scan";
+  command: "scan" | "check";
   exit: 0 | 1;
   engine: { axeCore: string; browser: string; fallback: boolean; tags: string[] | null; rulesRun: number };
   target: { origin: string; commit: string | null };
@@ -112,6 +137,16 @@ export interface ScanRecord {
     advice: number;
     needsReview: number;
     notScanned: number;
+    /** On a `check`: how many findings are new, still open and fixed against the baseline. */
+    new?: number;
+    still?: number;
+    fixed?: number;
+    /**
+     * On a plain `scan` with an earlier scan of the site: what is new and what is gone since it, or null when the
+     * two are not comparable (`sincePreviousReason` says why). Absent when there is no earlier scan.
+     */
+    sincePrevious?: SincePrevious | null;
+    sincePreviousReason?: string;
   };
   findings: RecordFinding[];
   needsReview: RecordNeedsReview[];
@@ -123,6 +158,22 @@ export interface ScanRecord {
   limits?: RecordLimits;
   /** Added in 1.3: the flags that changed what the scan did or how it exited. A 1.2 record has none. */
   options?: RecordOptions;
+  /** On a `check`: the baseline it was compared with, as `--baseline` named it, and when that scan began. */
+  baseline?: {
+    path: string;
+    startedAt: string;
+    commit: string | null;
+    /** The states the baseline asked for and did not scan, by page: a finding found only there reads unverified. */
+    notScanned?: { page: string; state: string }[];
+  };
+}
+
+/** Plain `scan` against the site's previous scan: findings new since it, and findings of it not found now. */
+export interface SincePrevious {
+  new: number;
+  fixed: number;
+  /** When the previous scan began. */
+  startedAt: string;
 }
 
 /** The flags that shape a scan, as `scan.json` records them. (`--tags` is `engine.tags`.) */

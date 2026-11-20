@@ -28,6 +28,21 @@ moderate exits 0: the findings are still in `scan.json` and `report.md`, and the
 
 `scan.json` records the floor in `options.failOn`, and its `exit` is the code the run ends with.
 
+**`check --baseline <scan>`** scans as `scan` does, compares with the baseline (docs/JSON.md, *Compared with an
+earlier scan*), and exits on what is new:
+
+| Code | Meaning for `check` |
+| --- | --- |
+| 0 | Every page and state was scanned, and no **new** violation at or above `--fail-on`. Findings still open from the baseline do not fail it, and neither do fixed ones. |
+| 1 | A new violation at or above `--fail-on` (a finding the baseline did not have, or a new element on one it had); or a page or state **not scanned**, whatever `--fail-on` says. The baseline's findings on a page or state not scanned read still open and unverified, never fixed. A finding found only in a state the baseline asked for and did not scan reads unverified, not new, and does not make the exit 1. |
+| 2, 3, 130 | As for `scan`. A baseline that cannot be compared is a refusal (below). |
+
+Its first line counts the findings, such as `2 fixed, 0 new, 3 still open (worst: serious, color-contrast on
+settings)`, and when it exits 0 with findings still open it says `None of them is new, so the exit is 0: the ones
+still open were in the baseline.` Plain `scan` compares with the site's last scan only for its first line
+(`4 new, 2 fixed since the last scan`, or `Not comparable with the last scan: different pages, states or tags.`):
+its exit reads only the scan just run.
+
 `rules` exits 0 on success and 2 on a refusal; it scans nothing.
 
 Not built yet, with a place waiting in `src/exit-codes.ts`:
@@ -41,6 +56,8 @@ person who adds it to any command line gets the answer, not a refusal.)
 ## Refusals the command can reach
 
 Every refusal is exit 2 and happens before anything is written: the scans folder and `--out` are left as they were.
+`check` takes every flag `scan` does, with the same refusals, and `--baseline`; its own refusals come before a
+browser opens, too.
 
 | Refused | `Error:` | `Hint:` |
 | --- | --- | --- |
@@ -76,6 +93,17 @@ Every refusal is exit 2 and happens before anything is written: the scans folder
 | An `--out` that is a file | `--out is not a folder: <path>` | `give a folder, or a new name inside a folder that exists.` |
 | An `--out` whose parent is missing, or a file | `--out cannot be made, because the folder above it does not exist: <path>` (or `the path above it is not a folder`) | `make the folder above it first, or choose another --out.` |
 | An `--out` with no permission | `--out cannot be written to: <path>` (or `... because the folder above it cannot be written to`) | `choose a folder you may write to.` |
+| A `--commit`, or a `GITHUB_SHA` with no `--commit`, that is not a sha, tag or branch name | `--commit is not a commit: "a b".` (or `GITHUB_SHA is not a commit: ...`) | `give a commit sha, or a tag or branch name: letters, digits, '.', '_', '/' and '-', up to 100.` |
+| `check` with no `--baseline` | `check needs --baseline: the scan to compare with.` | `scan first, then give its scan.json or its folder: a11y-genie check --baseline <scan> <url>` |
+| `check` with no address and no `--config`, or more than one | `check needs a page address to scan.`, `check takes one page, and got more: two` | as for `scan` |
+| A `--baseline` that is missing, unreadable, or a folder with no `scan.json` | `--baseline cannot be read: <path> (ENOENT)` | `give a scan.json that a11y-genie scan wrote, or the scan folder it is in, such as <scans>/localhost-5173/2026-11-19T20-14-03Z.` |
+| A `--baseline` that is not a file (a device, a pipe) | `--baseline is not a file: <path>` | the same hint |
+| A `--baseline` over 50 MB, the limit on `scan.json` | `--baseline is over the 52428800 byte limit on scan.json: <path>` | the same hint |
+| A `--baseline` that is not JSON (or not UTF-8), or has no `schema` | `--baseline is not a scan.json: <path> is not JSON.` (or `... has no schema version.`) | the same hint |
+| A `--baseline` of another `schema` major | `--baseline is a scan.json of schema 2, and this version of A11y Genie reads schema 1 (1.x).` | `scan again with this version to make a baseline it can read, or run the version that wrote it.` |
+| A `--baseline` the schema does not hold, or that lists a finding id twice | `--baseline is not a scan.json A11y Genie wrote: <path> does not match schema/scan-1.json at .findings[0].impact.` (and `, and 2 more` when there are more); `... lists the finding <id> twice.` It names where, never the value the file held | the same hint |
+| A `--baseline` of another site | `--baseline is a scan of http://127.0.0.1:9, and this check is of http://127.0.0.1:8.` | `comparing two sites' findings means nothing: give a baseline of the same site, or scan this one first for one.` |
+| A `--baseline` of other pages, states or tags than the check | `--baseline is not comparable with this check: it scanned the pages home, and this check scans settings.` (or `it scanned the page home in the states default, and this check scans it in dark, default.`, or `it ran axe-core's default rule set, and this check runs the tags wcag2a.`) | `run check with the arguments the baseline was scanned with: the same pages, the same states and the same --tags.` |
 
 Given both `--offline` and `--no-download`, the refusal names `--no-download`. `--offline` never downloads; a
 Chromium already in Playwright's cache is used.

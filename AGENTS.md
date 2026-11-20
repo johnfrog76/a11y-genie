@@ -37,6 +37,9 @@ Run all five before you ask for a review. CI runs the same five in that order, o
 - `src/axe.ts` runs axe-core on a loaded page; `src/map-axe.ts` maps its results to findings (`src/finding.ts`), and
   `src/order.ts` orders them worst first. `src/landmarks.ts` is the product's own `genie/no-landmarks` check,
   `src/click-on-non-control.ts` its `genie/click-on-non-control`, and `src/skip-link.ts` its `genie/skip-link`.
+- `src/scan-command.ts` is `a11y-genie scan`: its flags, its run, its files and its lines, which `src/check-command.ts`
+  (`a11y-genie check --baseline`) shares. `src/compare.ts` compares two scans (new, still, fixed);
+  `src/baseline.ts` reads an earlier `scan.json` as untrusted input, checked with `src/json-schema.ts`.
 - `src/plain.ts` holds each finding's plain words and fix, by rule, and each WCAG criterion's name in plain words;
   docs/ARCHITECTURE.md (*Plain words*) says how to add a rule's words.
 - `src/rules-command.ts` is `a11y-genie rules`; `src/genie-rules.ts` is the registry of the product's own
