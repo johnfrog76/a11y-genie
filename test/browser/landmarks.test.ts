@@ -55,6 +55,12 @@ describe.skipIf(!hasChrome)("landmarks on the fixture pages (skipped where Chrom
     ["landmark-header-presentation.html", true],
     ["landmark-scoped-header-footer.html", true],
     ["landmark-top-header-footer.html", false],
+    ["landmark-scoped-role-article.html", true],
+    ["landmark-scoped-role-complementary.html", true],
+    ["landmark-scoped-role-region.html", true],
+    ["landmark-scoped-role-article-case.html", true],
+    ["landmark-unscoped-tabpanel.html", false],
+    ["landmark-role-multi-token-article.html", false],
   ])("%s: genie/no-landmarks fires is %s", async (page, fires) => {
     const [result, attempted] = await scan(page);
     expect(result.findings.some((f) => f.id === `genie/no-landmarks@${page}`)).toBe(fires);

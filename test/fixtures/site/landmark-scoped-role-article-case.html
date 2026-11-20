@@ -1,0 +1,16 @@
+<!doctype html>
+<!--
+  Fixture: a header and a footer inside a div with role=" ARTICLE ". The browser matches the role case-insensitively and trimmed, so it scopes them, so they are not a banner or a contentinfo.
+  Must fire: genie/no-landmarks
+  Also fires: whatever axe-core makes of the page; the test reads only genie/no-landmarks.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>A header and footer inside a div with role ARTICLE, spaced</title>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <div role=" ARTICLE "><header>Head</header><p>Text</p><footer>Foot</footer></div>
+  </body>
+</html>

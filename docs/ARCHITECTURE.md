@@ -265,8 +265,11 @@ check reads the page in an isolated world, through a `FocusReader` of its own (`
 overrides `querySelector`, `matches` or `getAttribute` cannot hide its missing landmarks. It looks for elements of
 the roles `banner`, `navigation`, `main` and `contentinfo`: a role attribute decides by its first token that is a known ARIA role (`<nav role="foo">` stays a navigation), and
 with none known `main` and `nav` are `main` and `navigation`, while `header` and `footer` are `banner` and
-`contentinfo` only outside `article`, `aside`, `main`, `nav` and `section`. So a `div role="main"` counts, a
-`header` inside an `article` does not, and an element out of the accessibility tree (`display: none`,
+`contentinfo` only outside a scoping ancestor: an `article`, `aside`, `main`, `nav` or `section` with no role
+attribute, or an element whose role attribute, trimmed and in any case, is exactly `article`, `complementary`, `main`, `navigation` or
+`region` (the browser's own selector; an ancestor's role is not read by its first known token here, so
+`role="foo article"` does not scope, as in Chrome's accessibility tree). So a `div role="main"` counts, a
+`header` inside an `article` or a `div role="article"` does not, a `header` inside `section role="tabpanel"` does, and an element out of the accessibility tree (`display: none`,
 `visibility: hidden`, or it or an ancestor `aria-hidden="true"`) does not. Open shadow roots are read. Other
 landmark roles (`complementary`, `search`, `form`, `region`)
 do not count: a page with only those has none of the four. It runs on the page's own frame after axe-core, and
@@ -365,7 +368,7 @@ isolated world through a `FocusReader` of its own, so a page that overrides `doc
 Advice never changes the exit code. Fixtures: `no-skip-link.html`, `no-skip-no-structure.html`,
 `skip-link-ok.html`, `skip-link-broken.html`, `few-tabbable.html`, `skip-link-tampered.html`,
 `skip-link-hidden-tampered.html`, `no-landmarks-tampered.html`, `skip-link-frame.html` (with
-`skip-link-frame-inner.html`), `skip-link-shadow.html`; the role and scope fixtures (`landmark-role-*.html`, `landmark-header-presentation.html`, `landmark-scoped-header-footer.html`, `landmark-top-header-footer.html`) are read by `test/browser/landmarks.test.ts`; test: `test/browser/skip-link.test.ts`.
+`skip-link-frame-inner.html`), `skip-link-shadow.html`; the role and scope fixtures (`landmark-role-*.html`, `landmark-header-presentation.html`, `landmark-scoped-header-footer.html`, `landmark-top-header-footer.html`, `landmark-scoped-role-*.html`, `landmark-unscoped-tabpanel.html`, `landmark-role-multi-token-article.html`) are read by `test/browser/landmarks.test.ts`; test: `test/browser/skip-link.test.ts`.
 
 ### The keyboard walk (`src/walk.ts`)
 
