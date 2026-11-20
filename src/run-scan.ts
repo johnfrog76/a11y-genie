@@ -26,6 +26,7 @@ import type { Impact } from "./finding.js";
 import { DEFAULT_FAIL_ON } from "./rule-flags.js";
 import { buildPagesRecord, type PageResult, type ScanRecord, type StateResult } from "./scan-record.js";
 import type { State } from "./steps.js";
+import { DEFAULT_MAX_TABS } from "./walk.js";
 
 /** How long the first page may take to answer before the scan refuses, in milliseconds. */
 export const NAVIGATION_TIMEOUT_MS = 30_000;
@@ -177,6 +178,8 @@ export interface RunScanOptions {
   tags?: readonly string[];
   /** `--fail-on`: the lowest impact that makes the exit 1. Default `minor`. */
   failOn?: Impact;
+  /** `--max-tabs`: the keyboard walk's limit, and the most presses a `Tab to` step makes. Default 200. */
+  maxTabs?: number;
   /** The flag a refused download names. Default: `--offline` when `offline`, else `--no-download`. */
   noDownloadFlag?: NoDownloadFlag;
   /**
@@ -284,7 +287,7 @@ async function loadAndScan(
   if (actionSteps(unit.state.steps).length > 0) {
     let done: unknown;
     try {
-      done = await within(runSteps(tab, unit.state.steps, left), left());
+      done = await within(runSteps(tab, unit.state.steps, left, maxTabsOf(options)), left());
     } catch (error) {
       if (error instanceof StepFailure) return notScanned(error.message, redirects);
       if (tab.isClosed()) return notScanned("the page closed itself while its steps ran", redirects);
@@ -307,7 +310,10 @@ async function loadAndScan(
   });
   let axe: AxeScan | typeof TIMED_OUT;
   try {
-    axe = await within(scanPage(tab, unit.key, options.tags ?? null), left());
+    axe = await within(
+      scanPage(tab, unit.key, options.tags ?? null, { maxTabs: maxTabsOf(options) }),
+      left(),
+    );
   } catch (error) {
     // A page that moves while axe-core reads it leaves nothing to read: say so rather than fail.
     if (navigations > 0 || tab.isClosed()) {
@@ -323,6 +329,11 @@ async function loadAndScan(
     return notScanned(`it went to ${schemeOf(finalUrl)}, which is not http: or https:`, redirects);
   }
   return { scanned: true, axe, url: finalUrl, redirects };
+}
+
+/** `--max-tabs`, or its default. */
+function maxTabsOf(options: RunScanOptions): number {
+  return options.maxTabs ?? DEFAULT_MAX_TABS;
 }
 
 /** The scheme of an address, such as `about:`, for a reason; the address itself is the page's to choose. */

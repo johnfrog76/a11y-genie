@@ -52,7 +52,7 @@ states never leak into each other.
 | Step | Playwright |
 | --- | --- |
 | a key | `keyboard.press(key)` |
-| `Tab to <element>` | `keyboard.press("Tab")` until focus is on the element (checked first, so an element already focused needs no press); gives up after 200 presses |
+| `Tab to <element>` | `keyboard.press("Tab")` until focus is on the element (checked first, so an element already focused needs no press); gives up after `--max-tabs` presses, 200 unless the flag says otherwise |
 | `click <element>` | `locator.click()` |
 | `type '<text>'` | `keyboard.type(text)` |
 | `wait <element>` | `locator.first().waitFor({ state: "visible" })` |
@@ -70,7 +70,7 @@ A step that fails makes its state *not scanned*, with the step's number and text
 | `step 2 (click button 'Menu') failed: no such element was found, or it could not be clicked, within 10 seconds` | nothing matched, or what matched could not be clicked |
 | `step 2 (wait menu) failed: it did not become visible within 10 seconds` | `wait` timed out |
 | `step 2 (click menuitem) failed: more than one element matches it, so the step cannot tell which one is meant` | the element is not one |
-| `step 1 (Tab to button 'Save') failed: focus did not reach it within 200 Tab presses` | `Tab to` ran out of presses |
+| `step 1 (Tab to button 'Save') failed: focus did not reach it within 200 Tab presses` | `Tab to` ran out of presses (the number is `--max-tabs`) |
 | `step 1 (click css '[x') failed: the selector is not valid CSS` | a CSS selector the browser cannot read |
 | `its steps did not finish within 60 seconds` | the state's own limit passed |
 | `step 2 (...) failed: the page closed` | the page closed itself |

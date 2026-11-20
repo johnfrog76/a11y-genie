@@ -1,8 +1,9 @@
-/** The values of `--timeout` and `--storage-state`, checked before anything is scanned. */
+/** The values of `--timeout`, `--max-tabs` and `--storage-state`, checked before anything is scanned. */
 
 import { readFileSync, statSync } from "node:fs";
 import { printableLine } from "./printable.js";
 import { Refusal } from "./refusal.js";
+import { DEFAULT_MAX_TABS, MAX_MAX_TABS } from "./walk.js";
 
 /** The longest `--timeout` taken, in seconds: an hour. A page that needs longer has something else wrong. */
 export const MAX_TIMEOUT_SECONDS = 3600;
@@ -17,6 +18,18 @@ export function parseTimeout(text: string): number {
     );
   }
   return Math.round(seconds * 1000);
+}
+
+/** `--max-tabs <n>`: a whole number of Tab presses from 1 to `MAX_MAX_TABS`, written in digits. */
+export function parseMaxTabs(text: string): number {
+  const tabs = /^[0-9]{1,5}$/.test(text) ? Number(text) : Number.NaN;
+  if (!Number.isInteger(tabs) || tabs < 1 || tabs > MAX_MAX_TABS) {
+    throw new Refusal(
+      `--max-tabs takes a whole number of Tab presses from 1 to ${MAX_MAX_TABS}, not "${printableLine(text).slice(0, 40)}".`,
+      `for example --max-tabs 500. The default is ${DEFAULT_MAX_TABS}.`,
+    );
+  }
+  return tabs;
 }
 
 const MAX_STORAGE_STATE_BYTES = 10 * 1024 * 1024;
