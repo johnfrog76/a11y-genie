@@ -68,8 +68,8 @@ belong to [axe-core](https://github.com/dequelabs/axe-core) instead.
 
 - One issue, one pull request. For anything bigger than a small fix, open an issue first, so we can agree
   on the approach before you write it.
-- Tests with the change. A new check comes with a fixture page that must fire it, and a twin without the bug where a
-  false positive is the risk.
+- Tests with the change. A new check comes with a fixture page that must fire it, and a twin page without
+  the bug where a false positive is the risk.
 - If a change moves the golden files in `test/goldens/`, rewrite them with `UPDATE_GOLDENS=1 npm test` and
   read the diff before you commit it.
 - Say what now holds, not only what was broken. If the change loosens, removes or rewrites what a test
