@@ -72,7 +72,7 @@ Scanned `http://127.0.0.1:0000/impact-mix.html` with axe-core 0.0.0 in chrome 0.
 ### 3. Moderate: Heading that skips a level
 
 - Rule: `axe/heading-order` · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/heading-order?application=playwright>)
-- What's wrong: A heading skips a level, such as an h2 followed by an h4, so a person who reads the page's outline through its headings looks for a section that is not there.
+- What's wrong: A heading skips a level, such as an h2 followed by an h4, so a person who reads the page's outline through its headings finds a gap in the outline.
 - Page: `impact-mix.html`
 - Kind: violation
 - Fix: Go down one level at a time: under an h2 comes an h3. To change how a heading looks, use CSS, not another level.

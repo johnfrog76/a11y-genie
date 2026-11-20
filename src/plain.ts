@@ -57,7 +57,7 @@ export const RULE_WORDING: Readonly<Record<string, RuleWording>> = Object.freeze
   "axe/heading-order": {
     title: "Heading that skips a level",
     plain:
-      "A heading skips a level, such as an h2 followed by an h4, so a person who reads the page's outline through its headings looks for a section that is not there.",
+      "A heading skips a level, such as an h2 followed by an h4, so a person who reads the page's outline through its headings finds a gap in the outline.",
     fix: "Go down one level at a time: under an h2 comes an h3. To change how a heading looks, use CSS, not another level.",
   },
   "axe/image-alt": {
@@ -96,10 +96,10 @@ export const RULE_WORDING: Readonly<Record<string, RuleWording>> = Object.freeze
     fix: "Put all of the page's content inside landmarks: header, nav, main, aside or footer. Content that belongs to none of the others goes in main.",
   },
   "genie/click-on-non-control": {
-    title: "Clickable thing that is not a control",
+    title: "Clickable element that is not a control",
     plain:
       "Something reacts to a click but is not a button or a link, so a keyboard cannot reach it and a screen reader does not say it can be pressed.",
-    fix: 'Make it a button element with the same handler and the same text. If it must stay as it is, give it role="button" and tabindex="0", and run the same handler on Enter and Space.',
+    fix: "Make it a button element with the same handler and the same text, or a link if it goes to another page.",
   },
   "genie/no-landmarks": {
     title: "No landmarks at all",
@@ -115,7 +115,7 @@ export const RULE_WORDING: Readonly<Record<string, RuleWording>> = Object.freeze
     advice: {
       title: "No skip link",
       plain:
-        "No skip link. Landmarks and headings already let a screen-reader user jump past the navigation; a skip link does the same for someone using only a keyboard.",
+        "The page has no skip link. Its landmarks or headings let a screen-reader user jump past the navigation, but someone using only a keyboard still has to tab through it.",
       fix: 'Make the first thing on the page a link to the main content, such as href="#main" with id="main" on the main element, shown when it gets focus.',
     },
   },
@@ -134,7 +134,7 @@ export const CRITERION_WORDING: Readonly<Record<string, CriterionWording>> = Obj
   "1.1.1": { name: "Non-text Content", plain: "images and other non-text content need a text alternative" },
   "1.3.1": {
     name: "Info and Relationships",
-    plain: "the structure people see, such as headings and regions, must be in the code too",
+    plain: "the structure people see, such as headings, lists and regions, must be in the code too",
   },
   "1.4.3": { name: "Contrast (Minimum)", plain: "text must stand out from its background" },
   "2.1.1": { name: "Keyboard", plain: "everything must work from a keyboard" },

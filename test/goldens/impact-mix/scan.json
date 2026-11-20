@@ -127,7 +127,7 @@
       "impact": "moderate",
       "page": "impact-mix.html",
       "title": "Heading levels should only increase by one on impact-mix.html",
-      "plain": "A heading skips a level, such as an h2 followed by an h4, so a person who reads the page's outline through its headings looks for a section that is not there.",
+      "plain": "A heading skips a level, such as an h2 followed by an h4, so a person who reads the page's outline through its headings finds a gap in the outline.",
       "fix": "Go down one level at a time: under an h2 comes an h3. To change how a heading looks, use CSS, not another level.",
       "elements": [
         {

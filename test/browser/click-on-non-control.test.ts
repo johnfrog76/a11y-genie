@@ -146,7 +146,9 @@ describe.skipIf(!hasChrome)("click on a non-control (skipped where Chrome is not
     const report = renderReport(record);
     expect(report).toContain("`genie/click-on-non-control`");
     // The fix line is the wording table's; the check's own words stay with the element, fenced.
-    expect(report).toContain("- Fix: Make it a button element with the same handler and the same text.");
+    expect(report).toContain(
+      "- Fix: Make it a button element with the same handler and the same text, or a link if it goes to another page.",
+    );
     expect(report).toContain("What the check said:");
     expect(report).toContain("## Needs review");
   });

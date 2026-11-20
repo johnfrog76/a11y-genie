@@ -41,7 +41,7 @@ Scanned `http://127.0.0.1:0000/no-landmarks.html` with axe-core 0.0.0 in chrome 
 
 - Rule: `genie/no-landmarks`
 - What's wrong: The page has no landmarks at all: no header, navigation, main or footer region. A screen-reader user cannot jump between its parts and has to go through it from the top.
-- WCAG: 1.3.1 Info and Relationships: the structure people see, such as headings and regions, must be in the code too; 2.4.1 Bypass Blocks: there must be a way past content repeated on every page
+- WCAG: 1.3.1 Info and Relationships: the structure people see, such as headings, lists and regions, must be in the code too; 2.4.1 Bypass Blocks: there must be a way past content repeated on every page
 - Page: `no-landmarks.html`
 - Kind: violation
 - Fix: Put the page's own content in a main element, and use header, nav and footer for its banner, its navigation and its footer.
