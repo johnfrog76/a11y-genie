@@ -28,10 +28,15 @@ as JSON, Markdown and HTML.
 It never says a site is "accessible" or "compliant". Automated checks find some problems, not all of them,
 and every report says what a scan cannot see.
 
-A11y Genie is in early development. Today `scan <url>` scans one page with axe-core in the installed
-Chrome and writes `scan.json` and `report.md`, worst first; [docs/JSON.md](docs/JSON.md) says what they hold.
-`a11y-genie prompt` prints the prompt file for a coding agent,
-[agentic/fix-loop.prompt.md](agentic/fix-loop.prompt.md): scan, fix, rescan with `check --baseline`, and when to stop.
+A11y Genie is in early development. Today:
+
+- `scan <url>` scans a page, or the pages and states in a config file, with axe-core and A11y Genie's own
+  checks in the installed Chrome, and writes `scan.json` and `report.md`, worst first, in plain words.
+  [docs/JSON.md](docs/JSON.md) says what they hold, and [docs/CONFIG.md](docs/CONFIG.md) the config file.
+- `check --baseline <scan> <url>` rescans and says what is new, still open and fixed since that scan.
+- `rules` lists every rule a scan runs.
+- `prompt` prints the prompt file for a coding agent,
+  [agentic/fix-loop.prompt.md](agentic/fix-loop.prompt.md): scan, fix, rescan with `check --baseline`, and when to stop.
 
 ## The browser
 
