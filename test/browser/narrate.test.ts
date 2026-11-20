@@ -1,3 +1,4 @@
+import { TEST_CHANNEL } from "../helpers/test-browser.js";
 import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { pageKeyOf } from "../../src/map-axe.js";
@@ -6,7 +7,7 @@ import { renderReport } from "../../src/report.js";
 import { runScan } from "../../src/run-scan.js";
 import type { ScanRecord } from "../../src/scan-record.js";
 import { parseSteps } from "../../src/steps.js";
-import { chromeIsInstalled, guardContext } from "../helpers/browser-guard.js";
+import { testBrowserIsInstalled, guardContext } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 import { expectTextGolden, normalise } from "../helpers/goldens.js";
 import { validate } from "../helpers/json-schema.js";
@@ -15,7 +16,7 @@ import { neverClaimViolations } from "../helpers/never-claim.js";
 // Narrated workflows (spec 6.6, C10) in the machine's real Chrome: the transcript of workflow.html against its
 // golden, what a press of Enter, Space or a click produced (a live region, a dialog, focus), a step with no
 // name, a step that fails, and page text that is hostile. Skipped, and says so, where Chrome is not installed.
-const hasChrome = await chromeIsInstalled();
+const hasBrowser = await testBrowserIsInstalled();
 const schema = JSON.parse(
   readFileSync(new URL("../../schema/scan-1.json", import.meta.url), "utf8"),
 ) as Record<string, never>;
@@ -28,7 +29,7 @@ function transcriptOf(record: ScanRecord, at = 0): string {
   );
 }
 
-describe.skipIf(!hasChrome)("narrate (skipped where Chrome is not installed)", () => {
+describe.skipIf(!hasBrowser)("narrate (skipped where the test browser is not installed)", () => {
   let server: FixtureServer;
   beforeAll(async () => {
     server = await startFixtureServer();
@@ -48,7 +49,7 @@ describe.skipIf(!hasChrome)("narrate (skipped where Chrome is not installed)", (
         { name: "flow", page: pageKeyOf(url), steps: parseSteps(flow, { source: "--flow", use: "flow" }) },
       ],
       narrateOnly: true,
-      channel: "chrome",
+      channel: TEST_CHANNEL,
       limits: { pageMs },
       onContext: async (context) => {
         attempted.push(await guardContext(context, server.origin));
@@ -222,7 +223,7 @@ describe.skipIf(!hasChrome)("narrate (skipped where Chrome is not installed)", (
       ],
       narrateOnly: true,
       maxTabs: 3,
-      channel: "chrome",
+      channel: TEST_CHANNEL,
       onContext: async (context) => {
         await guardContext(context, server.origin);
       },
@@ -256,7 +257,7 @@ describe.skipIf(!hasChrome)("narrate (skipped where Chrome is not installed)", (
           { name: "flow", page: "home", steps: parseSteps("Tab", { source: "--flow", use: "flow" }) },
         ],
         narrateOnly: true,
-        channel: "chrome",
+        channel: TEST_CHANNEL,
       }),
     ).rejects.toThrow(/did not answer/);
   });
@@ -266,7 +267,7 @@ describe.skipIf(!hasChrome)("narrate (skipped where Chrome is not installed)", (
     const scan = await runScan({
       url,
       pages: [{ url, states: [] }],
-      channel: "chrome",
+      channel: TEST_CHANNEL,
       onContext: async (context) => {
         await guardContext(context, server.origin);
       },

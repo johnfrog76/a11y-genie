@@ -31,6 +31,10 @@ security problem:
 - A public page it scans cannot use the browser to reach the machine's own network: requests to loopback,
   link-local and private addresses are blocked unless you pass `--allow-private`. A page on such an address
   itself (a dev server) is not limited.
+- One run cannot disturb another. Each A11y Genie process makes a temp folder of its own and sets `TMPDIR`
+  (and `TEMP` and `TMP` on Windows) to it, for itself and for the browser and installer it starts, so the
+  browser's profile is never in a folder other processes share. It removes the folder when it ends, on Ctrl-C
+  too; only a process killed outright (`SIGKILL`) leaves it, one folder named `a11y-genie-*`.
 - Text from a page never reaches your terminal or `report.md` with a terminal escape sequence or control
   character in it.
 

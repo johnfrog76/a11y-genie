@@ -1,11 +1,12 @@
 import type { BrowserContext } from "playwright-core";
 import { withBrowser } from "../../src/browser.js";
+import { TEST_CHANNEL } from "./test-browser.js";
 import { Refusal } from "../../src/refusal.js";
 
 /** Whether the machine's Chrome can be launched. Browser tests skip themselves, by name, where it cannot. */
-export async function chromeIsInstalled(): Promise<boolean> {
+export async function testBrowserIsInstalled(): Promise<boolean> {
   try {
-    await withBrowser("chrome", async () => undefined);
+    await withBrowser(TEST_CHANNEL, async () => undefined);
     return true;
   } catch (error) {
     // withBrowser refuses when the channel is not installed; any other error is a real failure.

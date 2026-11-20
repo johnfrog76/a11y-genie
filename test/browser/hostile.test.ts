@@ -1,3 +1,4 @@
+import { TEST_CHANNEL } from "../helpers/test-browser.js";
 import { readFileSync } from "node:fs";
 import type { Page } from "playwright-core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -6,7 +7,7 @@ import { armContext, CONTEXT_OPTIONS, LIMITS, type Limits } from "../../src/cont
 import { renderReport } from "../../src/report.js";
 import { PRIVATE_NAVIGATION, runScan } from "../../src/run-scan.js";
 import { scanJson, type ScanRecord } from "../../src/scan-record.js";
-import { chromeIsInstalled, guardContext } from "../helpers/browser-guard.js";
+import { testBrowserIsInstalled, guardContext } from "../helpers/browser-guard.js";
 import { controlsIn } from "../helpers/controls.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 import { validate } from "../helpers/json-schema.js";
@@ -16,7 +17,7 @@ import { validate } from "../helpers/json-schema.js";
 // defence held, and that the scan still ended: scanned, or *not scanned* with its reason. Every request the
 // browser makes off the two fixture servers is aborted, and each scan checks none was tried. Skipped, and
 // says so, where Chrome is not installed.
-const hasChrome = await chromeIsInstalled();
+const hasBrowser = await testBrowserIsInstalled();
 const schema = JSON.parse(
   readFileSync(new URL("../../schema/scan-1.json", import.meta.url), "utf8"),
 ) as Record<string, never>;
@@ -41,8 +42,8 @@ describe("the context's options, in one place", () => {
   });
 });
 
-describe.skipIf(!hasChrome)(
-  "hostile pages: the browser context (skipped where Chrome is not installed)",
+describe.skipIf(!hasBrowser)(
+  "hostile pages: the browser context (skipped where the test browser is not installed)",
   () => {
     let server: FixtureServer;
     let elsewhere: FixtureServer;
@@ -112,7 +113,7 @@ describe.skipIf(!hasChrome)(
       const started = Date.now();
       const record = await runScan({
         url: server.url(path),
-        channel: "chrome",
+        channel: TEST_CHANNEL,
         ...options,
         onContext: async (context) => {
           attempted.push(
@@ -270,7 +271,7 @@ describe.skipIf(!hasChrome)(
       });
 
       it("a beforeunload dialog is dismissed and noted too", async () => {
-        await withBrowser("chrome", async (browser) => {
+        await withBrowser(TEST_CHANNEL, async (browser) => {
           const context = await browser.newContext(CONTEXT_OPTIONS);
           const guard = await armContext(context);
           const attempted = await guardContext(context, server.origin);
@@ -359,7 +360,7 @@ describe.skipIf(!hasChrome)(
       });
 
       it("V12, at playwright-core 1.65.1: route() sees only the first request of a chain, and no WebSocket", async () => {
-        await withBrowser("chrome", async (browser) => {
+        await withBrowser(TEST_CHANNEL, async (browser) => {
           const context = await browser.newContext(CONTEXT_OPTIONS);
           const routed: string[] = [];
           await context.route("**/*", async (route) => {
@@ -385,7 +386,7 @@ describe.skipIf(!hasChrome)(
       });
 
       it("the page keeps the rule when it moves to another site, in another process", async () => {
-        await withBrowser("chrome", async (browser) => {
+        await withBrowser(TEST_CHANNEL, async (browser) => {
           const context = await browser.newContext(CONTEXT_OPTIONS);
           const guard = await armContext(context, LIMITS, {
             target: server.url("clean.html"),

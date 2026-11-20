@@ -1,3 +1,4 @@
+import { channelArgs } from "../helpers/test-browser.js";
 import { spawn } from "node:child_process";
 import { createServer, type Server } from "node:http";
 import { createServer as createNetServer } from "node:net";
@@ -8,14 +9,14 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { NO_BROWSER_ENV } from "../../src/browser.js";
 import { TEST_NAVIGATION_TIMEOUT_ENV } from "../../src/run-scan.js";
 import { SCANS_DIR_ENV } from "../../src/scans-folder.js";
-import { chromeIsInstalled } from "../helpers/browser-guard.js";
+import { testBrowserIsInstalled } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 
 // Runs the built command (npm test builds first) and checks every exit code and every refusal M1 can reach.
 // A refusal exits 2, prints exactly one `Error:` line and one `Hint:` line on stderr, prints nothing on
 // stdout, and writes nothing: the scans folder and `--out` are left as they were.
 const cli = new URL("../../dist/cli.js", import.meta.url).pathname;
-const hasChrome = await chromeIsInstalled();
+const hasBrowser = await testBrowserIsInstalled();
 
 interface Run {
   status: number | null;
@@ -25,7 +26,9 @@ interface Run {
 }
 
 function start(args: string[], env: Record<string, string>) {
-  const child = spawn(process.execPath, [cli, ...args], { env: { ...process.env, ...env } });
+  const child = spawn(process.execPath, [cli, ...channelArgs(args, env)], {
+    env: { ...process.env, ...env },
+  });
   let stdout = "";
   let stderr = "";
   child.stdout.on("data", (chunk: Buffer) => (stdout += chunk));
@@ -178,84 +181,93 @@ describe("refusals that need no browser", () => {
   });
 });
 
-describe.skipIf(!hasChrome)("exit codes with a browser (skipped where Chrome is not installed)", () => {
-  let server: FixtureServer;
-  let hang: Server;
-  let hangPort: number;
-  const held = new Set<import("node:net").Socket>();
-  beforeAll(async () => {
-    server = await startFixtureServer();
-    // Accepts the connection and never answers: a page that holds the load.
-    hang = createServer(() => undefined);
-    hang.on("connection", (socket) => held.add(socket));
-    await new Promise<void>((resolve) => hang.listen(0, "127.0.0.1", resolve));
-    hangPort = (hang.address() as { port: number }).port;
-  });
-  afterAll(async () => {
-    for (const socket of held) socket.destroy();
-    await new Promise<void>((resolve) => hang.close(() => resolve()));
-    await server.close();
-  });
-
-  it("clean.html exits 0 and icon-button.html exits 1", async () => {
-    expect((await run(["scan", server.url("clean.html")], temp())).status).toBe(0);
-    expect((await run(["scan", server.url("icon-button.html")], temp())).status).toBe(1);
-  });
-
-  it("a target that does not answer: connection refused", async () => {
-    const scans = temp();
-    const port = await closedPort();
-    const result = await run(["scan", `http://127.0.0.1:${port}/`], scans);
-    expectRefusal(
-      result,
-      new RegExp(`^Error: http://127\\.0\\.0\\.1:${port} did not answer: the connection was refused\\.$`),
-      /^Hint: check the address, and that the server is running\.$/,
-    );
-    expect(readdirSync(scans)).toEqual([]);
-  });
-
-  it("a target that does not answer: no response before the timeout", async () => {
-    const scans = temp();
-    const result = await run(["scan", `http://127.0.0.1:${hangPort}/`], scans, {
-      [TEST_NAVIGATION_TIMEOUT_ENV]: "1500",
+describe.skipIf(!hasBrowser)(
+  "exit codes with a browser (skipped where the test browser is not installed)",
+  () => {
+    let server: FixtureServer;
+    let hang: Server;
+    let hangPort: number;
+    const held = new Set<import("node:net").Socket>();
+    beforeAll(async () => {
+      server = await startFixtureServer();
+      // Accepts the connection and never answers: a page that holds the load.
+      hang = createServer(() => undefined);
+      hang.on("connection", (socket) => held.add(socket));
+      await new Promise<void>((resolve) => hang.listen(0, "127.0.0.1", resolve));
+      hangPort = (hang.address() as { port: number }).port;
     });
-    expectRefusal(result, /did not answer: no answer within 1\.5 seconds\.$/);
-    expect(readdirSync(scans)).toEqual([]);
-  });
-
-  it("a refusal leaves --out as it was", async () => {
-    const out = temp();
-    const port = await closedPort();
-    const result = await run(["scan", `http://127.0.0.1:${port}/`, "--out", out], temp());
-    expect(result.status).toBe(2);
-    expect(readdirSync(out)).toEqual([]);
-  });
-
-  it("Ctrl-C during a scan exits 130 and leaves no scan folder and no profile folder", async () => {
-    const scans = temp();
-    // A private temp folder for the command, so its browser's profile is the only one in it.
-    const privateTmp = temp();
-    const { child, done } = start(["scan", `http://127.0.0.1:${hangPort}/`], {
-      [SCANS_DIR_ENV]: scans,
-      TMPDIR: privateTmp,
-      TEMP: privateTmp,
-      TMP: privateTmp,
+    afterAll(async () => {
+      for (const socket of held) socket.destroy();
+      await new Promise<void>((resolve) => hang.close(() => resolve()));
+      await server.close();
     });
-    // The page never answers, so the scan is certain to be waiting on it once the browser's profile exists.
-    const deadline = Date.now() + 20_000;
-    while (!readdirSync(privateTmp).some((name) => name.startsWith("playwright_chromiumdev_profile-"))) {
-      if (Date.now() > deadline) throw new Error("the browser never started");
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    }
-    while (held.size === 0) {
-      if (Date.now() > deadline) throw new Error("the page was never requested");
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    }
-    child.kill("SIGINT");
-    const result = await done;
-    expect(result.status).toBe(130);
-    expect(result.stdout).toBe("");
-    expect(readdirSync(scans)).toEqual([]);
-    expect(readdirSync(privateTmp).filter((name) => name.startsWith("playwright"))).toEqual([]);
-  });
-});
+
+    it("clean.html exits 0 and icon-button.html exits 1", async () => {
+      expect((await run(["scan", server.url("clean.html")], temp())).status).toBe(0);
+      expect((await run(["scan", server.url("icon-button.html")], temp())).status).toBe(1);
+    });
+
+    it("a target that does not answer: connection refused", async () => {
+      const scans = temp();
+      const port = await closedPort();
+      const result = await run(["scan", `http://127.0.0.1:${port}/`], scans);
+      expectRefusal(
+        result,
+        new RegExp(`^Error: http://127\\.0\\.0\\.1:${port} did not answer: the connection was refused\\.$`),
+        /^Hint: check the address, and that the server is running\.$/,
+      );
+      expect(readdirSync(scans)).toEqual([]);
+    });
+
+    it("a target that does not answer: no response before the timeout", async () => {
+      const scans = temp();
+      const result = await run(["scan", `http://127.0.0.1:${hangPort}/`], scans, {
+        [TEST_NAVIGATION_TIMEOUT_ENV]: "1500",
+      });
+      expectRefusal(result, /did not answer: no answer within 1\.5 seconds\.$/);
+      expect(readdirSync(scans)).toEqual([]);
+    });
+
+    it("a refusal leaves --out as it was", async () => {
+      const out = temp();
+      const port = await closedPort();
+      const result = await run(["scan", `http://127.0.0.1:${port}/`, "--out", out], temp());
+      expect(result.status).toBe(2);
+      expect(readdirSync(out)).toEqual([]);
+    });
+
+    it("Ctrl-C during a scan exits 130 and leaves no scan folder and no profile folder", async () => {
+      const scans = temp();
+      // A private temp folder for the command, so its browser's profile is the only one in it.
+      const privateTmp = temp();
+      const { child, done } = start(["scan", `http://127.0.0.1:${hangPort}/`], {
+        [SCANS_DIR_ENV]: scans,
+        TMPDIR: privateTmp,
+        TEMP: privateTmp,
+        TMP: privateTmp,
+      });
+      // The page never answers, so the scan is certain to be waiting on it once the browser's profile exists.
+      const deadline = Date.now() + 20_000;
+      // The command makes its own folder in it (src/private-temp.ts), and the profile is in that one.
+      const profiles = () =>
+        readdirSync(privateTmp)
+          .filter((name) => name.startsWith("a11y-genie-"))
+          .flatMap((name) => readdirSync(join(privateTmp, name)))
+          .filter((name) => name.startsWith("playwright_chromiumdev_profile-"));
+      while (profiles().length === 0) {
+        if (Date.now() > deadline) throw new Error("the browser never started");
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      while (held.size === 0) {
+        if (Date.now() > deadline) throw new Error("the page was never requested");
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      child.kill("SIGINT");
+      const result = await done;
+      expect(result.status).toBe(130);
+      expect(result.stdout).toBe("");
+      expect(readdirSync(scans)).toEqual([]);
+      expect(readdirSync(privateTmp)).toEqual([]);
+    });
+  },
+);

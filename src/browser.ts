@@ -88,7 +88,9 @@ function playwrightTempFolders(): Set<string> {
 /**
  * playwright-core 1.65.1 makes the profile and artifacts folders before it looks for the browser, and
  * leaves them behind when the browser is not installed. This removes the ones that appeared during
- * the failed launch. `rmdirSync` removes only empty folders, so a folder in use is never touched.
+ * the failed launch. `tmpdir()` is this process's private temp folder (src/private-temp.ts, set at start
+ * in src/cli.ts), never the shared one, so no other run's folder is in the list. `rmdirSync` removes only
+ * empty folders as well.
  */
 function removeFoldersLeftBy(before: Set<string>): void {
   for (const name of playwrightTempFolders()) {

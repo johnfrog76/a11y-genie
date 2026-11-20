@@ -4,6 +4,7 @@ import { packageInfo } from "./package-info.js";
 import { EXIT } from "./exit-codes.js";
 import { installInterruptHandler } from "./interrupt.js";
 import { printable } from "./printable.js";
+import { usePrivateTemp } from "./private-temp.js";
 import { narrateCommand } from "./narrate-command.js";
 import { promptCommand } from "./prompt-command.js";
 import { Refusal } from "./refusal.js";
@@ -131,6 +132,7 @@ async function main(args: string[]): Promise<void> {
   }
 }
 
+usePrivateTemp();
 installInterruptHandler();
 try {
   await main(process.argv.slice(2));

@@ -1,18 +1,19 @@
+import { TEST_CHANNEL } from "../helpers/test-browser.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { scanPage } from "../../src/axe.js";
 import { withBrowser } from "../../src/browser.js";
 import type { AxeScan, Finding } from "../../src/finding.js";
 import { runScan } from "../../src/run-scan.js";
-import { chromeIsInstalled, guardContext } from "../helpers/browser-guard.js";
+import { testBrowserIsInstalled, guardContext } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 
 // Claim C7: genie/skip-link is advice where landmarks or headings already give a way past the navigation, a
 // WCAG 2.4.1 violation where nothing does, and a working skip link is clean. Each fixture page names, in its
 // comment, what must fire. Skipped, and says so, where Chrome is not installed.
-const hasChrome = await chromeIsInstalled();
+const hasBrowser = await testBrowserIsInstalled();
 
-describe.skipIf(!hasChrome)(
-  "the skip link on the fixture pages (skipped where Chrome is not installed)",
+describe.skipIf(!hasBrowser)(
+  "the skip link on the fixture pages (skipped where the test browser is not installed)",
   () => {
     let server: FixtureServer;
     beforeAll(async () => {
@@ -23,7 +24,7 @@ describe.skipIf(!hasChrome)(
     });
 
     async function scan(page: string): Promise<{ result: AxeScan; skip: Finding | undefined }> {
-      return withBrowser("chrome", async (browser) => {
+      return withBrowser(TEST_CHANNEL, async (browser) => {
         const context = await browser.newContext();
         const attempted = await guardContext(context, server.origin);
         const tab = await context.newPage();
@@ -110,7 +111,7 @@ describe.skipIf(!hasChrome)(
     it("advice never changes the exit code", async () => {
       const record = await runScan({
         url: server.url("no-skip-link.html"),
-        channel: "chrome",
+        channel: TEST_CHANNEL,
         onContext: async (context) => {
           await guardContext(context, server.origin);
         },

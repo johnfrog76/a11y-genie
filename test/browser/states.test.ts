@@ -1,3 +1,4 @@
+import { TEST_CHANNEL } from "../helpers/test-browser.js";
 import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -5,14 +6,14 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { runScan, type PageSpec } from "../../src/run-scan.js";
 import type { ScanRecord } from "../../src/scan-record.js";
 import { parseState } from "../../src/steps.js";
-import { chromeIsInstalled, guardContext } from "../helpers/browser-guard.js";
+import { testBrowserIsInstalled, guardContext } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 import { validate } from "../helpers/json-schema.js";
 
 // States, in the machine's real Chrome (spec 5.2): each state is a fresh load with its own steps, a bug that
 // shows only in a state is found only in it, and a step that fails reads *not scanned*. Skipped, and says so,
 // where Chrome is not installed.
-const hasChrome = await chromeIsInstalled();
+const hasBrowser = await testBrowserIsInstalled();
 const schema = JSON.parse(
   readFileSync(new URL("../../schema/scan-1.json", import.meta.url), "utf8"),
 ) as Record<string, never>;
@@ -20,7 +21,7 @@ const schema = JSON.parse(
 const MENU = "menu-open: click button 'Menu'; wait menu";
 const DARK = "dark: colorScheme dark";
 
-describe.skipIf(!hasChrome)("states (skipped where Chrome is not installed)", () => {
+describe.skipIf(!hasBrowser)("states (skipped where the test browser is not installed)", () => {
   let server: FixtureServer;
   let far: FixtureServer;
   beforeAll(async () => {
@@ -42,7 +43,7 @@ describe.skipIf(!hasChrome)("states (skipped where Chrome is not installed)", ()
     const record = await runScan({
       url: (pages[0] as PageSpec).url,
       pages,
-      channel: "chrome",
+      channel: TEST_CHANNEL,
       limits: { pageMs },
       onContext: async (context) => {
         attempted.push(await guardContext(context, origin));
@@ -203,7 +204,7 @@ describe.skipIf(!hasChrome)("states (skipped where Chrome is not installed)", ()
     const record = await runScan({
       url: server.url(target),
       pages: [{ url: server.url(target), states: [parseState("dark: colorScheme dark")] }],
-      channel: "chrome",
+      channel: TEST_CHANNEL,
       offline: true,
       publicOrigins: [far.origin],
       onContext: async (context) => {
@@ -226,7 +227,7 @@ describe.skipIf(!hasChrome)("states (skipped where Chrome is not installed)", ()
     await runScan({
       url: server.url("states.html"),
       pages: [statesPage("small: viewport 390x844; reducedMotion")],
-      channel: "chrome",
+      channel: TEST_CHANNEL,
       onContext: async (context) => {
         await guardContext(context, server.origin);
       },

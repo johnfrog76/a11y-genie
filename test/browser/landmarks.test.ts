@@ -1,3 +1,4 @@
+import { TEST_CHANNEL } from "../helpers/test-browser.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { scanPage } from "../../src/axe.js";
 import { FocusGuard } from "../../src/focus-guard.js";
@@ -5,13 +6,13 @@ import { withBrowser } from "../../src/browser.js";
 import type { AxeScan } from "../../src/finding.js";
 import { renderReport } from "../../src/report.js";
 import { runScan } from "../../src/run-scan.js";
-import { chromeIsInstalled, guardContext } from "../helpers/browser-guard.js";
+import { testBrowserIsInstalled, guardContext } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 
 // Claim C5: a page with no landmark is flagged, and a page with all four is clean of the landmark rules.
 // Each fixture page names, in its comment, the rules that must fire. Skipped, and says so, where Chrome is
 // not installed.
-const hasChrome = await chromeIsInstalled();
+const hasBrowser = await testBrowserIsInstalled();
 
 /** Each landmark fixture page and the rules its comment says must fire, worst first, then by rule id (src/order.ts). */
 const PAGES: [page: string, findings: string[]][] = [
@@ -22,90 +23,93 @@ const PAGES: [page: string, findings: string[]][] = [
   ["two-mains.html", ["landmark-no-duplicate-main"]],
 ];
 
-describe.skipIf(!hasChrome)("landmarks on the fixture pages (skipped where Chrome is not installed)", () => {
-  let server: FixtureServer;
-  beforeAll(async () => {
-    server = await startFixtureServer();
-  });
-  afterAll(async () => {
-    await server.close();
-  });
-
-  async function scan(page: string): Promise<[AxeScan, string[]]> {
-    return withBrowser("chrome", async (browser) => {
-      const context = await browser.newContext();
-      const attempted = await guardContext(context, server.origin);
-      const tab = await context.newPage();
-      // Before the page loads, as `runScan` does: a late guard would make the focus-visible check read needs review.
-      await FocusGuard.install(tab);
-      await tab.goto(server.url(page));
-      return [await scanPage(tab), attempted];
+describe.skipIf(!hasBrowser)(
+  "landmarks on the fixture pages (skipped where the test browser is not installed)",
+  () => {
+    let server: FixtureServer;
+    beforeAll(async () => {
+      server = await startFixtureServer();
     });
-  }
-
-  it.each(PAGES)("%s gives exactly the rules its comment names", async (page, expected) => {
-    const [result, attempted] = await scan(page);
-    const ids = result.findings.map((f) => `${f.rule.source === "genie" ? "genie/" : ""}${f.rule.id}`);
-    expect(ids).toEqual(expected);
-    expect(result.needsReview).toEqual([]);
-    expect(attempted).toEqual([]);
-  });
-
-  // How a role is read: the first role the browser knows, else the element's own; header and footer by scope.
-  it.each([
-    ["landmark-role-unknown-nav.html", false],
-    ["landmark-role-fallback-banner.html", false],
-    ["landmark-header-presentation.html", true],
-    ["landmark-scoped-header-footer.html", true],
-    ["landmark-top-header-footer.html", false],
-    ["landmark-scoped-role-article.html", true],
-    ["landmark-scoped-role-complementary.html", true],
-    ["landmark-scoped-role-region.html", true],
-    ["landmark-scoped-role-article-case.html", true],
-    ["landmark-unscoped-tabpanel.html", false],
-    ["landmark-role-multi-token-article.html", false],
-  ])("%s: genie/no-landmarks fires is %s", async (page, fires) => {
-    const [result, attempted] = await scan(page);
-    expect(result.findings.some((f) => f.id === `genie/no-landmarks@${page}`)).toBe(fires);
-    expect(attempted).toEqual([]);
-  });
-
-  it("landmarks-ok.html has all four landmarks and no finding", async () => {
-    const [result] = await scan("landmarks-ok.html");
-    expect(result.findings).toEqual([]);
-  });
-
-  it("states the missing landmarks once for the page, not once per element", async () => {
-    const [result] = await scan("no-landmarks.html");
-    const own = result.findings.filter((f) => f.rule.source === "genie");
-    expect(own).toHaveLength(1);
-    const [finding] = own;
-    expect(finding?.id).toBe("genie/no-landmarks@no-landmarks.html");
-    expect(finding?.impact).toBe("moderate");
-    expect(finding?.kind).toBe("violation");
-    expect(finding?.rule.wcag).toEqual(["1.3.1", "2.4.1"]);
-    expect(finding?.elements).toHaveLength(1);
-    expect(finding?.elements[0]?.selector).toBe("body");
-    expect(finding?.elements[0]?.html).toMatch(/^<body/);
-  });
-
-  it("does not say a page has no landmark when it has a main and content outside it", async () => {
-    const [result] = await scan("content-outside-landmarks.html");
-    expect(result.findings.some((f) => f.rule.id === "no-landmarks")).toBe(false);
-  });
-
-  it("the report names the page-level finding and its fix", async () => {
-    const record = await runScan({
-      url: server.url("no-landmarks.html"),
-      channel: "chrome",
-      onContext: async (context) => {
-        await guardContext(context, server.origin);
-      },
+    afterAll(async () => {
+      await server.close();
     });
-    expect(record.exit).toBe(1);
-    expect(record.findings.map((f) => f.id)).toContain("genie/no-landmarks@no-landmarks.html");
-    const report = renderReport(record);
-    expect(report).toContain("`genie/no-landmarks`");
-    expect(report).toContain("The page has no landmarks");
-  });
-});
+
+    async function scan(page: string): Promise<[AxeScan, string[]]> {
+      return withBrowser(TEST_CHANNEL, async (browser) => {
+        const context = await browser.newContext();
+        const attempted = await guardContext(context, server.origin);
+        const tab = await context.newPage();
+        // Before the page loads, as `runScan` does: a late guard would make the focus-visible check read needs review.
+        await FocusGuard.install(tab);
+        await tab.goto(server.url(page));
+        return [await scanPage(tab), attempted];
+      });
+    }
+
+    it.each(PAGES)("%s gives exactly the rules its comment names", async (page, expected) => {
+      const [result, attempted] = await scan(page);
+      const ids = result.findings.map((f) => `${f.rule.source === "genie" ? "genie/" : ""}${f.rule.id}`);
+      expect(ids).toEqual(expected);
+      expect(result.needsReview).toEqual([]);
+      expect(attempted).toEqual([]);
+    });
+
+    // How a role is read: the first role the browser knows, else the element's own; header and footer by scope.
+    it.each([
+      ["landmark-role-unknown-nav.html", false],
+      ["landmark-role-fallback-banner.html", false],
+      ["landmark-header-presentation.html", true],
+      ["landmark-scoped-header-footer.html", true],
+      ["landmark-top-header-footer.html", false],
+      ["landmark-scoped-role-article.html", true],
+      ["landmark-scoped-role-complementary.html", true],
+      ["landmark-scoped-role-region.html", true],
+      ["landmark-scoped-role-article-case.html", true],
+      ["landmark-unscoped-tabpanel.html", false],
+      ["landmark-role-multi-token-article.html", false],
+    ])("%s: genie/no-landmarks fires is %s", async (page, fires) => {
+      const [result, attempted] = await scan(page);
+      expect(result.findings.some((f) => f.id === `genie/no-landmarks@${page}`)).toBe(fires);
+      expect(attempted).toEqual([]);
+    });
+
+    it("landmarks-ok.html has all four landmarks and no finding", async () => {
+      const [result] = await scan("landmarks-ok.html");
+      expect(result.findings).toEqual([]);
+    });
+
+    it("states the missing landmarks once for the page, not once per element", async () => {
+      const [result] = await scan("no-landmarks.html");
+      const own = result.findings.filter((f) => f.rule.source === "genie");
+      expect(own).toHaveLength(1);
+      const [finding] = own;
+      expect(finding?.id).toBe("genie/no-landmarks@no-landmarks.html");
+      expect(finding?.impact).toBe("moderate");
+      expect(finding?.kind).toBe("violation");
+      expect(finding?.rule.wcag).toEqual(["1.3.1", "2.4.1"]);
+      expect(finding?.elements).toHaveLength(1);
+      expect(finding?.elements[0]?.selector).toBe("body");
+      expect(finding?.elements[0]?.html).toMatch(/^<body/);
+    });
+
+    it("does not say a page has no landmark when it has a main and content outside it", async () => {
+      const [result] = await scan("content-outside-landmarks.html");
+      expect(result.findings.some((f) => f.rule.id === "no-landmarks")).toBe(false);
+    });
+
+    it("the report names the page-level finding and its fix", async () => {
+      const record = await runScan({
+        url: server.url("no-landmarks.html"),
+        channel: TEST_CHANNEL,
+        onContext: async (context) => {
+          await guardContext(context, server.origin);
+        },
+      });
+      expect(record.exit).toBe(1);
+      expect(record.findings.map((f) => f.id)).toContain("genie/no-landmarks@no-landmarks.html");
+      const report = renderReport(record);
+      expect(report).toContain("`genie/no-landmarks`");
+      expect(report).toContain("The page has no landmarks");
+    });
+  },
+);

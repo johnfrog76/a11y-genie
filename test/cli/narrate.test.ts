@@ -1,3 +1,4 @@
+import { channelArgs } from "../helpers/test-browser.js";
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -5,7 +6,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SCANS_DIR_ENV } from "../../src/scans-folder.js";
 import type { ScanRecord } from "../../src/scan-record.js";
-import { chromeIsInstalled } from "../helpers/browser-guard.js";
+import { testBrowserIsInstalled } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 import { expectTextGolden } from "../helpers/goldens.js";
 import { validate } from "../helpers/json-schema.js";
@@ -14,7 +15,7 @@ import { neverClaimViolations } from "../helpers/never-claim.js";
 // `a11y-genie narrate` and a config's workflows, run as the built command (npm test builds first). The refusals
 // need no browser. The runs need Chrome, and are skipped by name where it is not installed.
 const cli = new URL("../../dist/cli.js", import.meta.url).pathname;
-const hasChrome = await chromeIsInstalled();
+const hasBrowser = await testBrowserIsInstalled();
 const schema = JSON.parse(
   readFileSync(new URL("../../schema/scan-1.json", import.meta.url), "utf8"),
 ) as Record<string, never>;
@@ -27,7 +28,7 @@ interface Run {
 
 function run(args: string[], scans: string): Promise<Run> {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [cli, ...args], {
+    const child = spawn(process.execPath, [cli, ...channelArgs(args)], {
       env: { ...process.env, [SCANS_DIR_ENV]: scans },
     });
     let stdout = "";
@@ -168,7 +169,7 @@ describe("narrate refusals", () => {
   });
 });
 
-describe.skipIf(!hasChrome)("narrate (skipped where Chrome is not installed)", () => {
+describe.skipIf(!hasBrowser)("narrate (skipped where the test browser is not installed)", () => {
   let server: FixtureServer;
   beforeAll(async () => {
     server = await startFixtureServer();
