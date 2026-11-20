@@ -57,8 +57,8 @@
       "impact": "critical",
       "page": "impact-mix.html",
       "title": "Images must have alternative text on impact-mix.html",
-      "plain": "Images must have alternative text",
-      "fix": "Fix any of the following: Element does not have an alt attribute; aria-label attribute does not exist or is empty; aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty; Element has no title attribute; Element's default semantics were not overridden with role=\"none\" or role=\"presentation\"",
+      "plain": "An image has no text alternative, so a person who cannot see it hears nothing about it from a screen reader, or only its file name.",
+      "fix": "Add an alt attribute that says what the image shows or what it is for. If it is only decoration, use alt=\"\" so that screen readers skip it.",
       "elements": [
         {
           "selector": "img",
@@ -89,8 +89,8 @@
       "impact": "serious",
       "page": "impact-mix.html",
       "title": "Elements must meet minimum color contrast ratio thresholds on impact-mix.html",
-      "plain": "Elements must meet minimum color contrast ratio thresholds",
-      "fix": "Fix any of the following: Element has insufficient color contrast of 2.81 (foreground color: #9a9a9a, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "plain": "Text is too faint against its background for many people to read, people with low vision among them, and anyone looking at a screen in bright light.",
+      "fix": "Darken the text or lighten its background, or the other way round, until the contrast ratio is at least 4.5 to 1, or 3 to 1 for large text.",
       "elements": [
         {
           "selector": "p",
@@ -127,8 +127,8 @@
       "impact": "moderate",
       "page": "impact-mix.html",
       "title": "Heading levels should only increase by one on impact-mix.html",
-      "plain": "Heading levels should only increase by one",
-      "fix": "Fix any of the following: Heading order invalid",
+      "plain": "A heading skips a level, such as an h2 followed by an h4, so a person who reads the page's outline through its headings finds a gap in the outline.",
+      "fix": "Go down one level at a time: under an h2 comes an h3. To change how a heading looks, use CSS, not another level.",
       "elements": [
         {
           "selector": "h3",
@@ -157,8 +157,8 @@
       "impact": "minor",
       "page": "impact-mix.html",
       "title": "Headings should not be empty on impact-mix.html",
-      "plain": "Headings should not be empty",
-      "fix": "Fix any of the following: Element does not have text that is visible to screen readers; aria-label attribute does not exist or is empty; aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty; Element has no title attribute",
+      "plain": "A heading has no text. A screen reader still announces it as a heading, so a person moving through the page by its headings lands on an empty one.",
+      "fix": "Give the heading text that names the section after it, or, if it is there only for its look, make it something other than a heading.",
       "elements": [
         {
           "selector": "h2",

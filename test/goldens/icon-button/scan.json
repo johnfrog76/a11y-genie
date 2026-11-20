@@ -57,8 +57,8 @@
       "impact": "critical",
       "page": "icon-button.html",
       "title": "Buttons must have discernible text on icon-button.html",
-      "plain": "Buttons must have discernible text",
-      "fix": "Fix any of the following: Element does not have inner text that is visible to screen readers; aria-label attribute does not exist or is empty; aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty; Element has no title attribute; Element does not have an implicit (wrapped) <label>; Element does not have an explicit <label>; Element's default semantics were not overridden with role=\"none\" or role=\"presentation\"",
+      "plain": "A button has no name, so a screen reader announces it only as \"button\" and its user cannot tell what it does.",
+      "fix": "Give it a name: visible text inside the button, or an aria-label that says what it does, such as aria-label=\"Search\".",
       "elements": [
         {
           "selector": "button",
