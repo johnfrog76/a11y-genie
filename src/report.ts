@@ -291,7 +291,7 @@ function fixedLines(record: ScanRecord): string[] {
     const commit =
       when?.commit === null || when?.commit === undefined ? "" : ` at ${inlineCode(when.commit)}`;
     out.push(
-      `- ${inlineCode(finding.id)}: ${plainText(finding.plain)}; ${plural(finding.elements.length, "element", "elements")} ` +
+      `- ${inlineCode(finding.id)}: ${plainText(wordingOf(finding.rule, finding.kind)?.title ?? finding.plain)}; ${plural(finding.elements.length, "element", "elements")} ` +
         `(${finding.elements.map((e) => inlineCode(e.selector)).join(", ")})` +
         (when === undefined
           ? "."
