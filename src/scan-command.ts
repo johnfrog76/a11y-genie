@@ -11,6 +11,7 @@ import { previousScan } from "./baseline.js";
 import { BROWSER_CHANNELS, DEFAULT_CHANNEL, isBrowserChannel } from "./browser.js";
 import { sincePreviousLine, withPrevious } from "./compare.js";
 import type { Impact } from "./finding.js";
+import { renderHtmlReport } from "./html-report.js";
 import { narrationLines, NARRATION_DIR, renderTranscript } from "./narrate.js";
 import { checkOutFolder } from "./out-folder.js";
 import { printable, printableLine } from "./printable.js";
@@ -27,7 +28,7 @@ import { defaultScansDir, makeScanFolder, writeScanFile } from "./scans-folder.j
 const SERVE_HINT =
   "give a full address that starts with http:// or https://. To scan a built site, serve it first, for example: npx serve dist";
 
-const FORMATS = ["md", "json"] as const;
+const FORMATS = ["md", "json", "html"] as const;
 type Format = (typeof FORMATS)[number];
 
 /** What a page tried, in the CLI's one line. Counts only: page text is never printed here. */
@@ -93,15 +94,18 @@ export interface PreparedScan {
   commit: string | null;
 }
 
-/** `--format md,json`, repeatable: each value is a comma-separated list. */
+/** The reports written when `--format` is not given: all of them (spec 4.2). */
+export const DEFAULT_FORMATS = "md,json,html";
+
+/** `--format md,json,html`, repeatable: each value is a comma-separated list. */
 function parseFormats(values: string[] | undefined): Set<Format> {
   const chosen = new Set<Format>();
-  for (const value of values ?? ["md,json"]) {
+  for (const value of values ?? [DEFAULT_FORMATS]) {
     for (const name of value.split(",")) {
       if (!(FORMATS as readonly string[]).includes(name)) {
         throw new Refusal(
           `unknown --format: ${name || "(empty)"}`,
-          `use ${FORMATS.join(" or ")}, or both, separated by a comma.`,
+          `use ${FORMATS.slice(0, -1).join(", ")} or ${FORMATS.at(-1)}, or several, separated by commas.`,
         );
       }
       chosen.add(name as Format);
@@ -248,13 +252,14 @@ function refuseUnwritable(error: unknown, where: string): never {
   throw error;
 }
 
-/** Makes the scan folder and writes `scan.json`, and `report.md` unless `--format` leaves it out. */
+/** Makes the scan folder and writes `scan.json`, and `report.md` and `report.html` unless `--format` leaves them out. */
 export function writeScan(prepared: PreparedScan, record: ScanRecord): string {
   try {
     const folder = makeScanFolder(prepared.root, record.target.origin, record.startedAt);
     // scan.json is the record every other file is made from, so it is always written.
     writeScanFile(folder, "scan.json", scanJson(record));
     if (prepared.formats.has("md")) writeScanFile(folder, "report.md", renderReport(record));
+    if (prepared.formats.has("html")) writeScanFile(folder, "report.html", renderHtmlReport(record));
     // The transcript of each narrated flow, in `narration/` (spec 6.6). Always written: it is what narrating is for.
     if (record.workflows.length > 0) mkdirSync(join(folder, NARRATION_DIR));
     for (const flow of record.workflows) writeScanFile(folder, flow.file, printable(renderTranscript(flow)));

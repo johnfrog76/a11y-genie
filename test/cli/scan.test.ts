@@ -74,7 +74,7 @@ describe.skipIf(!hasBrowser)(
       for (const folder of made) rmSync(folder, { recursive: true, force: true });
     });
 
-    it("clean.html exits 0, says how much it checked, and writes scan.json and report.md", async () => {
+    it("clean.html exits 0, says how much it checked, and writes scan.json, report.md and report.html", async () => {
       const root = fresh();
       const result = await run(["scan", server.url("clean.html")], root);
       expect(result.status).toBe(0);
@@ -83,6 +83,8 @@ describe.skipIf(!hasBrowser)(
       const folder = scanFolder(root);
       expect(existsSync(join(folder, "scan.json"))).toBe(true);
       expect(existsSync(join(folder, "report.md"))).toBe(true);
+      expect(existsSync(join(folder, "report.html"))).toBe(true);
+      expect(neverClaimViolations(readFileSync(join(folder, "report.html"), "utf8"))).toEqual([]);
       expect(folder).toMatch(/127\.0\.0\.1-\d+[\\/]\d{4}-\d\d-\d\dT\d\d-\d\d-\d\dZ$/);
     });
 
@@ -124,21 +126,24 @@ describe.skipIf(!hasBrowser)(
       }
     });
 
-    it("--format json writes scan.json and no report.md; --format md,json writes both", async () => {
+    it("--format json writes scan.json alone; md,json adds report.md; html adds report.html", async () => {
       const onlyJson = fresh();
       await run(["scan", server.url("clean.html"), "--format", "json"], onlyJson);
       expect(readdirSync(scanFolder(onlyJson)).sort()).toEqual(["scan.json"]);
       const both = fresh();
       await run(["scan", server.url("clean.html"), "--format", "md,json"], both);
       expect(readdirSync(scanFolder(both)).sort()).toEqual(["report.md", "scan.json"]);
+      const html = fresh();
+      await run(["scan", server.url("clean.html"), "--format", "html"], html);
+      expect(readdirSync(scanFolder(html)).sort()).toEqual(["report.html", "scan.json"]);
     });
 
     it("refuses an unknown --format with one Error: and one Hint:, before scanning", async () => {
       const root = fresh();
-      const result = await run(["scan", server.url("clean.html"), "--format", "html"], root);
+      const result = await run(["scan", server.url("clean.html"), "--format", "pdf"], root);
       expect(result.status).toBe(2);
       expect(result.stderr.trim().split("\n")).toHaveLength(2);
-      expect(result.stderr).toMatch(/^Error: unknown --format: html\nHint: /);
+      expect(result.stderr).toMatch(/^Error: unknown --format: pdf\nHint: use md, json or html/);
       expect(readdirSync(root)).toEqual([]);
     });
 
@@ -175,6 +180,9 @@ describe.skipIf(!hasBrowser)(
       const report = readFileSync(join(scanFolder(root), "report.md"), "utf8");
       expect(controlsIn(report)).toEqual([]);
       expect(report).toContain("RED alert click here");
+      const page = readFileSync(join(scanFolder(root), "report.html"), "utf8");
+      expect(controlsIn(page)).toEqual([]);
+      expect(page).toContain("RED alert click here");
 
       const json = await run(["scan", server.url("hostile/escapes.html"), "--json"], fresh());
       expect(controlsIn(json.stdout + json.stderr)).toEqual([]);

@@ -897,8 +897,9 @@ Only the first page's first load that does not answer is a refusal. `--timeout` 
 `--storage-state` is handed to each context's own storage and never copied. `src/cli.ts` only dispatches: the flags,
 the run, the files and the lines for a person are `src/scan-command.ts`'s, which `check` shares. The command then
 reads the site's last scan, if there is one (below), makes the scan folder
-(`src/scans-folder.ts`), writes `scan.json`, and writes `report.md` from the record (`src/report.ts`). The
-report is a pure function of the record, so a stored `scan.json` can write it again later.
+(`src/scans-folder.ts`), writes `scan.json`, and writes `report.md` (`src/report.ts`) and `report.html`
+(`src/html-report.ts`) from the record. Each report is a pure function of the record, so a stored `scan.json` can
+write it again later.
 
 - **Exit code.** 0 when there is no violation, 1 when there is any or the page was not scanned. The record's
   `exit` says the same.
@@ -911,10 +912,18 @@ report is a pure function of the record, so a stored `scan.json` can write it ag
   validator for exactly the keywords `schema/scan-1.json` uses, and throws on any other, so the schema cannot
   outgrow it. The schema test runs it over every golden and over a record the browser test has just made, and
   `check` runs it over its baseline before it reads anything from it.
-- **Goldens.** `test/goldens/<page>/scan.json` and `report.md` for the four first fixture pages and `no-landmarks` are written
+- **Goldens.** `test/goldens/<page>/scan.json`, `report.md` and `report.html` for the golden fixture pages are written
   by `test/browser/goldens.test.ts` in the real Chrome, after the port, the times and the versions of this
   tool, axe-core and the browser are replaced by fixed values (`test/helpers/goldens.ts`). The rule count is
-  kept, so an axe-core upgrade shows in the diff. `UPDATE_GOLDENS=1 npm test` rewrites them.
+  kept, so an axe-core upgrade shows in the diff. `test/goldens/check/report.html` is a `check` made with no
+  browser from impact-mix's golden (`test/helpers/report-records.ts`). `UPDATE_GOLDENS=1 npm test` rewrites them.
+- **`report.html` from disk.** `test/browser/html-report.test.ts` opens each HTML golden from a `file:` address in
+  the real Chrome with every request routed, and holds it to one request, the document's own, with nothing on the
+  console (a style the content security policy refused would be logged there). A page that asks for a stylesheet,
+  an image and an address shows each in the same list, so the check is seen to work. The same file scans the
+  impact-mix, `check` and empty reports with A11y Genie, in light, dark and at 320 px, and fails on any critical
+  or serious finding. `test/unit/html-report.test.ts` computes the hashes of the golden's inline style and script
+  and holds the policy to them, and renders a record with hostile text in every field.
 
 ## Scan, fix, rescan (`src/check-command.ts`, `src/compare.ts`, `src/baseline.ts`)
 
@@ -996,7 +1005,7 @@ fixture in the real Chrome, from `127.0.0.1`, with every request off the fixture
 | Private networks | when the address scanned is public, every request to a loopback, link-local, private or unspecified address is aborted before it leaves the browser and noted under `stopped` as `private-network`; a page whose own frame goes to one reads *not scanned*. `--allow-private` turns it off, and a target that is itself loopback or private is never limited. See *The private-network rule (V12)* below | `private-network.html`, and redirects the test's fixture server makes | *a public page cannot reach private addresses* |
 | `--same-origin` | every request to an origin other than the address scanned (scheme, host and port) is aborted and noted under `stopped` as `other-origin`; a page whose own frame goes to one reads *not scanned*. The report says so, and that some of the page's content may be missing. It is the private-network rule's mechanism, below, asked a second question: there is one interception layer, `networkRule()` in `src/context.ts` | `private-network.html`, and redirects the test's fixture server makes | `test/browser/network-flags.test.ts`, *--same-origin* |
 | `--offline` | the target must be loopback (`127.0.0.0/8`, `::1`, `localhost`, `*.localhost`), or the run is refused; every request to an address that is not loopback is aborted and noted as `offline`, a page whose own frame goes to one reads *not scanned*, and no browser is downloaded. Nothing else of A11y Genie's own leaves the machine either, so there is nothing more to switch off (no ToolKit probe exists yet; spec 8) | `private-network.html`, and redirects the test's fixture server makes | `network-flags.test.ts`, *--offline* |
-| Page text printed without its escapes | `printable()` (`src/printable.ts`) strips every terminal escape sequence whole (CSI, OSC with OSC 8 links and window titles, DCS, APC and the rest, in their 7-bit and 8-bit forms) and every control character but newline and tab (carriage return, DEL, C1 and the bidi overrides and isolates included) from every line the command prints and from all of `report.md`. `scan.json` keeps the page's text exactly, as data, and writes the controls `JSON.stringify` leaves raw (DEL, C1, bidi) as `\u` escapes, so `--json` on a terminal carries none either | `escapes.html` | *page text is printed without its escapes*; `test/cli/scan.test.ts` checks the real terminal output |
+| Page text printed without its escapes | `printable()` (`src/printable.ts`) strips every terminal escape sequence whole (CSI, OSC with OSC 8 links and window titles, DCS, APC and the rest, in their 7-bit and 8-bit forms) and every control character but newline and tab (carriage return, DEL, C1 and the bidi overrides and isolates included) from every line the command prints and from all of `report.md` and `report.html`, which also escapes it for HTML (`src/html-escape.ts`). `scan.json` keeps the page's text exactly, as data, and writes the controls `JSON.stringify` leaves raw (DEL, C1, bidi) as `\u` escapes, so `--json` on a terminal carries none either | `escapes.html` | *page text is printed without its escapes*; `test/cli/scan.test.ts` checks the real terminal output |
 
 What was stopped is recorded per page in `scan.json` (`pages[].stopped`: the kind, a count, and the first five,
 cut at 160 characters) and listed in `report.md` under *What the page tried, and was stopped*, quoted as data.

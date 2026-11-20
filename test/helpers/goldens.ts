@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { expect } from "vitest";
 import type { ScanRecord } from "../../src/scan-record.js";
 
-/** `test/goldens/<fixture page, without .html>/scan.json` and `report.md`. */
+/** `test/goldens/<fixture page, without .html>/scan.json`, `report.md` and `report.html`. */
 export const GOLDEN_DIR = fileURLToPath(new URL("../goldens/", import.meta.url));
 
 /** The pages the goldens cover: the four first ones in the order the spec lists them, then `no-landmarks`. */
@@ -29,11 +29,14 @@ export const GOLDEN_STATES: Readonly<Record<string, readonly string[]>> = {
   ],
 };
 
-export function goldenPath(page: string, file: "scan.json" | "report.md"): string {
+/** The files a golden page has. */
+export type GoldenFile = "scan.json" | "report.md" | "report.html";
+
+export function goldenPath(page: string, file: GoldenFile): string {
   return `${GOLDEN_DIR}${page}/${file}`;
 }
 
-export function readGolden(page: string, file: "scan.json" | "report.md"): string {
+export function readGolden(page: string, file: GoldenFile): string {
   return readFileSync(goldenPath(page, file), "utf8");
 }
 
@@ -65,7 +68,7 @@ export function normalise(record: ScanRecord): ScanRecord {
 }
 
 /** Compares `actual` with the golden file; with `UPDATE_GOLDENS=1` it rewrites the file instead. */
-export function expectGolden(page: string, file: "scan.json" | "report.md", actual: string): void {
+export function expectGolden(page: string, file: GoldenFile, actual: string): void {
   const path = goldenPath(page, file);
   if (process.env.UPDATE_GOLDENS === "1") {
     mkdirSync(dirname(path), { recursive: true });
@@ -79,8 +82,8 @@ export function expectGolden(page: string, file: "scan.json" | "report.md", actu
 }
 
 /**
- * Compares `actual` with `test/goldens/<path>`, a text file that is not a page's `scan.json` or `report.md`
- * (the narration transcripts); with `UPDATE_GOLDENS=1` it rewrites the file instead.
+ * Compares `actual` with `test/goldens/<path>`, a text file that is not a page's own golden (the narration
+ * transcripts, and the `check` report made from two goldens); with `UPDATE_GOLDENS=1` it rewrites the file instead.
  */
 export function expectTextGolden(path: string, actual: string): void {
   const file = `${GOLDEN_DIR}${path}`;

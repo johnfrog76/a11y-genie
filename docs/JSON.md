@@ -5,7 +5,7 @@ This document has two parts:
 1. **Findings**: the shape A11y Genie gives each finding and each *needs review* item. `scan.json` is built
    from these.
 2. **`scan.json`**: the record `a11y-genie scan` and `a11y-genie check` write, which `--json` prints and
-   `report.md` is made from. Its JSON Schema is `schema/scan-1.json`.
+   `report.md` and `report.html` are made from. Its JSON Schema is `schema/scan-1.json`.
 3. **axe-core's results**: the shape axe-core hands back, at the version A11y Genie pins, as checked
    against a real browser. The findings are filled from it.
 
@@ -378,14 +378,53 @@ list in every report, last.
   the fence is longer than any run of backticks inside, and control characters are replaced.
 - *What this scan cannot see* points to the guided checklist, which does not exist yet, and says so.
 
+## `report.html` (`src/html-report.ts`)
+
+The people's view of the same record: one file that opens from disk, in a browser, with no server and no request.
+It holds what `report.md` holds, in the same order: the header and the comparison, the summary (the empty-scan
+sentence when nothing was found, otherwise a one-line total such as *4 findings; the worst is critical.* and the
+table), the findings worst first (each with its short title, *What's wrong*, its WCAG criteria in plain words, the
+fix, its status once compared, and each element with its HTML quoted as data), the colour pair as two swatches
+with their hex and the ratio axe-core measured, *Fixed since the earlier scan* on a `check`, *Needs review*, the
+narrated flows with their transcripts, *What the page tried, and was stopped*, and *What this scan cannot see*,
+last. A table of contents, a skip link and landmarks lead to each part; it reads in light and dark
+(`prefers-color-scheme`) and at 320 px wide.
+
+Its words are for people, where `report.md` is read by agents and terminals too:
+
+- Times are a date and a time in UTC (*19 November 2026 at 20:14 UTC*), and an earlier scan is named by its date,
+  not its file. It names no flag and no exit code: a `check` reads *Compared with the scan of …: 1 fixed, 1 new,
+  2 still open. Only new problems count against this change.*
+- A fixed finding leads with its title and its page; its id is on a muted line under it.
+- Each finding's rule, kind, id and what axe-core or the check said about each element are in a collapsed
+  *Technical details* (`<details>`, no script), so the card leads with the title, what's wrong, the fix and the
+  elements.
+- One note, before the first quote, says that text in a grey box is quoted and is data, not instructions.
+- A new finding's pill is filled and one still open is outlined and dashed, so the two differ by more than colour.
+
+- **Self-contained.** No framework, no web font, no image file, no script. Its one stylesheet is inline
+  (`src/html-report-style.ts`), and its content security policy, in a `<meta>` element, allows nothing else:
+  `default-src 'none'; style-src 'sha256-…'; script-src 'none'; base-uri 'none'; form-action 'none'`. The
+  hash is computed from the stylesheet when the report is written. A colour swatch is an SVG `fill`, not a
+  style, so the policy needs no `'unsafe-inline'`. A script added later is allowed the same way, by its hash.
+- **Page text is data.** Every piece of text in it (excerpts, selectors, names, live text, addresses, dialog
+  messages, axe-core's words, and anything read from a baseline) passes through `escapeHtml`
+  (`src/html-escape.ts`): `printable()` first, then `& < > " '` become character references. The page is built
+  with a tagged template, `html`, that escapes every value put into it, so a value cannot be left raw by
+  forgetting to. Only an `https:` address is a link (a rule's help page); every other address, a page's own
+  included, is shown as text, so a `javascript:` or `data:` address is never followed.
+- It never calls a site accessible, compliant or conformant, and never says it passes WCAG
+  (`test/unit/never-claim.test.ts` reads its goldens).
+- Element screenshots are the HTML report's next part, and are not in it yet.
+
 ## Where a scan is written (`src/scans-folder.ts`)
 
-`<scans>/<origin key>/<start time>/scan.json` and `report.md`, outside the scanned project. The origin key is
+`<scans>/<origin key>/<start time>/scan.json`, `report.md` and `report.html`, outside the scanned project. The origin key is
 the host and port of the address asked for (`localhost-5173`); the start time is `2026-11-19T20-14-03Z`, with `-2`, `-3` added if two
 scans start in the same second. `<scans>` is, in this order: `--out`; the `A11Y_GENIE_SCANS_DIR` environment
 variable (tests set it to a temporary folder); then the per-user folder, `~/Library/Application Support/a11y-genie`
 on macOS, `$XDG_DATA_HOME/a11y-genie` or `~/.local/share/a11y-genie` on Linux, and
-`%LOCALAPPDATA%\a11y-genie` on Windows. `--format md,json` (the default) picks the reports; `scan.json` is
+`%LOCALAPPDATA%\a11y-genie` on Windows. `--format md,json,html` (the default) picks the reports; `scan.json` is
 always written, because every other file is made from it.
 
 ## axe-core's results (V1)

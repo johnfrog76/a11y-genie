@@ -53,7 +53,7 @@ function plainText(text: string): string {
   return printableLine(text).replace(/([\\`*_[\]<>|])/g, "\\$1");
 }
 
-function plural(n: number, one: string, many: string): string {
+export function plural(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
 }
 
@@ -78,7 +78,7 @@ export function emptyNarrationSentence(record: ScanRecord): string {
 }
 
 /** "500 listed, and 100 more not listed (at most 500 are kept per finding)", or just the count. */
-function elementCount(listed: number, cut: number | undefined, limit: number): string {
+export function elementCount(listed: number, cut: number | undefined, limit: number): string {
   if (cut === undefined || cut === 0) return `${listed}`;
   return `${listed} listed, and ${cut} more not listed (at most ${limit} are kept per finding, and scan.json is held to its size limit)`;
 }
@@ -160,7 +160,7 @@ function redirectLine(page: RecordPage): string[] {
 }
 
 /** Whether two addresses share an origin; undefined when either is not a valid address. */
-function sameOrigin(a: string, b: string): boolean | undefined {
+export function sameOrigin(a: string, b: string): boolean | undefined {
   try {
     return originOf(a) === originOf(b);
   } catch {
@@ -168,7 +168,7 @@ function sameOrigin(a: string, b: string): boolean | undefined {
   }
 }
 
-const STOPPED_LABEL: Record<Stopped["kind"], [one: string, many: string, done: string]> = {
+export const STOPPED_LABEL: Record<Stopped["kind"], [one: string, many: string, done: string]> = {
   dialog: ["dialog", "dialogs", "dismissed"],
   popup: ["pop-up window", "pop-up windows", "closed"],
   download: ["download", "downloads", "cancelled"],
@@ -217,7 +217,7 @@ export function wcagLines(rule: RecordFinding["rule"], kind?: RecordFinding["kin
   ];
 }
 
-const IMPACT_LABEL: Record<Impact, string> = {
+export const IMPACT_LABEL: Record<Impact, string> = {
   critical: "Critical",
   serious: "Serious",
   moderate: "Moderate",
@@ -281,7 +281,7 @@ function comparisonLines(record: ScanRecord): string[] {
 }
 
 /** Whether each finding's `status` means something: the record was compared with an earlier scan. */
-function compared(record: ScanRecord): boolean {
+export function compared(record: ScanRecord): boolean {
   return record.command === "check" || (record.summary.sincePrevious ?? null) !== null;
 }
 
