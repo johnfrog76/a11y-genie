@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { scanPage } from "../../src/axe.js";
+import { FocusGuard } from "../../src/focus-guard.js";
 import { withBrowser } from "../../src/browser.js";
 import type { AxeScan } from "../../src/finding.js";
 import { renderReport } from "../../src/report.js";
@@ -35,6 +36,8 @@ describe.skipIf(!hasChrome)("landmarks on the fixture pages (skipped where Chrom
       const context = await browser.newContext();
       const attempted = await guardContext(context, server.origin);
       const tab = await context.newPage();
+      // Before the page loads, as `runScan` does: a late guard would make the focus-visible check read needs review.
+      await FocusGuard.install(tab);
       await tab.goto(server.url(page));
       return [await scanPage(tab), attempted];
     });

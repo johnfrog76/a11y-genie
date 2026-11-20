@@ -623,7 +623,7 @@ listener of the page's own on `window` in the capture phase, added at load, is b
 listener added from an isolated world and stopping an event with `stopImmediatePropagation()` stops the page's
 own main-world listeners after it on the same target, as the browser keeps one list of listeners per target.
 A scan of a page that was already loaded when it began (a caller that did not install the guard) gets a late
-guard, behind whatever the page added; `runScan` never does. Focus ends on
+guard, behind whatever the page added (`runScan` installs early, and if that install fails it carries on with a late one); a late guard cannot shield the page from the blur, so every stop the check would have measured is *needs review* ("the page's own listeners may have heard the check") and the check never blurs it or raises a finding on it. Stops it never measures (outside the window, past the cap, in another origin's frame) read as they always did. Focus ends on
 the element Tab put it on, so the walk's next Tab goes on from there, and the trap check reads the same walk and
 the same trap with the check as without it (`trap.html`, `trap-stuck.html`, `walk-order.html`, `walk-shadow.html`,
 `walk-frame.html`). If focus cannot be given back, the check takes no more screenshots on that walk, and the rest

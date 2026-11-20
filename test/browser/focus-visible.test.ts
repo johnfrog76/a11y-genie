@@ -239,4 +239,42 @@ describe.skipIf(!hasChrome)("focus visible (skipped where Chrome is not installe
     expect(text).not.toContain("iVBORw0KGgo");
     expect(text).not.toContain("PNG\\r\\n");
   });
+
+  it("focus-hidden.html: with the early guard install failed, its stops are needs review, never a finding", async () => {
+    await withBrowser("chrome", async (browser) => {
+      const context = await browser.newContext();
+      const attempted = await guardContext(context, server.origin);
+      const tab = await context.newPage();
+      // The install is made to fail once; `FocusGuard.of` then adds a late guard, and marks it.
+      const real = context.newCDPSession.bind(context);
+      let failures = 1;
+      context.newCDPSession = (async (...args: Parameters<typeof real>) => {
+        if (failures-- > 0) throw new Error("install stubbed to fail");
+        return real(...args);
+      }) as typeof real;
+      await FocusGuard.install(tab).catch(() => undefined);
+      await tab.goto(server.url("focus-hidden.html"));
+      const result = await scanPage(tab, undefined, null, { maxTabs: 1000 });
+      expect(attempted).toEqual([]);
+      expect(result.findings.find((f) => f.rule.id === "focus-visible")).toBeUndefined();
+      const review = result.needsReview.find((n) => n.rule.id === "focus-visible");
+      expect(review?.elements.some((e) => e.selector === "#plain-link")).toBe(true);
+      expect(review?.elements.find((e) => e.selector === "#plain-link")?.reason).toContain(
+        "may have heard the check",
+      );
+    });
+  });
+
+  it("a page with no early guard at all reads the same: late, needs review, no finding", async () => {
+    await withBrowser("chrome", async (browser) => {
+      const context = await browser.newContext();
+      const tab = await context.newPage();
+      await tab.goto(server.url("focus-hidden.html"));
+      const result = await scanPage(tab, undefined, null, { maxTabs: 1000 });
+      expect(result.findings.find((f) => f.rule.id === "focus-visible")).toBeUndefined();
+      expect(result.needsReview.find((n) => n.rule.id === "focus-visible")?.elements.length).toBeGreaterThan(
+        0,
+      );
+    });
+  });
 });

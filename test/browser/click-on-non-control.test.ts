@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { scanPage } from "../../src/axe.js";
+import { FocusGuard } from "../../src/focus-guard.js";
 import { withBrowser } from "../../src/browser.js";
 import {
   checkClickOnNonControl,
@@ -32,6 +33,8 @@ describe.skipIf(!hasChrome)("click on a non-control (skipped where Chrome is not
       const context = await browser.newContext();
       const attempted = await guardContext(context, server.origin);
       const tab = await context.newPage();
+      // Before the page loads, as `runScan` does: a late guard would make the focus-visible check read needs review.
+      await FocusGuard.install(tab);
       await tab.goto(server.url(page));
       return [await scanPage(tab), attempted];
     });
@@ -125,6 +128,7 @@ describe.skipIf(!hasChrome)("click on a non-control (skipped where Chrome is not
       const context = await browser.newContext();
       await guardContext(context, server.origin);
       const tab = await context.newPage();
+      await FocusGuard.install(tab);
       await tab.goto(server.url("div-onclick.html"));
       return [await scanPage(tab, "page", ["wcag2aa"]), await scanPage(tab, "page", ["wcag2a"])] as const;
     });

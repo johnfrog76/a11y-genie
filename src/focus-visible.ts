@@ -353,6 +353,11 @@ const STOPPED_REASON =
   "Not looked at: on this page a scan could not give focus back after it photographed an earlier Tab stop, so " +
   "it took no more screenshots. Tab to it and check that you can see where focus is.";
 
+const LATE_GUARD_REASON =
+  "Not measured: the guard that keeps the page from hearing a scan take focus off an element was not in place " +
+  "when the page loaded, so the page's own listeners may have heard the check, and a scan did not blur this " +
+  "element. Tab to it and check that you can see where focus is.";
+
 function pastCapReason(): string {
   return (
     `Not looked at: a scan takes screenshots of the first ${MAX_SCREENSHOT_STOPS.toString()} Tab stops of a ` +
@@ -413,6 +418,13 @@ export class FocusVisibleCheck {
     if (clip === undefined) {
       await this.forget();
       this.review.push({ ...element(html), reason: OUTSIDE_REASON });
+      return;
+    }
+    // The check blurs every stop it measures. A late guard cannot shield the page from that, so it never blurs:
+    // each such stop is *needs review*, and no finding can rest on an unshielded blur.
+    if (this.guard.late) {
+      await this.forget();
+      this.review.push({ ...element(html), reason: LATE_GUARD_REASON });
       return;
     }
     this.shots += 1;
