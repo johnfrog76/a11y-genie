@@ -16,6 +16,93 @@ import { FocusReader } from "./walk.js";
 /** The four landmarks the check looks for. Others (`complementary`, `search`, `form`) do not count. */
 export const LANDMARK_ROLES = ["banner", "navigation", "main", "contentinfo"] as const;
 
+/** The ARIA roles a role attribute can name, which is how the first usable token is told from a made-up one. */
+const KNOWN_ROLES = [
+  "alert",
+  "alertdialog",
+  "application",
+  "article",
+  "banner",
+  "blockquote",
+  "button",
+  "caption",
+  "cell",
+  "checkbox",
+  "code",
+  "columnheader",
+  "combobox",
+  "complementary",
+  "contentinfo",
+  "definition",
+  "deletion",
+  "dialog",
+  "directory",
+  "document",
+  "emphasis",
+  "feed",
+  "figure",
+  "form",
+  "generic",
+  "grid",
+  "gridcell",
+  "group",
+  "heading",
+  "img",
+  "image",
+  "insertion",
+  "link",
+  "list",
+  "listbox",
+  "listitem",
+  "log",
+  "main",
+  "marquee",
+  "math",
+  "menu",
+  "menubar",
+  "menuitem",
+  "menuitemcheckbox",
+  "menuitemradio",
+  "meter",
+  "navigation",
+  "none",
+  "note",
+  "option",
+  "paragraph",
+  "presentation",
+  "progressbar",
+  "radio",
+  "radiogroup",
+  "region",
+  "row",
+  "rowgroup",
+  "rowheader",
+  "scrollbar",
+  "search",
+  "searchbox",
+  "separator",
+  "slider",
+  "spinbutton",
+  "status",
+  "strong",
+  "subscript",
+  "superscript",
+  "switch",
+  "tab",
+  "table",
+  "tablist",
+  "tabpanel",
+  "term",
+  "textbox",
+  "time",
+  "timer",
+  "toolbar",
+  "tooltip",
+  "tree",
+  "treegrid",
+  "treeitem",
+];
+
 export const NO_LANDMARKS_RULE = {
   source: "genie",
   id: "no-landmarks",
@@ -42,7 +129,7 @@ const FAILURE =
 /**
  * Runs in the isolated world (`FocusReader.call`): whether the page has a landmark of the four roles, and whether
  * it has a heading, each visible to the accessibility tree. It reads the page the way the browser's role lookup does:
- *  - a role attribute decides, by its first token; with none, `main`, `nav`, `h1` to `h6` have their own role, and
+ *  - a role attribute decides, by its first token that is a known ARIA role; when none is known, `main`, `nav`, `h1` to `h6` have their own role, and
  *    `header` and `footer` are `banner` and `contentinfo` only outside `article`, `aside`, `main`, `nav` and `section`;
  *  - an element is out of the tree when it or an ancestor is `display: none` or `aria-hidden="true"`, or it is
  *    `visibility: hidden`;
@@ -60,8 +147,10 @@ export const READ_STRUCTURE = `function () {
     }
     return false;
   };
+  const KNOWN = ${JSON.stringify(KNOWN_ROLES)};
   const roleOf = (el) => {
-    const explicit = (el.getAttribute("role") ?? "").trim().toLowerCase().split(/\\s+/)[0];
+    const tokens = (el.getAttribute("role") ?? "").trim().toLowerCase().split(/\\s+/);
+    const explicit = tokens.find((t) => KNOWN.includes(t));
     if (explicit) return explicit;
     const tag = el.tagName;
     if (tag === "MAIN") return "main";
