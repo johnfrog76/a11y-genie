@@ -1,0 +1,23 @@
+<!doctype html>
+<!--
+  Fixture: a page with no landmark, no heading and no skip link, and six links before its content.
+  Must fire:     genie/skip-link as a WCAG 2.4.1 violation (moderate), once for the page
+  Must not fire: genie/skip-link as advice
+  Also fires:    the axe-core rules for a page with no landmark or heading: landmark-one-main, page-has-heading-one, region
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>No skip link, no structure fixture</title>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <div>
+      <a href="/one">One</a> <a href="/two">Two</a> <a href="/three">Three</a>
+      <a href="/four">Four</a> <a href="/five">Five</a> <a href="/six">Six</a>
+    </div>
+    <div>
+      <p>The page's own content, in a plain div.</p>
+    </div>
+  </body>
+</html>

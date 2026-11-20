@@ -5,6 +5,7 @@ import { IMPACTS } from "../../src/finding.js";
 import { genieRules } from "../../src/genie-rules.js";
 import "../../src/click-on-non-control.js";
 import "../../src/landmarks.js";
+import "../../src/skip-link.js";
 
 // Runs the built command (npm test builds first), as a person would. `rules` needs no browser or network.
 const cli = new URL("../../dist/cli.js", import.meta.url).pathname;
@@ -41,6 +42,7 @@ describe("a11y-genie rules", () => {
     for (const g of own) expect(stdout).toContain(`genie/${g.rule.id}`);
     expect(stdout).toContain("genie/no-landmarks");
     expect(stdout).toContain("genie/click-on-non-control");
+    expect(stdout).toContain("genie/skip-link");
     expect(stdout).toContain(`axe-core ${axe.version}`);
   });
 

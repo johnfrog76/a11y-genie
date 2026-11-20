@@ -1,0 +1,30 @@
+<!doctype html>
+<!--
+  Fixture: a page whose first link goes to its main, and shows itself when it gets focus.
+  Must fire:     nothing
+  Must not fire: genie/skip-link, any axe-core rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Skip link fixture</title>
+    <style>
+      .skip { position: absolute; left: -9999px; }
+      .skip:focus { left: 0; top: 0; background: #ffffff; color: #000000; }
+    </style>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <a class="skip" href="#main">Skip to main content</a>
+    <header>
+      <nav aria-label="Site">
+        <a href="/one">One</a> <a href="/two">Two</a> <a href="/three">Three</a>
+        <a href="/four">Four</a> <a href="/five">Five</a> <a href="/six">Six</a>
+      </nav>
+    </header>
+    <main id="main">
+      <h1>Skip link fixture</h1>
+      <p>The first Tab stop is a link to this main.</p>
+    </main>
+  </body>
+</html>
