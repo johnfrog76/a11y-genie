@@ -23,7 +23,7 @@ moderate exits 0: the findings are still in `scan.json` and `report.md`, and the
 
 - A page that was **not scanned** always exits 1.
 - *Advice* never changes the exit.
-- *Needs review* items (what axe-core could not decide, so a person looks) never change the exit, with any
+- *Needs review* items (what axe-core or an own check could not decide, so a person looks) never change the exit, with any
   `--fail-on`. They are counted in `summary.needsReview` and listed, and the command line says how many.
 
 `scan.json` records the floor in `options.failOn`, and its `exit` is the code the run ends with.

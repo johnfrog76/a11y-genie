@@ -292,7 +292,7 @@ as axe-core's own `--tags` runs them, so a list without `best-practice` leaves t
   violation is at or above it (`atOrAbove`), or a page was not scanned; otherwise 0. A finding below it is still
   in `scan.json` and `report.md`, so the summary can read *Found 1 problem* and the exit be 0; the command line
   and the report say why. Advice and *needs review* items never change the exit, with any `--fail-on`: a
-  *needs review* item is something axe-core could not decide, and a person looks (spec 4.3). The floor is
+  *needs review* item is something axe-core or an own check could not decide, and a person looks (spec 4.3). The floor is
   recorded in `options.failOn`.
 
 ## One scan, end to end (`src/run-scan.ts`, `src/cli.ts`)
