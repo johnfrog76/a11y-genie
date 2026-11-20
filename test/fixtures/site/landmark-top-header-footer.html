@@ -1,0 +1,16 @@
+<!doctype html>
+<!--
+  Fixture: the same page with a header and a footer at the top level, which are a banner and a contentinfo.
+  Must not fire: genie/no-landmarks
+  Also fires: whatever axe-core makes of the page; the test reads only genie/no-landmarks.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>A top-level header and footer</title>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <header>Head</header><article><p>Text</p></article><footer>Foot</footer>
+  </body>
+</html>

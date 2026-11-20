@@ -1,0 +1,27 @@
+<!doctype html>
+<!--
+  Fixture: a page with no skip link whose first Tab stop is a fragment link inside a same-origin frame. The link
+  points at an id in the frame, so following it scrolls the frame, not the page.
+  Must fire:     genie/skip-link as advice (minor), once for the page
+  Must not fire: any axe-core rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>A skip link inside a frame</title>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <iframe title="The inner page" src="skip-link-frame-inner.html" style="width: 400px; height: 120px"></iframe>
+    <header>
+      <nav aria-label="Site">
+        <a href="/one">One</a> <a href="/two">Two</a> <a href="/three">Three</a>
+        <a href="/four">Four</a> <a href="/five">Five</a> <a href="/six">Six</a>
+      </nav>
+    </header>
+    <main id="main">
+      <h1>A skip link inside a frame</h1>
+      <p>The page itself has no skip link.</p>
+    </main>
+  </body>
+</html>

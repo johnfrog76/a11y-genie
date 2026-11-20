@@ -1,0 +1,16 @@
+<!doctype html>
+<!--
+  Fixture: a div whose role attribute is "foo banner". The first role the browser knows is banner, so it is a banner.
+  Must not fire: genie/no-landmarks
+  Also fires: whatever axe-core makes of the page; the test reads only genie/no-landmarks.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>A div with a fallback role</title>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <div role="foo banner"><a href="/one">One</a></div>
+  </body>
+</html>

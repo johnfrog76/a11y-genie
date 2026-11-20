@@ -261,9 +261,14 @@ rules need it, and `genie/no-landmarks`, which sums them up, is not run either.
 **What the product adds.** axe-core reports a page with no landmark at all as `region` on every element it can
 reach plus `landmark-one-main`. `genie/no-landmarks` says it once for the page (moderate, WCAG 1.3.1 and 2.4.1
 as context), on `body`. It is a violation, like the rules beside it, so it counts toward the exit code. The
-check asks the browser for elements of the roles `banner`, `navigation`, `main` and `contentinfo`
-(`page.getByRole`), so a `div role="main"` counts, a `header` inside an `article` does not, and an element
-hidden from the accessibility tree does not. Other landmark roles (`complementary`, `search`, `form`, `region`)
+check reads the page in an isolated world, through a `FocusReader` of its own (`READ_STRUCTURE`), so a page that
+overrides `querySelector`, `matches` or `getAttribute` cannot hide its missing landmarks. It looks for elements of
+the roles `banner`, `navigation`, `main` and `contentinfo`: a role attribute decides by its first token that is a known ARIA role (`<nav role="foo">` stays a navigation), and
+with none known `main` and `nav` are `main` and `navigation`, while `header` and `footer` are `banner` and
+`contentinfo` only outside `article`, `aside`, `main`, `nav` and `section`. So a `div role="main"` counts, a
+`header` inside an `article` does not, and an element out of the accessibility tree (`display: none`,
+`visibility: hidden`, or it or an ancestor `aria-hidden="true"`) does not. Open shadow roots are read. Other
+landmark roles (`complementary`, `search`, `form`, `region`)
 do not count: a page with only those has none of the four. It runs on the page's own frame after axe-core, and
 it does not change `engine.rulesRun`, which stays axe-core's count. The report lists it as any other finding;
 no landmark map is drawn.
@@ -347,16 +352,20 @@ time limit, with axe-core.
 axe-core and the other checks and starts at the top of the page: at each, it asks whether the element that has
 focus is a skip link. It presses no Tab of its own (spec 6.5: one walk feeds 6.3 and 6.4). A skip link is a same-page link (`href="#id"`) whose target
 exists and is the page's `main` or inside it. With none, the finding is **advice** (`minor`) when the page has a
-landmark or a heading, and a WCAG 2.4.1 **violation** (`moderate`) when it has neither. A page with fewer than
+landmark or a heading (read as `genie/no-landmarks` reads landmarks, in the isolated world), and a WCAG 2.4.1 **violation** (`moderate`) when it has neither. A page with fewer than
 five tabbable elements before its main content (all of them when it has no main) is not checked. It is tagged
 `best-practice`, as `genie/no-landmarks` is, and the registry lists the violation's impact. The check does not
 test whether the link shows itself on focus or whether its target takes focus; the spec asks for neither.
-Every read it makes of the page (the focused element, the tabbable count, the body's opening tag) runs in an
+A link counts only when it belongs to the top document: its fragment is resolved against its own
+`ownerDocument`, so a fragment link inside a same-origin frame, which scrolls only the frame, is not a skip link,
+while one in a shadow root is. Every read it makes of the page (the focused element, the tabbable count, the
+landmarks and headings, the body's opening tag) runs in an
 isolated world through a `FocusReader` of its own, so a page that overrides `document.activeElement`,
 `getAttribute`, `matches`, `querySelector` or `getElementById` cannot hide a missing skip link or fake one.
 Advice never changes the exit code. Fixtures: `no-skip-link.html`, `no-skip-no-structure.html`,
 `skip-link-ok.html`, `skip-link-broken.html`, `few-tabbable.html`, `skip-link-tampered.html`,
-`skip-link-hidden-tampered.html`; test: `test/browser/skip-link.test.ts`.
+`skip-link-hidden-tampered.html`, `no-landmarks-tampered.html`, `skip-link-frame.html` (with
+`skip-link-frame-inner.html`), `skip-link-shadow.html`; the role and scope fixtures (`landmark-role-*.html`, `landmark-header-presentation.html`, `landmark-scoped-header-footer.html`, `landmark-top-header-footer.html`) are read by `test/browser/landmarks.test.ts`; test: `test/browser/skip-link.test.ts`.
 
 ### The keyboard walk (`src/walk.ts`)
 

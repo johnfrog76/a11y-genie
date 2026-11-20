@@ -48,6 +48,19 @@ describe.skipIf(!hasChrome)("landmarks on the fixture pages (skipped where Chrom
     expect(attempted).toEqual([]);
   });
 
+  // How a role is read: the first role the browser knows, else the element's own; header and footer by scope.
+  it.each([
+    ["landmark-role-unknown-nav.html", false],
+    ["landmark-role-fallback-banner.html", false],
+    ["landmark-header-presentation.html", true],
+    ["landmark-scoped-header-footer.html", true],
+    ["landmark-top-header-footer.html", false],
+  ])("%s: genie/no-landmarks fires is %s", async (page, fires) => {
+    const [result, attempted] = await scan(page);
+    expect(result.findings.some((f) => f.id === `genie/no-landmarks@${page}`)).toBe(fires);
+    expect(attempted).toEqual([]);
+  });
+
   it("landmarks-ok.html has all four landmarks and no finding", async () => {
     const [result] = await scan("landmarks-ok.html");
     expect(result.findings).toEqual([]);

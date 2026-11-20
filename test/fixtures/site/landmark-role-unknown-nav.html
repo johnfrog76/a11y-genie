@@ -1,0 +1,16 @@
+<!doctype html>
+<!--
+  Fixture: a nav with a made-up role. The browser ignores the role and reads the nav, so it is a navigation.
+  Must not fire: genie/no-landmarks
+  Also fires: whatever axe-core makes of the page; the test reads only genie/no-landmarks.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>A nav with an unknown role</title>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <nav role="foo"><a href="/one">One</a></nav>
+  </body>
+</html>
