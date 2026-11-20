@@ -91,7 +91,7 @@ characters JSON allows raw (DEL, the C1 controls, the bidirectional controls and
 separators) are written as `\u` escapes, so the file holds no raw control and parses to the same text.
 `report.md` and the terminal get the same text with every escape sequence and control stripped.
 
-It is versioned: `schema` is `"<major>.<minor>"`, now `"1.9"`. A field may be added in a minor version and is
+It is versioned: `schema` is `"<major>.<minor>"`, now `"1.10"`. A field may be added in a minor version and is
 never removed or renamed in one; a removal or a rename is a new major, and a new schema file. Readers must
 ignore fields they do not know, so the schema allows extra fields. 1.1 added `pages[].requestedUrl`,
 `pages[].redirects`, `pages[].stopped`, `limits` and `elementsCut`; a 1.0 record has none of them, and is
@@ -105,13 +105,14 @@ still-open finding; a 1.5 record has none, and is still valid too. 1.7 added
 valid too. 1.8 added `stopsCut` on a walk (below); a 1.7 record has none, and is still valid too. 1.9 added a
 walk's `cycled` end and its `cycleFrom` (below), the findings `genie/keyboard-trap` and
 `genie/focus-not-returned`, and the `cannotSee` line for a native modal dialog; a 1.8 record has none of them,
-and is still valid too.
+and is still valid too. 1.10 filled `workflows` (*Narrated flows*, below), added `command: "narrate"` and the
+finding `genie/unnamed-step`; a 1.9 record has `workflows: []`, and is still valid too.
 
 | Field | What it holds |
 | --- | --- |
-| `schema` | The version, `"1.9"` |
+| `schema` | The version, `"1.10"` |
 | `tool` | `{ name, version }` of A11y Genie |
-| `command` | `"scan"`, or `"check"` for `a11y-genie check` |
+| `command` | `"scan"`, `"check"` for `a11y-genie check`, or, from 1.10, `"narrate"` for `a11y-genie narrate`: a record with no axe-core results (`engine.rulesRun` is `0`), whose findings are the flows' own |
 | `exit` | The exit code the run ends with: `0` with no violation at or above `options.failOn`, `1` with one, or with a page that was not scanned. Advice and *needs review* items never change it |
 | `engine` | `axeCore` (its version), `browser` (the channel that ran and its version, such as `chrome 158.0.8127.36` or `chromium 159.0.8154.6`), `fallback` (`true` when Chrome was missing and Playwright's Chromium ran in its place; `false` otherwise, `--browser-channel chromium` included), `tags` (`null` when axe-core's default rule set ran, or the list `--tags` gave, in the order given, which ran exactly those: a rule with none of them does not run, and the landmark rules, which carry `best-practice`, need that tag), `rulesRun` (distinct rule ids axe-core ran, the most any one state ran, with `--tags` the ones those tags selected; `0` when nothing was scanned) |
 | `target` | `origin` of the address asked for (not of where a redirect ended), and `commit`: `--commit`, or the `GITHUB_SHA` environment variable when it is set and `--commit` is not, or `null` |
@@ -120,10 +121,11 @@ and is still valid too.
 | `pages[].states` | Every state the page was asked to scan, `default` first and then the `--states` or config states in the order given. A state also named in `notScanned` was asked for and not scanned. A page's states are merged into its findings: see *One finding per rule per page* below |
 | `pages[].walks` | Added in 1.7. The keyboard walk of each state that was scanned, in the order of `states`: see *The keyboard walk* below. A state that was not scanned has no walk |
 | `pages[].notScanned` | Empty when everything asked of the page was scanned. Otherwise one `{ state, reason }` for each state that was not: the state's name (`default`, `menu-open`) and why, in A11y Genie's own words, such as `it redirected to an address that is not http: or https: (such as file:, chrome: or data:), and the browser stopped it`, `it did not answer: no answer within 30 seconds`, or `step 2 (click button 'Menu') failed: no such element was found, or it could not be clicked, within 10 seconds`. The other states are still scanned, and their findings are in the record. Anything in it makes the exit `1` |
-| `summary` | Violations by impact (`critical`, `serious`, `moderate`, `minor`), `advice`, `needsReview` and `notScanned` counts. On a `check`, the impact and `advice` counts are of the findings still open (`new` and `still`), and `new`, `still` and `fixed` count the findings of each status. On a `scan` of a site scanned before, `sincePrevious` (below) |
+| `summary` | Violations by impact (`critical`, `serious`, `moderate`, `minor`), `advice`, `needsReview` and `notScanned` counts (a page or state not scanned, and, from 1.10, a flow not narrated to its end). On a `check`, the impact and `advice` counts are of the findings still open (`new` and `still`), and `new`, `still` and `fixed` count the findings of each status. On a `scan` of a site scanned before, `sincePrevious` (below) |
 | `findings` | Worst first. Each is a finding as above, plus `title`, `plain`, `fix`, `status`, `elementsCut` when some elements are not listed, and, on each element, `states`: the names of the states the element was found in, in the order the states were asked for, `default` first (`["default"]` for a page scanned in one state). Each element's `html` is cut to 160 characters, with `…` where it was cut |
 | `needsReview` | Worst first, as above; each element has `reason` and `states`, and the item has `elementsCut` when some are not listed |
-| `ignored`, `workflows` | `[]` until those features exist |
+| `ignored` | `[]` until that feature exists |
+| `workflows` | Added in 1.10. The narrated flows, in the order they ran: see *Narrated flows* below. `[]` when none was asked for |
 | `checklist` | `null` until the checklist exists |
 | `cannotSee` | What a scan cannot see: the same lines that end `report.md`. The fixed list, then, from 1.9, one line for each page where a native `dialog` was open by `showModal()`, naming the page and its states, which the trap check does not walk (docs/ARCHITECTURE.md, *The keyboard trap*). A page without one adds nothing |
 | `options` | Added in 1.3. The flags that changed what the scan did or how it exited: `failOn` (`critical`, `serious`, `moderate` or `minor`; `minor` by default), `sameOrigin` and `offline` (booleans). `--tags` is `engine.tags`. The report says so when any is set |
@@ -264,6 +266,24 @@ found in at least one state both scans scanned is judged as usual: `new` if the 
 finding with a new element in a state both scanned stays `new`, and only its elements in the unscanned state are
 marked unverified. `check` says `1 finding is unverified: the baseline did not scan the state "dark". To compare
 it, run a11y-genie scan with the same --states to make a new baseline.`, and `report.md` says the same.
+
+**Narrated flows** (`workflows[]`, from 1.10; `src/narrate.ts`, docs/ARCHITECTURE.md, *Narration*). One entry for each
+flow that ran: `narrate --flow` gives one, named `flow`, and `scan --config` gives one for each of the file's
+`workflows`. Each has:
+
+| Field | What it holds |
+| --- | --- |
+| `name` | `flow`, or the workflow's name in the config file, printable and cut to 80 characters |
+| `page` | The key of the page it ran on |
+| `file` | Its transcript, relative to the scan folder: `narration/<name>.txt`. The name is made one safe path part (letters, digits, `.`, `_`, `-`), and two names that come to the same one get `-2`, `-3` after it |
+| `steps` | One entry for each step that ran: `key` (the step as the grammar writes it), then what the browser's accessibility tree said of the element focus was on after it: `role` (the tree's name for it, `null` when focus was on no element), `name` (empty when it has none), `states` (`required`, `expanded`, `checked`...), `spoken` (the line a screen reader would say, name first: `Save, button`; empty when focus was on no element), `unnamed` (the step brought focus to an element that has a role and no name), and `selector` (the element, `null` when none) |
+| `steps[].produced` | Only on a step that pressed Enter or Space, or clicked: what it produced, in the order it is said, each `{ kind, spoken }`. `dialog`: a dialog opened, and this is its name and role. `focus`: focus moved to another element, or to none (then `spoken` is empty). `change`: focus stayed, and what is said of it changed, such as a menu button that opened. `live`: text added to an `aria-live`, `role="status"`, `role="alert"` or `role="log"` region. `page`: the step went to another page, and this is its title. An empty list means the press produced nothing a screen reader would say |
+| `notScanned` | Absent when the flow ran to its last step. Otherwise why it stopped, in A11y Genie's own words, such as `step 2 (click button 'Menu') failed: no such element was found, or it could not be clicked, within 10 seconds`. The steps before it are kept. A flow not narrated to its end counts in `summary.notScanned` and makes the exit `1` |
+
+A step that leaves focus on an element that has a role and no name is the finding `genie/unnamed-step` (serious, WCAG
+4.1.2) on the flow's page, with one element for each such control, whatever number of flows reached it. The finding
+needs `--fail-on` at `serious` or lower to make the exit `1`, like any other. A step that stays on the element the
+step before it reached does not count again.
 
 **`check`'s record** has `command: "check"`, `baseline`, every finding with its `status` (the open ones worst first,
 then the fixed ones worst first), and `summary.new`, `still` and `fixed`. A fixed finding keeps the earlier

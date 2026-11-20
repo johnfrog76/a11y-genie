@@ -705,6 +705,76 @@ nest in, and one for each nested set. Fixtures: `workflow.html`, `a11y-tree-sets
 `walk-frame.html`, `walk-tampered.html` and `walk-names.html`; tests: `test/browser/a11y-tree.test.ts`,
 `test/unit/a11y-tree.test.ts`.
 
+### Narration (`src/narrate.ts`, `src/narrate-command.ts`)
+
+`a11y-genie narrate <url> --flow "<steps>"` drives one flow by the keyboard and writes down what a screen reader
+would say after each step (spec 6.6). A config's `workflows` are narrated the same way on `scan --config`, after the
+pages and their states. Each flow runs in a new context of its own, with every hostile-page rule of
+`src/context.ts` (below), from a fresh load of its page, held to the page time limit (`--timeout`). The load, the
+rules and the refusals are `src/run-scan.ts`'s (`loadPage`, `narrateWorkflow`); with `narrate`, nothing else runs:
+no axe-core and no keyboard walk, so its record has `command: "narrate"` and `engine.rulesRun` of `0`.
+
+**One step at a time.** `narrateSteps` runs each step with the step driver (`runSteps` of `src/drive.ts`), then
+reads the focused element with `TreeReader` (*Reading the accessibility tree*, above): role, name, states and the
+spoken line. A step that fails on the page stops the flow, which reads *not scanned* with the driver's words and
+keeps the steps before it; so do a network rule that stopped the page, an address that is not `http:` or `https:`,
+and the time limit. `Tab to` is bounded by `--max-tabs`, and a flow by 200 steps.
+
+**What a press produced.** After Enter, Space or a click (`producesResult`), the step also says what it did, in
+the order a screen reader would, from three things read in an isolated world of the narration's own, out of the
+page's reach (`PressObserver`):
+
+- *a dialog that opened*: a visible `dialog` element, or `role="dialog"` or `"alertdialog"`, that was not shown
+  before the press. Its name and role are read from the accessibility tree: `Settings, dialog`.
+- *where focus went*: focus on another element than before, or on none (`kind: "focus"`); or, on the same
+  element, a spoken line that changed, such as a menu button that went from collapsed to expanded
+  (`kind: "change"`). A focus line that only repeats the dialog's is not said twice.
+- *live regions*: before the press the text of every visible `aria-live="polite"` or `"assertive"` element,
+  `role="status"`, `"alert"` and `"log"` element, and `output`, is remembered; after it, the page is given 250 ms
+  (`ACTION_SETTLE_MS`) for its answer, and the text that was added is said, as `Saved, status`. A region that
+  grew by appending says only what was added; one that was rewritten says all of it. Open shadow roots are
+  searched; frames are not. A page that goes to another address (not a jump within the page) is read again from
+  scratch, and the step says the new page's title (`kind: "page"`).
+
+A press that produced none of these reads `(nothing is said)` in the transcript. Page text read here is made
+printable (`src/printable.ts`) and cut to the excerpt limit (160 characters) before it is kept, and each value read
+from the page is checked before use.
+
+**The transcript.** `renderTranscript` writes one from the record alone, so `report` can write it again from a
+stored `scan.json`: a line `<name>, on <page>`, then one line a step, the number, the step and what is said,
+in columns; a press that produced several things continues them under the first; and a step with no name is
+followed by a line that says so:
+
+```text
+flow, on workflow.html
+1  Tab    Email, edit text, required
+2  Tab    button
+   ^ This step has no name. A screen reader says "button", and stops.
+3  Tab    Save, button
+4  Enter  Saved, status
+```
+
+A flow that stopped early ends with `Not narrated past this point: <why>.` `narrate` prints the transcript and
+writes it as `narration/flow.txt` in the scan folder beside `scan.json`; with `scan --config` each workflow has
+`narration/<name>.txt` (docs/CONFIG.md says how a name becomes a file name). Every report carries each transcript
+under *Narrated flows*. The golden is `test/goldens/narration/flow.txt`, from `workflow.html` with the flow
+`Tab; Tab; Tab; Enter`; `UPDATE_GOLDENS=1 npm test` rewrites it. Speaking the transcript is D4 and comes later:
+`spoken` is what a speech engine would be given.
+
+**`genie/unnamed-step`** (serious, WCAG 4.1.2): a step that brings focus to an element that has a role that is
+said and no name (`unnamed` of `Accessible`). A step that leaves focus where the step before it left it is not
+counted again, and the same element reached by two flows is one element of the finding. The finding is the page's, in
+the record's default state, and makes `narrate` exit 1 at the default `--fail-on`. It is registered with the tags
+`cat.name-role-value` and `wcag412`, and not `wcag2a` although the criterion is level A: a flow someone asked to
+narrate is always read, so `--tags` does not select it, and `rules --tags wcag2a` lists the same own rules as
+before. Its plain words are in `src/plain.ts`.
+
+A `narrate` record is not a scan to compare with: plain `scan` skips it when it looks for the site's last scan
+(`previousScan`), and `check --baseline` refuses it. Fixtures: `workflow.html` (its form is `novalidate`, so
+Enter on Save submits instead of stopping at the empty required Email), `narrate-press.html` and
+`hostile/narrate-text.html`; tests: `test/browser/narrate.test.ts`, `test/cli/narrate.test.ts` and
+`test/unit/narrate.test.ts`.
+
 ### Plain words (`src/plain.ts`)
 
 A finding's `plain` (what is wrong, and who it hurts) and `fix` (what to change), and the short `title` that

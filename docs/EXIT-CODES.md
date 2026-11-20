@@ -43,6 +43,12 @@ still open were in the baseline.` Plain `scan` compares with the site's last sca
 (`4 new, 2 fixed since the last scan`, or `Not comparable with the last scan: different pages, states or tags.`):
 its exit reads only the scan just run.
 
+**`narrate <url> --flow "<steps>"`** exits as `scan` does, over the flow: 0 when every step ran and none left focus on a
+control with no name (`genie/unnamed-step`, serious) at or above `--fail-on`; 1 when one did, or when the flow stopped
+before its last step (a step that fails on the page, a page a network rule stopped, the time limit), whatever
+`--fail-on` says, so a flow nobody heard to the end never exits 0. Its refusals (2) are below. The same holds for
+the `workflows` of a `scan --config`: a flow not narrated to its end makes the scan exit 1.
+
 `rules` exits 0 on success and 2 on a refusal; it scans nothing. So does `prompt`, which prints the prompt file
 and takes no argument.
 
@@ -79,6 +85,12 @@ browser opens, too.
 | A `--timeout` that is not a number of seconds above 0 and up to 3600 | `--timeout takes a number of seconds above 0 and up to 3600, not "soon".` | `for example --timeout 30. The default is 60.` |
 | A `--max-tabs` that is not a whole number from 1 to 1000 | `--max-tabs takes a whole number of Tab presses from 1 to 1000, not "lots".` | `for example --max-tabs 500. The default is 200.` |
 | A `--storage-state` that is missing or is not a Playwright storage state | `--storage-state cannot be read: <path> (ENOENT)`, or `... is not a Playwright storage state: <path>` | `give the path to a Playwright storage state file.` |
+| `narrate` with no `--flow` | `narrate needs --flow: the steps to drive.` | `run: a11y-genie narrate <url> --flow "Tab; Tab; Enter"` |
+| `narrate` with no address | `narrate needs a page address to narrate.` | `run: a11y-genie narrate <url> --flow "<steps>"` |
+| A `--flow` that does not parse, is empty, or sets media (`colorScheme`, `viewport`, `reducedMotion`) | `--flow step 2 "clik", column 6: "clik" is not a step.`; every message is in `docs/STEPS.md` | what a step is, or how to fix this one |
+| A `--flow` of more than 200 steps, or a config workflow of more than 200 | `--flow has 201 steps, and narrate takes at most 200.` | `narrate one task at a time: split the flow in two.` (a config: `split it into workflows of their own.`) |
+| `--states`, `--config` or `--tags` after `narrate` | the words of Node's argument parser, such as `Unknown option '--states'. ...` | the same hint |
+| `check --baseline` given a `narrate` record | `--baseline is a narration, which has no axe-core results to compare with.` | `give the scan.json of a scan: a11y-genie scan <url>, then a11y-genie check --baseline <scan> <url>` |
 | A target that is not `http:` or `https:` | `only http: and https: addresses can be scanned, and this one is file:` (or `javascript:`, `data:`) | `give a full address that starts with http:// or https://. To scan a built site, serve it first, for example: npx serve dist` |
 | An unknown `--fail-on` impact | `unknown --fail-on impact: "severe"` | `use one of: critical, serious, moderate, minor.` |
 | An unknown `--tags` tag | `unknown --tags value: "nope"` | `use axe-core tags separated by commas, such as wcag2a, wcag2aa, wcag21aa or best-practice. The landmark rules need best-practice.` |
