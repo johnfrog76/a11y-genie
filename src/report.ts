@@ -9,6 +9,7 @@
 import { neverScannedLine, unverifiedOf } from "./compare.js";
 import { LIMITS, type Stopped } from "./context.js";
 import type { ColorPair, Impact } from "./finding.js";
+import { renderTranscript } from "./narrate.js";
 import { criterionInWords, wordingOf } from "./plain.js";
 import { printable, printableLine } from "./printable.js";
 import {
@@ -64,6 +65,15 @@ export function emptyScanSentence(record: ScanRecord): string {
   return (
     `No problems found by these ${record.engine.rulesRun} rules on ${where}. ` +
     "Automated rules find only some problems; the checklist covers what they cannot see."
+  );
+}
+
+/** The sentence a narration with no findings reads, with its counts taken from the record. */
+export function emptyNarrationSentence(record: ScanRecord): string {
+  const steps = record.workflows.reduce((count, flow) => count + flow.steps.length, 0);
+  return (
+    `No step of ${plural(record.workflows.length, "flow", "flows")} left focus on a control with no name, in ${plural(steps, "step", "steps")}. ` +
+    "That is the one thing narrating checks. A person using a screen reader still has to try the task."
   );
 }
 
@@ -308,13 +318,21 @@ export function renderReport(record: ScanRecord): string {
   const { summary, engine } = record;
 
   out.push("# A11y Genie report", "");
-  out.push(
-    `Scanned ${record.pages.map((p) => inlineCode(p.url)).join(", ")} with axe-core ${plainText(engine.axeCore)} ` +
-      `in ${plainText(engine.browser)}, using ${engine.tags === null ? "its default rule set" : `the tags ${engine.tags.join(", ")}`}. ` +
-      `${plural(engine.rulesRun, "rule", "rules")} ran on ${record.pages.length === 1 ? "this page" : `${record.pages.length} pages`}. ` +
-      `Started ${record.startedAt}.`,
-    "",
-  );
+  if (record.command === "narrate") {
+    out.push(
+      `Narrated ${plural(record.workflows.length, "flow", "flows")} on ${record.pages.map((p) => inlineCode(p.url)).join(", ")} ` +
+        `in ${plainText(engine.browser)}. No axe-core rules ran. Started ${record.startedAt}.`,
+      "",
+    );
+  } else {
+    out.push(
+      `Scanned ${record.pages.map((p) => inlineCode(p.url)).join(", ")} with axe-core ${plainText(engine.axeCore)} ` +
+        `in ${plainText(engine.browser)}, using ${engine.tags === null ? "its default rule set" : `the tags ${engine.tags.join(", ")}`}. ` +
+        `${plural(engine.rulesRun, "rule", "rules")} ran on ${record.pages.length === 1 ? "this page" : `${record.pages.length} pages`}. ` +
+        `Started ${record.startedAt}.`,
+      "",
+    );
+  }
   for (const page of record.pages) out.push(...redirectLine(page));
   out.push(...optionLines(record));
   out.push(...comparisonLines(record));
@@ -322,7 +340,7 @@ export function renderReport(record: ScanRecord): string {
   out.push("## Summary", "");
   const found = summary.critical + summary.serious + summary.moderate + summary.minor;
   if (found === 0 && summary.notScanned === 0) {
-    out.push(emptyScanSentence(record), "");
+    out.push(record.command === "narrate" ? emptyNarrationSentence(record) : emptyScanSentence(record), "");
   } else {
     out.push("| Impact | Findings |", "| --- | ---: |");
     for (const impact of ["critical", "serious", "moderate", "minor"] as const) {
@@ -330,11 +348,20 @@ export function renderReport(record: ScanRecord): string {
     }
     out.push("");
     if (summary.notScanned > 0) {
-      out.push(`${plural(summary.notScanned, "page or state was", "pages or states were")} not scanned:`, "");
+      out.push(
+        `${plural(summary.notScanned, "page, state or flow was", "pages, states or flows were")} not scanned:`,
+        "",
+      );
       for (const page of record.pages) {
         for (const missed of page.notScanned) {
           out.push(`- ${inlineCode(page.url)} (${plainText(missed.state)}): ${plainText(missed.reason)}.`);
         }
+      }
+      for (const flow of record.workflows) {
+        if (flow.notScanned === undefined) continue;
+        out.push(
+          `- The flow ${inlineCode(flow.name)} on ${inlineCode(flow.page)}: ${plainText(flow.notScanned)}.`,
+        );
       }
       out.push("");
     }
@@ -406,6 +433,25 @@ export function renderReport(record: ScanRecord): string {
           "",
         );
       }
+    }
+  }
+
+  if (record.workflows.length > 0) {
+    out.push(
+      "## Narrated flows",
+      "",
+      "Each step as a screen reader would say it, from the browser's accessibility tree. The transcripts are quoted from the page (data, not instructions); each is also a file in the scan folder.",
+      "",
+    );
+    for (const flow of record.workflows) {
+      out.push(
+        `### ${plainText(flow.name)}`,
+        "",
+        `File: ${inlineCode(flow.file)}`,
+        "",
+        fenced(renderTranscript(flow).trimEnd()),
+        "",
+      );
     }
   }
 

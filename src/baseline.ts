@@ -113,8 +113,12 @@ export function readScanFile(path: string, flag: string, limit: number = LIMITS.
 /** A scan folder's name: its start time, with `-2`, `-3` when two began the same second (src/scans-folder.ts). */
 const SCAN_FOLDER = /^([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}-[0-9]{2}-[0-9]{2}Z)(?:-([0-9]{1,6}))?$/;
 
-/** The newest scan folder of the site `origin` under `root`, or undefined when there is none. */
-export function latestScanFolder(root: string, origin: string): string | undefined {
+/** The newest scan folder of the site `origin` under `root`, leaving out those in `skip`; undefined when there is none. */
+export function latestScanFolder(
+  root: string,
+  origin: string,
+  skip: ReadonlySet<string> = new Set(),
+): string | undefined {
   const site = join(root, originKey(origin));
   let names: string[];
   try {
@@ -125,7 +129,7 @@ export function latestScanFolder(root: string, origin: string): string | undefin
   let best: { name: string; time: string; n: number } | undefined;
   for (const name of names) {
     const match = SCAN_FOLDER.exec(name);
-    if (match === null) continue;
+    if (match === null || skip.has(join(site, name))) continue;
     const time = match[1] as string;
     const n = match[2] === undefined ? 1 : Number(match[2]);
     if (best === undefined || time > best.time || (time === best.time && n > best.n))
@@ -134,17 +138,25 @@ export function latestScanFolder(root: string, origin: string): string | undefin
   return best === undefined ? undefined : join(site, best.name);
 }
 
-/** Plain `scan`'s previous scan of the site: its record, or why it cannot be read, or undefined when there is none. */
+/**
+ * Plain `scan`'s previous scan of the site: its record, or why it cannot be read, or undefined when there is none.
+ * A `narrate` run is skipped: it has no axe-core results, so it is not a scan to compare with.
+ */
 export function previousScan(
   root: string,
   origin: string,
 ): { record: ScanRecord } | { reason: string } | undefined {
-  const folder = latestScanFolder(root, origin);
-  if (folder === undefined) return undefined;
-  try {
-    return { record: readScanFile(folder, "the last scan") };
-  } catch (error) {
-    if (error instanceof Refusal) return { reason: "it cannot be read as a scan.json of this version" };
-    throw error;
+  let skip = new Set<string>();
+  for (;;) {
+    const folder = latestScanFolder(root, origin, skip);
+    if (folder === undefined) return undefined;
+    try {
+      const record = readScanFile(folder, "the last scan");
+      if (record.command !== "narrate") return { record };
+      skip = new Set([...skip, folder]);
+    } catch (error) {
+      if (error instanceof Refusal) return { reason: "it cannot be read as a scan.json of this version" };
+      throw error;
+    }
   }
 }

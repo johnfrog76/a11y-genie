@@ -107,6 +107,12 @@ export async function checkCommand(args: string[], helpHint: string): Promise<vo
   }
   const prepared = prepareScan(values as ScanFlagValues, positionals, "check", helpHint);
   const baseline = readScanFile(baselinePath, "--baseline");
+  if (baseline.command === "narrate") {
+    throw new Refusal(
+      "--baseline is a narration, which has no axe-core results to compare with.",
+      "give the scan.json of a scan: a11y-genie scan <url>, then a11y-genie check --baseline <scan> <url>",
+    );
+  }
   checkComparable(baseline, prepared);
 
   const now = await runPrepared(prepared);

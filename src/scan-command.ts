@@ -4,16 +4,19 @@
  * src/cli.ts dispatches to `scanCommand`; src/check-command.ts runs the same parts around its comparison.
  */
 
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { previousScan } from "./baseline.js";
 import { BROWSER_CHANNELS, DEFAULT_CHANNEL, isBrowserChannel } from "./browser.js";
 import { sincePreviousLine, withPrevious } from "./compare.js";
 import type { Impact } from "./finding.js";
+import { narrationLines, NARRATION_DIR, renderTranscript } from "./narrate.js";
 import { checkOutFolder } from "./out-folder.js";
 import { printable, printableLine } from "./printable.js";
 import { addressKindOfUrl } from "./private-address.js";
 import { Refusal } from "./refusal.js";
-import { emptyScanSentence, renderReport } from "./report.js";
+import { emptyNarrationSentence, emptyScanSentence, renderReport } from "./report.js";
 import { DEFAULT_FAIL_ON, parseFailOn, parseTags } from "./rule-flags.js";
 import { runScan, type RunScanOptions } from "./run-scan.js";
 import { checkStorageState, parseMaxTabs, parseTimeout } from "./scan-options.js";
@@ -170,12 +173,15 @@ export function parseFlags<O extends NonNullable<Parameters<typeof parseArgs>[0]
 export function prepareScan(
   values: ScanFlagValues,
   positionals: string[],
-  command: "scan" | "check",
+  command: "scan" | "check" | "narrate",
   helpHint: string,
 ): PreparedScan {
   const [url, ...extra] = positionals;
   if (url === undefined && values.config === undefined)
-    throw new Refusal(`${command} needs a page address to scan.`, `run: a11y-genie ${command} <url>`);
+    throw new Refusal(
+      `${command} needs a page address to ${command === "narrate" ? "narrate" : "scan"}.`,
+      `run: a11y-genie ${command} <url>${command === "narrate" ? ' --flow "<steps>"' : ""}`,
+    );
   if (extra.length > 0) throw new Refusal(`${command} takes one page, and got more: ${extra[0]}`, helpHint);
 
   const channel = values["browser-channel"] ?? DEFAULT_CHANNEL;
@@ -200,6 +206,7 @@ export function prepareScan(
     pages: plan.pages,
     ...(pageMs === undefined ? {} : { limits: { pageMs } }),
     ...(values["storage-state"] === undefined ? {} : { storageState: values["storage-state"] }),
+    ...(plan.workflows.length === 0 ? {} : { workflows: plan.workflows }),
     channel,
     named: values["browser-channel"] !== undefined,
     download: values["no-download"] !== true,
@@ -248,6 +255,9 @@ export function writeScan(prepared: PreparedScan, record: ScanRecord): string {
     // scan.json is the record every other file is made from, so it is always written.
     writeScanFile(folder, "scan.json", scanJson(record));
     if (prepared.formats.has("md")) writeScanFile(folder, "report.md", renderReport(record));
+    // The transcript of each narrated flow, in `narration/` (spec 6.6). Always written: it is what narrating is for.
+    if (record.workflows.length > 0) mkdirSync(join(folder, NARRATION_DIR));
+    for (const flow of record.workflows) writeScanFile(folder, flow.file, printable(renderTranscript(flow)));
     return folder;
   } catch (error) {
     return refuseUnwritable(error, prepared.root);
@@ -264,6 +274,15 @@ export function scanLines(record: ScanRecord, prepared: PreparedScan, folder: st
   const found =
     record.summary.critical + record.summary.serious + record.summary.moderate + record.summary.minor;
   const first = record.pages[0];
+  // `narrate` prints each flow's transcript, which is what it is asked for; a scan only says where they went.
+  if (record.command === "narrate") {
+    for (const flow of record.workflows) lines.push(...narrationLines(flow));
+  }
+  for (const flow of record.workflows) {
+    if (flow.notScanned !== undefined) {
+      lines.push(`The flow "${flow.name}" on ${flow.page} was not narrated to the end: ${flow.notScanned}.`);
+    }
+  }
   for (const page of record.pages) {
     for (const missed of page.notScanned) {
       // The reason is the scan's own words; the address is the one asked for.
@@ -275,7 +294,9 @@ export function scanLines(record: ScanRecord, prepared: PreparedScan, folder: st
     const pages = record.pages.length;
     lines.push(
       found === 0
-        ? emptyScanSentence(record)
+        ? record.command === "narrate"
+          ? emptyNarrationSentence(record)
+          : emptyScanSentence(record)
         : `Found ${found} ${found === 1 ? "problem" : "problems"} on ${pages === 1 ? (first?.url ?? prepared.plan.url) : `${pages} pages`}, worst first: ` +
             `${record.summary.critical} critical, ${record.summary.serious} serious, ` +
             `${record.summary.moderate} moderate, ${record.summary.minor} minor.`,
