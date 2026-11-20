@@ -572,6 +572,13 @@ what makes the faint fixtures faint: below it, a change is too small for many pe
 tolerance `#faint-fill` would count as fully changed. A smaller tolerance would pass the faint fixtures as
 visible; a much larger one would start to miss light focus colours.
 
+**Why a finding needs both to say nothing changed.** The screenshots see only the element and 4 px around it.
+An indicator drawn further out by the properties the check reads still changes one of them on the element or one
+of its two nearest ancestors: an outline with a large `outline-offset` changes `outline-style`, a wide ring changes
+`box-shadow`, a filled parent changes its `background-color`. So with no changed pixel, a style change keeps the
+element out of the findings, and at most it is *needs review*: the check is never wrong about an indicator drawn
+that way.
+
 **Animations (V4).** A ring that comes in by a transition or an animation is judged as it ends. Before each
 screenshot, every finite animation and transition of the page, its same-origin frames and the shadow roots the
 element is in is run to its end (`Animation.finish()`), and a style turns transitions off for as long as the
