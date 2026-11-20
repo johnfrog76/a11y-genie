@@ -1,0 +1,16 @@
+<!doctype html>
+<!--
+  Fixture: a header and a footer inside a div with role="foo article". The browser scopes by the whole attribute value, as its selector does, so a value of several tokens does not scope them: they are a banner and a contentinfo (Chrome 158 accessibility tree).
+  Must not fire: genie/no-landmarks
+  Also fires: whatever axe-core makes of the page; the test reads only genie/no-landmarks.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>A header and footer inside a div with role foo article</title>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <div role="foo article"><header>Head</header><p>Text</p><footer>Foot</footer></div>
+  </body>
+</html>
