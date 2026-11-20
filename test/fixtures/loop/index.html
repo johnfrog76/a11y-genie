@@ -1,0 +1,46 @@
+<!doctype html>
+<!--
+  The fix loop's trial site (spec 7A): one page with three named bugs, for an agent to fix with
+  `a11y-genie prompt`, `scan` and `check --baseline`. Each bug is one axe-core rule:
+    1. image-alt       the logo has no alt
+    2. button-name     the search button holds only an icon
+    3. color-contrast  the note under the heading is pale grey on white
+  Everything else is sound: a lang, a title, landmarks, one h1.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lanternworks: lamps and lanterns</title>
+    <link rel="stylesheet" href="site.css" />
+  </head>
+  <body>
+    <header>
+      <img src="logo.svg" width="48" height="48" />
+      <nav aria-label="Main">
+        <a href="#lamps">Lamps</a>
+        <a href="#lanterns">Lanterns</a>
+      </nav>
+      <form role="search">
+        <label for="q">Search the shop</label>
+        <input id="q" type="search" />
+        <button type="submit"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="2" /></svg></button>
+      </form>
+    </header>
+    <main>
+      <h1>Lamps and lanterns</h1>
+      <p class="note">Every lamp is made by hand and ships within a week.</p>
+      <section id="lamps">
+        <h2>Lamps</h2>
+        <p>Desk lamps, floor lamps and reading lamps.</p>
+      </section>
+      <section id="lanterns">
+        <h2>Lanterns</h2>
+        <p>Paper lanterns and storm lanterns.</p>
+      </section>
+    </main>
+    <footer>
+      <p>Lanternworks, a made-up shop for testing.</p>
+    </footer>
+  </body>
+</html>
