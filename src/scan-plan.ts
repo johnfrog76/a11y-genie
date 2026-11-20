@@ -67,7 +67,7 @@ export function planScan(input: PlanInput): ScanPlan {
     const url = new URL(page.path, origin);
     if (url.origin !== origin) {
       throw new Refusal(
-        `${printableLine(input.config)}, line ${page.line}: the path "${printableLine(page.path.slice(0, 80))}" is not on ${origin}.`,
+        `${printableLine(input.config ?? "")}, line ${page.line}: the path "${printableLine(page.path.slice(0, 80))}" is not on ${origin}.`,
         "a page's path is beside the base address, on its own site.",
       );
     }

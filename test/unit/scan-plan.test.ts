@@ -155,7 +155,7 @@ describe("--timeout and --storage-state", () => {
 });
 
 describe("merging states", () => {
-  const item = (id: string, impact: "serious" | "minor", ...targets: string[][]) => ({
+  const item = (id: string, impact: "critical" | "serious" | "minor", ...targets: string[][]) => ({
     id,
     impact,
     elements: targets.map((target) => ({ target })),
