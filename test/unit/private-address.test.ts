@@ -60,6 +60,25 @@ describe("the address classifier", () => {
     ["0064:ff9b:0000:0000:0000:0000:0a00:0001", "private"],
     ["64:ff9b::169.254.169.254", "link-local"],
     ["64:ff9b::0.0.0.0", "unspecified"],
+    // ::ffff:0:0:0/96 (RFC 2765, IPv4-translated), judged by the IPv4 address inside
+    ["::ffff:0:7f00:1", "loopback"],
+    ["[::ffff:0:a00:1]", "private"],
+    ["::ffff:0:10.0.0.1", "private"],
+    ["::ffff:0:a9fe:a9fe", "link-local"],
+    ["::ffff:0:808:808", "public"],
+    ["::1:ffff:0:a00:1", "public"],
+    // ::/96, the deprecated IPv4-compatible form (RFC 4291 2.5.5.1), beyond :: and ::1
+    ["::7f00:1", "loopback"],
+    ["::127.0.0.1", "loopback"],
+    ["[::a00:1]", "private"],
+    ["::192.168.1.1", "private"],
+    ["::169.254.169.254", "link-local"],
+    ["::2", "unspecified"],
+    ["::808:808", "public"],
+    ["::1:0:a00:1", "public"],
+    // 6to4 (2002::/16) and Teredo (2001::/32) reach their address through relays, so they stay public
+    ["2002:a00:1::1", "public"],
+    ["2001:0:a00:1::1", "public"],
     // 64:ff9b:1::/48 (RFC 8215) cannot be judged, so it is blocked
     ["64:ff9b:1::a00:1", "private"],
     ["64:ff9b:1::808:808", "private"],
@@ -92,9 +111,6 @@ describe("the address classifier", () => {
     // Not in the spec's list, so public
     "100.64.0.1",
     "100.127.255.255",
-    "::2",
-    // IPv4-compatible (::/96, deprecated) is not IPv4-mapped
-    "::7f00:1",
     "2001:db8::1",
     "8.8.8.8",
     // Names are judged as written: no lookup (gap G7)
