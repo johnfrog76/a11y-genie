@@ -12,6 +12,7 @@ import {
 import type { AxeScan, Finding, Impact } from "../../src/finding.js";
 import { renderReport } from "../../src/report.js";
 import { buildPagesRecord, type ScanRecord, type StateResult } from "../../src/scan-record.js";
+import { CARRIED_TEXT_CHARS } from "../../src/compare.js";
 import { scanSchema, validate } from "../../src/json-schema.js";
 import { readGolden } from "../helpers/goldens.js";
 import { neverClaimViolations } from "../helpers/never-claim.js";
@@ -344,6 +345,47 @@ describe("compareScans", () => {
     expect(compared.findings.map((f) => [f.id, f.status, f.unverified])).toEqual([
       ["axe/image-alt@page", "still", true],
     ]);
+  });
+});
+
+describe("elements carried from a baseline get a fresh scan's limits (issue 75)", () => {
+  const LONG = "x".repeat(10_000);
+  const many = (count: number) => Array.from({ length: count }, (_, i) => `#e${i}`);
+  /** A baseline whose finding has elements with an oversized failure and selector. */
+  function crafted(selectors: string[]): ScanRecord {
+    const baseline = scanOf(only(finding("image-alt", selectors)));
+    for (const f of baseline.findings) {
+      f.elements = f.elements.map((e) => ({ ...e, selector: LONG + e.selector, failure: LONG }));
+    }
+    return baseline;
+  }
+  const gone = (): ScanRecord => scanOf(only());
+
+  it("cuts a fixed element's failure and selector, in the record and the report", () => {
+    const record = check(crafted(["#a"]), gone());
+    const [fixed] = record.findings;
+    const element = fixed!.elements[0]!;
+    expect(fixed!.status).toBe("fixed");
+    expect([...element.failure].length).toBeLessThanOrEqual(CARRIED_TEXT_CHARS + 1);
+    expect([...element.selector].length).toBeLessThanOrEqual(CARRIED_TEXT_CHARS + 1);
+    expect(renderReport(record)).not.toContain("x".repeat(CARRIED_TEXT_CHARS + 2));
+  });
+
+  it("carries at most 500 of 1,000 fixed elements and counts the rest", () => {
+    const record = check(crafted(many(1000)), gone());
+    const [fixed] = record.findings;
+    expect(fixed!.elements).toHaveLength(500);
+    expect(fixed!.elementsCut).toBe(500);
+  });
+
+  it("carries at most 500 of 1,000 unverified elements and counts the rest", () => {
+    const now = scanOf([{ name: "default", axe: null, notScanned: "it did not answer" }]);
+    const [still] = compareScans(crafted(many(1000)), now).findings;
+    expect(still!.status).toBe("still");
+    expect(still!.elements).toHaveLength(500);
+    expect(still!.elementsCut).toBe(500);
+    expect(still!.elements.every((e) => e.unverified === true)).toBe(true);
+    expect([...still!.elements[0]!.failure].length).toBeLessThanOrEqual(CARRIED_TEXT_CHARS + 1);
   });
 });
 

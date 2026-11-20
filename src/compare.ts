@@ -79,21 +79,46 @@ function notScannedStates(record: ScanRecord): Map<string, Set<string>> {
 }
 
 /**
- * An earlier element as a new record keeps it, with its status. Only the fields this version knows are copied, and the
- * HTML is cut to the excerpt limit again: an earlier element comes from a file this run did not write.
+ * The most characters a carried element's `failure` or `selector` keeps. A fresh scan cuts neither (axe-core's text
+ * is bounded by the page, and the record is fitted to its size), but a baseline is a file anyone could have
+ * written, so a carried element gets a cap of its own: 1,000, six times the excerpt, long enough for any real
+ * axe-core `failureSummary` or selector and short enough that a crafted one cannot fill the record.
+ */
+export const CARRIED_TEXT_CHARS = 1000;
+
+/**
+ * An earlier element as a new record keeps it, with its status. Only the fields this version knows are copied, and
+ * the HTML, the failure and the selector are cut again: an earlier element comes from a file this run did not write.
  */
 function carried(element: RecordElement, status: RecordElement["status"], unverified = false): RecordElement {
   const out: RecordElement = {
-    selector: element.selector,
+    selector: cutText(element.selector, CARRIED_TEXT_CHARS),
     target: element.target,
     html: cutText(element.html, LIMITS.excerptChars),
-    failure: element.failure,
+    failure: cutText(element.failure, CARRIED_TEXT_CHARS),
     states: element.states,
   };
   if (element.colorPair !== undefined) out.colorPair = element.colorPair;
   if (status !== undefined) out.status = status;
   if (unverified) out.unverified = true;
   return out;
+}
+
+/** Carries at most `room` of `elements` as `status`, as a fresh scan keeps at most `elementsPerFinding`; `cut` counts the rest. */
+function carryAll(
+  elements: RecordElement[],
+  status: RecordElement["status"],
+  room: number,
+  unverified = false,
+): { kept: RecordElement[]; cut: number } {
+  const kept = elements.slice(0, Math.max(0, room)).map((element) => carried(element, status, unverified));
+  return { kept, cut: elements.length - kept.length };
+}
+
+/** `rest` with `extra` more elements counted as cut, on top of any it already counts. */
+function withCut<T extends { elementsCut?: number }>(rest: T, extra: number): T {
+  if (extra === 0) return rest;
+  return { ...rest, elementsCut: (rest.elementsCut ?? 0) + extra };
 }
 
 /** An earlier finding's own fields, the ones this version knows, without its elements or its comparison. */
@@ -162,6 +187,7 @@ export function compareScans(earlier: ScanRecord, now: ScanRecord): Comparison {
       : { ...element, status: "new" };
   const before = new Map(openFindings(earlier).map((finding) => [finding.id, finding]));
   const fixedIn: FixedIn = { startedAt: now.startedAt, commit: now.target.commit };
+  const perFinding = now.limits?.elementsPerFinding ?? LIMITS.elementsPerFinding;
   const open: RecordFinding[] = [];
   const fixed: RecordFinding[] = [];
   let unverified = 0;
@@ -198,14 +224,18 @@ export function compareScans(earlier: ScanRecord, now: ScanRecord): Comparison {
     if (anyUnproven) unproved += 1;
     const gone = moved ? [] : unmatchedBefore;
     const stillUnseen = gone.filter((element) => unseen(finding.page, element));
-    const fixedElements = gone
-      .filter((element) => !unseen(finding.page, element))
-      .map((e) => carried(e, "fixed"));
-    elements.push(...stillUnseen.map((element) => carried(element, "still", true)));
+    const fixedCarried = carryAll(
+      gone.filter((element) => !unseen(finding.page, element)),
+      "fixed",
+      perFinding,
+    );
+    const fixedElements = fixedCarried.kept;
+    const stillCarried = carryAll(stillUnseen, "still", perFinding - elements.length, true);
+    elements.push(...stillCarried.kept);
     const status = elements.some((element) => element.status === "new") ? "new" : "still";
     if (stillUnseen.length > 0) unverified += 1;
     open.push({
-      ...finding,
+      ...withCut(finding, fixedCarried.cut + stillCarried.cut),
       status,
       elements,
       ...(fixedElements.length > 0 ? { fixedElements } : {}),
@@ -219,21 +249,26 @@ export function compareScans(earlier: ScanRecord, now: ScanRecord): Comparison {
     const rest = findingOf(was);
     if (stillUnseen.length > 0) {
       unverified += 1;
-      const fixedElements = was.elements
-        .filter((element) => !unseen(was.page, element))
-        .map((element) => carried(element, "fixed"));
+      const fixedCarried = carryAll(
+        was.elements.filter((element) => !unseen(was.page, element)),
+        "fixed",
+        perFinding,
+      );
+      const fixedElements = fixedCarried.kept;
+      const stillCarried = carryAll(stillUnseen, "still", perFinding, true);
       open.push({
-        ...rest,
+        ...withCut(rest, fixedCarried.cut + stillCarried.cut),
         status: "still",
-        elements: stillUnseen.map((element) => carried(element, "still", true)),
+        elements: stillCarried.kept,
         ...(fixedElements.length > 0 ? { fixedElements } : {}),
         unverified: true,
       });
     } else {
+      const all = carryAll(was.elements, "fixed", perFinding);
       fixed.push({
-        ...rest,
+        ...withCut(rest, all.cut),
         status: "fixed",
-        elements: was.elements.map((e) => carried(e, "fixed")),
+        elements: all.kept,
         fixedIn,
       });
     }
@@ -243,10 +278,11 @@ export function compareScans(earlier: ScanRecord, now: ScanRecord): Comparison {
   const foundNow = new Set(openFindings(now).map((finding) => finding.id));
   for (const was of earlier.findings) {
     if (was.status !== "fixed" || foundNow.has(was.id)) continue;
+    const all = carryAll(was.elements, "fixed", perFinding);
     fixed.push({
-      ...findingOf(was),
+      ...withCut(findingOf(was), all.cut),
       status: "fixed",
-      elements: was.elements.map((e) => carried(e, "fixed")),
+      elements: all.kept,
       fixedIn: was.fixedIn ?? { startedAt: earlier.startedAt, commit: earlier.target.commit },
     });
   }
