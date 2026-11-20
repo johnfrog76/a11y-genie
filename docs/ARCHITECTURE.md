@@ -1034,6 +1034,8 @@ request the page makes to one of these is aborted (spec 8A.1):
 | link-local | `169.254.0.0/16`, `fe80::/10` |
 | unspecified | `0.0.0.0/8`, `::` |
 | IPv4-mapped IPv6 | `::ffff:0:0/96`, judged by the IPv4 address inside it |
+| NAT64, well-known prefix | `64:ff9b::/96` (RFC 6052), judged by the IPv4 address in its last 32 bits, as `::ffff:0:0/96` is |
+| NAT64, local-use prefix | `64:ff9b:1::/48` (RFC 8215), read as private: the IPv4 address's place depends on the network's prefix length, so it cannot be judged |
 
 `src/private-address.ts` holds the classifier, and `test/unit/private-address.test.ts` its edges. It reads the
 host in the form the browser's URL parser gives it, so `http://0x7f.1/`, `http://2130706433/` and
