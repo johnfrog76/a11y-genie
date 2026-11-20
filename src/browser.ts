@@ -124,15 +124,23 @@ export async function withBrowser<T>(
   const before = playwrightTempFolders();
   let browser: Browser;
   try {
-    browser = await launcher({ channel, headless: true, handleSIGINT: false });
+    browser = await launcher({
+      channel,
+      headless: true,
+      handleSIGINT: false,
+      handleSIGTERM: false,
+      handleSIGHUP: false,
+    });
   } catch (error) {
     removeFoldersLeftBy(before);
     if (isNotInstalledError(error)) throw noBrowserRefusal(channel);
     throw error;
   }
 
-  // Ctrl-C closes the browser, which deletes its profile folder, and then exits 130 (src/interrupt.ts).
-  // playwright-core's own handler is off (`handleSIGINT: false`) so there is one, ours, and it sets the code.
+  // Ctrl-C, a plain kill and a closed terminal close the browser, which deletes its profile folder, and then
+  // exit 130, 143 or 129 (src/interrupt.ts). playwright-core's own handlers are off (`handleSIGINT`,
+  // `handleSIGTERM` and `handleSIGHUP` are all true by default) so there is one, ours, and it sets the code:
+  // its own SIGTERM and SIGHUP handlers close the browser and then exit 0 or kill the process, racing ours.
   const forget = onInterrupted(() => browser.close());
   try {
     return await use(browser);

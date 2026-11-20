@@ -8,7 +8,9 @@ What `a11y-genie` exits with, and what it says when it refuses. The codes are in
 | 1 | Scanned, and at least one violation at or above `--fail-on`; or a page or state of the run was **not scanned** (below), whatever `--fail-on` says. |
 | 2 | A stated refusal: one `Error:` line and one `Hint:` line on stderr, nothing on stdout, nothing scanned or written. |
 | 3 | Something unexpected: one `Error:` line and one `Hint:` line saying where to report it. The stack trace prints only when `A11Y_GENIE_DEBUG` is set. |
+| 129 | The terminal was closed (`SIGHUP`). Like 130, after the browser is closed. |
 | 130 | Ctrl-C. |
+| 143 | A plain `kill` (`SIGTERM`). Like 130, after the browser is closed. |
 
 With `--config`, or with `--states`, the run covers several pages or states, and the exit code reads all of them: 1 when any
 violation was found in any state, or any page or state was *not scanned*; 0 only when every one was scanned and
@@ -174,6 +176,9 @@ and state, and the exit is 1.
 
 ## Ctrl-C
 
-Ctrl-C closes the browser, which deletes its temporary profile folder, and exits 130. Nothing is left in the
+Ctrl-C closes the browser, which deletes its temporary profile folder, and exits 130. A plain `kill`
+(`SIGTERM`) and a closed terminal (`SIGHUP`) do the same and exit 143 and 129. A second signal while the browser
+is closing exits at once. On Windows `SIGTERM` is not delivered, and `SIGHUP` arrives when the console window is
+closed. Nothing is left in the
 scans folder: a scan's folder is made and written, whole, only after the page has been scanned, and in one
 unbroken step, so Ctrl-C comes before it or after it.

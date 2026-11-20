@@ -73,7 +73,7 @@ Run all five before you ask for a review. CI runs the same five in that order, o
   with `A11Y_GENIE_TEST_CHROME=1`.
 - `test/fixtures/site/` holds the fixture pages, each with a comment naming the axe-core rule that must fire. `test/fixtures/axe/` holds axe-core results recorded from those pages, for tests with no browser. `test/fixtures/loop/` is the fix loop's trial site: one page with exactly three named bugs (`test/browser/loop-site.test.ts`). `test/goldens/` holds the committed `scan.json` and `report.md` of the first fixture pages (the four first, and `no-landmarks`); `UPDATE_GOLDENS=1 npm test` rewrites them, and you review the diff. `test/helpers/` holds the loopback fixture server, the no-network guard for Node, and `guardContext()`, its browser-side half; `test/setup/` installs the guard for every test file.
 - `src/exit-codes.ts` names the exit codes, `src/out-folder.ts` checks `--out`, and `src/interrupt.ts` handles
-  Ctrl-C. `docs/EXIT-CODES.md` lists the exit codes and every refusal's words.
+  Ctrl-C, SIGTERM and SIGHUP. `docs/EXIT-CODES.md` lists the exit codes and every refusal's words.
 - `src/steps.ts` parses the step grammar of `--states`, `--flow` and the config file into typed steps, and refuses
   a step that does not parse; `docs/STEPS.md` is the grammar and every refusal. `src/keys.ts` lists the key names
   a step may press, held by `test/unit/keys.test.ts` to the ones the installed playwright-core accepts.

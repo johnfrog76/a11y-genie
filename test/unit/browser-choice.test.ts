@@ -77,8 +77,8 @@ describe("with no Chrome, and no --browser-channel", () => {
     expect(m.said).toEqual([lines.downloading]);
     expect(m.installs).toHaveBeenCalledOnce();
     expect(m.launched).toEqual([
-      { channel: "chrome", headless: true, handleSIGINT: false },
-      { channel: "chromium", headless: true, handleSIGINT: false },
+      { channel: "chrome", headless: true, handleSIGINT: false, handleSIGTERM: false, handleSIGHUP: false },
+      { channel: "chromium", headless: true, handleSIGINT: false, handleSIGTERM: false, handleSIGHUP: false },
     ]);
   });
 

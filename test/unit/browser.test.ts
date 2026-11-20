@@ -28,7 +28,9 @@ describe("withBrowser", () => {
       return browser;
     };
     await withBrowser("msedge", async () => undefined, launcher);
-    expect(seen).toEqual([{ channel: "msedge", headless: true, handleSIGINT: false }]);
+    expect(seen).toEqual([
+      { channel: "msedge", headless: true, handleSIGINT: false, handleSIGTERM: false, handleSIGHUP: false },
+    ]);
   });
 
   it("closes the browser when the run throws", async () => {

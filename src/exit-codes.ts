@@ -18,6 +18,10 @@ export const EXIT = {
   unexpected: 3,
   /** Reserved: a refusal after something was already written. Nothing exits with it yet. */
   partial: 4,
-  /** Ctrl-C. */
+  /** Ctrl-C (SIGINT). */
   interrupted: 130,
+  /** A hang-up (SIGHUP): the terminal was closed. */
+  hangUp: 129,
+  /** A plain `kill` (SIGTERM). */
+  terminated: 143,
 } as const;
