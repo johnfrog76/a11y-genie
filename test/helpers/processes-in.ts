@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { realpathSync } from "node:fs";
+import { isAbsolute } from "node:path";
 
 /** One running process whose command line names a folder. */
 export interface FolderProcess {
@@ -27,6 +28,9 @@ function spellings(folder: string): string[] {
 export function processesIn(folder: string): FolderProcess[] {
   // No `ps` on Windows, so browsers a test leaves behind there are not found or stopped by this.
   if (process.platform === "win32") return [];
+  // An empty or relative name would match nearly every command line, and stopProcessesIn would kill them all.
+  if (!isAbsolute(folder) || folder.length < 8)
+    throw new Error(`processesIn needs a full folder path, not "${folder}"`);
   const names = spellings(folder);
   const found: FolderProcess[] = [];
   for (const line of execFileSync("ps", ["-ww", "-axo", "pid,command"], { encoding: "utf8" }).split("\n")) {

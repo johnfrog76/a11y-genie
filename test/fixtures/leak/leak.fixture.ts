@@ -38,7 +38,7 @@ describe("tests that fail and leave a browser running", () => {
     }).unref();
     // Its browser is up once the command line of some process names this file's private temp folder.
     const deadline = Date.now() + 10_000;
-    while (processesIn(process.env.TMPDIR ?? "").length === 0 && Date.now() < deadline) {
+    while (processesIn(process.env.TMPDIR!).length === 0 && Date.now() < deadline) {
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
     throw new Error("failing on purpose");
