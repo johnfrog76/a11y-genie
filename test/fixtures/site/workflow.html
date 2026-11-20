@@ -6,7 +6,8 @@
   that opens, a control marked disabled, a link, and a heading.
   The flow "Tab; Tab; Tab; Enter" goes Email, the button with no name, Save, and Enter puts "Saved" in the
   status region (test/browser/narrate.test.ts, M9). The form is novalidate: without it, Chrome stops the
-  submit at the empty required Email, and moves focus there instead.
+  submit at the empty required Email, and moves focus there instead. Keep it: this page shows narration, not
+  form validation, and `required` is still spoken.
   Must fire: button-name (the button with no name), and genie/unnamed-step in a flow that stops on it
 -->
 <html lang="en">
