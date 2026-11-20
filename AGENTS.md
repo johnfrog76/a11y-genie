@@ -44,6 +44,10 @@ Run all five before you ask for a review. CI runs the same five in that order, o
   docs/ARCHITECTURE.md (*Plain words*) says how to add a rule's words.
 - `src/rules-command.ts` is `a11y-genie rules`; `src/genie-rules.ts` is the registry of the product's own
   `genie/*` rules, which each check registers itself in.
+- `agentic/fix-loop.prompt.md` is the prompt file for a coding agent: the scan, fix, rescan loop, its stops and
+  the lines it prints. `src/prompt-command.ts` is `a11y-genie prompt`, which prints it from the package's own
+  folder. `test/cli/prompt.test.ts` holds it to the product: every command and flag it names is in `--help`,
+  and every field it names is in `schema/scan-1.json`. Change the prompt when the loop's commands or fields change.
 - `src/banner.ts` holds the genie and his bottle, the drawing for a person at a terminal. Nothing prints it
   yet, and the README's first block is the same drawing.
 - `src/scan-record.ts` builds `scan.json` (`schema/scan-1.json` is its JSON Schema, shipped in the package),
@@ -65,7 +69,7 @@ Run all five before you ask for a review. CI runs the same five in that order, o
   scans the page with A11y Genie and fails on any critical or serious finding. `site/` is not in the package.
 - `docs/ARCHITECTURE.md` says how the parts work and why, including what was checked against a real browser.
 - `docs/JSON.md` documents the finding's fields and axe-core's result shape at the pinned version.
-- `THIRD-PARTY-NOTICES.md` ships in the package, and so does `dist/`. Nothing else does: `files` in
+- `THIRD-PARTY-NOTICES.md` ships in the package, and so do `dist/`, `schema/` and the prompt file. Nothing else does: `files` in
   `package.json` is an allow-list. Check it with `npm pack --dry-run` before changing it.
 
 ## Rules that are easy to break
@@ -73,6 +77,8 @@ Run all five before you ask for a review. CI runs the same five in that order, o
 1. **Never claim a site is accessible.** Not in output, reports, docs, tests or commit messages: no
    "accessible", "compliant", "passes" or "clean" said of a site. A scan finds some problems, not all of
    them, and says what it cannot see. A scan with no findings says how much it checked, never that all is well.
+   One exception: `agentic/fix-loop.prompt.md` names the words once, in one exact sentence, because an agent
+   follows a literal word list better than a description (`PROMPT_WORD_LIST` in `test/helpers/never-claim.ts`).
 2. **One commit identity for the project.** Commits use the identity this repository's local git config
    sets. Don't change it, don't pass `--author`, and don't put any other name or email in a file.
 3. **Pin every dependency exactly.** No `^` or `~` in `package.json`. A new runtime dependency is its own

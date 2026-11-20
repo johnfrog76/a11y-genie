@@ -8,6 +8,7 @@
     "a11y-genie": "dist/cli.js"
   },
   "files": [
+    "agentic/fix-loop.prompt.md",
     "schema",
     "dist",
     "THIRD-PARTY-NOTICES.md",

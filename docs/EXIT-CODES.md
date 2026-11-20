@@ -43,7 +43,8 @@ still open were in the baseline.` Plain `scan` compares with the site's last sca
 (`4 new, 2 fixed since the last scan`, or `Not comparable with the last scan: different pages, states or tags.`):
 its exit reads only the scan just run.
 
-`rules` exits 0 on success and 2 on a refusal; it scans nothing.
+`rules` exits 0 on success and 2 on a refusal; it scans nothing. So does `prompt`, which prints the prompt file
+and takes no argument.
 
 Not built yet, with a place waiting in `src/exit-codes.ts`:
 
@@ -64,6 +65,7 @@ browser opens, too.
 | An unknown command | `unknown command or flag: scna` | `run a11y-genie --help to see what exists so far.` |
 | An unknown flag after `rules` (or `--tags` with an unknown or empty tag, as for `scan`) | the words of Node's argument parser, such as `Unknown option '--nope'. ...` | `run a11y-genie --help to see what exists so far.` (for `--tags`, the hints below) |
 | An argument after `rules` | `rules takes no argument, and got: "extra"` | the same hint |
+| An argument after `prompt` | `prompt takes no argument, and got: "extra"` | the same hint |
 | An unknown flag after `scan` | the words of Node's argument parser, such as `Unknown option '--nope'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- "--nope"` | the same hint |
 | An extra argument | `scan takes one page, and got more: two` | the same hint |
 | No address | `scan needs a page address to scan.` | `run: a11y-genie scan <url>` |
