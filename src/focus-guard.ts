@@ -60,6 +60,13 @@ const FRAME_CAP_MS = 10_000;
 const sessions = new WeakMap<Page, Promise<FocusGuard>>();
 
 export class FocusGuard {
+  /**
+   * True when this guard was not in place before the page loaded: the early install did not happen, or it
+   * failed. It then sits behind the page's own window-level listeners, which can hear the check's blur and
+   * refocus, so `hold` cannot promise the page heard nothing. The focus-visible check reads this.
+   */
+  late = false;
+
   /** The guard's worlds now alive: the page's documents, one each. */
   private readonly contexts = new Set<number>();
 
@@ -88,7 +95,10 @@ export class FocusGuard {
 
   /** The guard installed on `page`, or a late one on the documents it has open now. */
   static async of(page: Page): Promise<FocusGuard> {
+    // An install that failed was removed from `sessions`, so a page without a settled early install is late.
+    const early = sessions.has(page);
     const guard = await FocusGuard.install(page);
+    if (!early) guard.late = true;
     await guard.reach();
     return guard;
   }

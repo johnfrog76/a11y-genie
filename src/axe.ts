@@ -76,7 +76,8 @@ export async function scanPage(
   let seen: FocusVisibleResult;
   const reader = bestPractice || focusVisibleTags ? await FocusReader.open(page) : undefined;
   // The guard that shields the page from the check's blur and refocus (src/focus-guard.ts). It is first in line
-  // when `FocusGuard.install` ran before the page loaded, as `runScan` does.
+  // when `FocusGuard.install` ran before the page loaded, as `runScan` does;
+  // otherwise the guard is `late` and the check reads its stops as needs review.
   const guard = reader !== undefined && focusVisibleTags ? await FocusGuard.of(page) : undefined;
   const focusVisible =
     reader !== undefined && guard !== undefined

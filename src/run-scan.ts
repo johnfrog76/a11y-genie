@@ -522,6 +522,8 @@ export async function runScan(options: RunScanOptions): Promise<ScanRecord> {
           await options.onContext?.(context);
           const tab = await context.newPage();
           // Before the page loads, so the focus guard is first in line in its documents (src/focus-guard.ts).
+          // A failed install is not fatal: `FocusGuard.of` then returns a late guard, and the focus-visible check
+          // reads those stops as needs review (src/focus-guard.ts).
           await FocusGuard.install(tab).catch(() => undefined);
           await guard.watchMainPage(tab);
           await applyMedia(tab, state.steps);
