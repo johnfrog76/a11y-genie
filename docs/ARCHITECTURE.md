@@ -382,7 +382,7 @@ without `wcag2a` (or another of its tags) leaves out `genie/click-on-non-control
   *needs review* item is something axe-core or an own check could not decide, and a person looks (spec 4.3). The floor is
   recorded in `options.failOn`.
 
-## One scan, end to end (`src/run-scan.ts`, `src/cli.ts`)
+## One scan, end to end (`src/run-scan.ts`, `src/scan-command.ts`, `src/cli.ts`)
 
 `a11y-genie scan <url>` plans what to scan (`src/scan-plan.ts`: the pages, and the states of each, from the
 `--states` flags or the `--config` file, `src/config.ts`), launches the browser (`withChosenBrowser`, which may
@@ -393,7 +393,9 @@ storage or page. The states of a page are merged into one finding per rule (`src
 is built (`src/scan-record.ts`). A page or state that answers and then breaks one of those rules, or whose step
 fails, is not scanned: the record says why, and the run goes on with the rest, still writes its files and exits 1.
 Only the first page's first load that does not answer is a refusal. `--timeout` sets the limit for one state, and
-`--storage-state` is handed to each context's own storage and never copied. The CLI then makes the scan folder
+`--storage-state` is handed to each context's own storage and never copied. `src/cli.ts` only dispatches: the flags,
+the run, the files and the lines for a person are `src/scan-command.ts`'s, which `check` shares. The command then
+reads the site's last scan, if there is one (below), makes the scan folder
 (`src/scans-folder.ts`), writes `scan.json`, and writes `report.md` from the record (`src/report.ts`). The
 report is a pure function of the record, so a stored `scan.json` can write it again later.
 
@@ -412,6 +414,43 @@ report is a pure function of the record, so a stored `scan.json` can write it ag
   by `test/browser/goldens.test.ts` in the real Chrome, after the port, the times and the versions of this
   tool, axe-core and the browser are replaced by fixed values (`test/helpers/goldens.ts`). The rule count is
   kept, so an axe-core upgrade shows in the diff. `UPDATE_GOLDENS=1 npm test` rewrites them.
+
+## Scan, fix, rescan (`src/check-command.ts`, `src/compare.ts`, `src/baseline.ts`)
+
+`a11y-genie check --baseline <scan>` is `scan` with one more flag. It parses the same flags with the same code
+(`src/scan-command.ts`), then reads the baseline (`src/baseline.ts`) and refuses it unless it is a `scan.json` of
+schema major 1 that `schema/scan-1.json` holds, of the same origin, and of the same pages, each in the same states,
+under the same `--tags` as the check will scan. All of that is before a browser opens, so a wrong baseline costs
+nothing. Then it runs the scan as `scan` does, compares (`src/compare.ts`), and writes and prints the result.
+The comparison is a pure function of two records, so the browser tests and the unit tests drive it directly.
+
+- **Match by id, then by selector.** A finding's id names its rule and page; within a finding, elements are
+  matched by `selector`. Unmatched elements, as many on each side, are read as the same elements under selectors
+  that moved, so a list that only reordered reads `still`, never fixed plus new (spec R11). docs/JSON.md has the
+  rest of the rule.
+- **Not scanned is never fixed.** A baseline element found in a state that was not scanned this time stays still
+  open, marked `unverified`, and the run exits 1 for the state not scanned anyway.
+- **Only new violations fail it.** The exit reads the findings whose `status` is `new`, at or above `--fail-on`,
+  and whether anything was not scanned; findings still open from the baseline are listed and do not fail it. This
+  is what lets a pull request's job fail only on what the pull request added.
+- **The baseline is untrusted.** It comes from a file anyone could have written: it is read in chunks up to the
+  50 MB limit on `scan.json`, parsed as JSON only, validated with the same small validator the tests use
+  (`src/json-schema.ts`) before a field is read, and refused with a finding id given twice. A refusal names where
+  the file failed the schema and never the value. What a check carries forward from it (its fixed findings, and
+  elements no longer failing) is copied field by field, only the fields this version knows, with each excerpt cut
+  to 160 characters again; and everything printed from it passes through `src/printable.ts`.
+- **Plain `scan` reads its last scan too**, for one line and `summary.sincePrevious`: the newest scan folder of the
+  site under the scans folder or `--out`, read the same way. A last scan that cannot be read, or that covered other
+  pages, states or tags, reads *not comparable* and says why; it is never a refusal, and it never changes the exit.
+- **`--commit`** (or `GITHUB_SHA`) is recorded as `target.commit`, and a fixed finding's `fixedIn` names it.
+
+**Selectors are stable between runs (V9).** Checked on 2026-11-19 with axe-core 4.14.1 in Chrome 158 (headless)
+on macOS: eight fixture pages (`impact-mix`, `contrast`, `icon-button`, `no-landmarks`, `states`,
+`needs-review`, `content-outside-landmarks`, `two-mains`), each scanned three times with nothing changed, gave the
+same `target` for every element of every finding and *needs review* item, 13 elements in all.
+`test/browser/check.test.ts` holds it for the check fixture. Not checked: elements in shadow roots or frames, and
+pages whose markup changes from load to load (generated class names, shuffled lists), where R11's rule is the
+fallback.
 
 ## Hostile pages (`src/context.ts`)
 

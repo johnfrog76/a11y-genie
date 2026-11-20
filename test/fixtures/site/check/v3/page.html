@@ -1,0 +1,23 @@
+<!doctype html>
+<!--
+  Fixture: the third version of check/v1/page.html: check/v2's, with a new bug, a text field with no label.
+  Must fire:     button-name (critical), on #save only
+                 label (critical), on #email
+  Must not fire: any other rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Check fixture</title>
+  </head>
+  <body>
+    <main>
+      <h1>Check fixture</h1>
+      <button id="save" type="button"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M2 2h12v12H2z" fill="#000000" /></svg></button>
+      <button id="share" type="button" aria-label="Share"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M2 2h12v12H2z" fill="#000000" /></svg></button>
+      <img src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22%3E%3C/svg%3E" width="16" height="16" alt="A square" />
+      <input id="email" type="text" />
+    </main>
+  </body>
+</html>
