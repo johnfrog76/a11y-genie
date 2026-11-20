@@ -195,7 +195,7 @@ describe.skipIf(!hasBrowser)("narrate (skipped where the test browser is not ins
     );
     expect(result.stdout).toContain(`Wrote ${folder}`);
     expect(result.stderr).toBe("");
-    expect(readdirSync(folder).sort()).toEqual(["narration", "report.md", "scan.json"]);
+    expect(readdirSync(folder).sort()).toEqual(["narration", "report.html", "report.md", "scan.json"]);
     const record = recordIn(folder);
     expect(validate(schema, record)).toEqual([]);
     expect(record).toMatchObject({ command: "narrate", exit: 1, schema: "1.10" });

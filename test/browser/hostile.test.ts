@@ -4,6 +4,7 @@ import type { Page } from "playwright-core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { withBrowser } from "../../src/browser.js";
 import { armContext, CONTEXT_OPTIONS, LIMITS, type Limits } from "../../src/context.js";
+import { renderHtmlReport } from "../../src/html-report.js";
 import { renderReport } from "../../src/report.js";
 import { PRIVATE_NAVIGATION, runScan } from "../../src/run-scan.js";
 import { scanJson, type ScanRecord } from "../../src/scan-record.js";
@@ -491,6 +492,13 @@ describe.skipIf(!hasBrowser)(
         expect(report).not.toContain("window title");
         expect(report).not.toContain("evil.example");
         expect(report).not.toContain("[31m");
+        // report.html shows the same text, escaped, and nothing of the sequences either.
+        const htmlReport = renderHtmlReport(record);
+        expect(controlsIn(htmlReport)).toEqual([]);
+        expect(htmlReport).toContain("RED alert click here");
+        expect(htmlReport).not.toContain("window title");
+        expect(htmlReport).not.toContain("evil.example");
+        expect(htmlReport).not.toContain("[31m");
       });
     });
 

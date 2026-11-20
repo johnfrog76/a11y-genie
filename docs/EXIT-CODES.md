@@ -144,7 +144,7 @@ Tests shorten the wait with `A11Y_GENIE_TEST_NAV_TIMEOUT_MS`, which can only mak
 ## Not scanned: a page that answered, and then could not be scanned
 
 A page that answers and then breaks one of the hostile-page rules (`src/context.ts`, listed in
-`docs/ARCHITECTURE.md` under *Hostile pages*) is not a refusal. The scan still writes `scan.json` and `report.md`,
+`docs/ARCHITECTURE.md` under *Hostile pages*) is not a refusal. The scan still writes `scan.json` and its reports,
 the page's `notScanned` says why, the summary says so in place of any count of problems, and the exit is 1. A
 page nobody saw never exits 0. The reasons, in the scan's own words:
 

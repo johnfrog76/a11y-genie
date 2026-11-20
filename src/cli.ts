@@ -20,12 +20,12 @@ Usage:
   a11y-genie --help
   a11y-genie rules [--tags <list>] [--json]
   a11y-genie prompt
-  a11y-genie scan <url> [--states "<name>: <steps>"]... [--json] [--out <folder>] [--format md,json]
+  a11y-genie scan <url> [--states "<name>: <steps>"]... [--json] [--out <folder>] [--format md,json,html]
                   [--browser-channel chrome|msedge|chromium] [--no-download] [--allow-private]
                   [--tags <list>] [--fail-on <impact>] [--same-origin] [--offline]
                   [--timeout <seconds>] [--max-tabs <n>] [--storage-state <file>] [--commit <sha>]
   a11y-genie scan [<url>] --config <file> [the same flags, but not --states]
-  a11y-genie narrate <url> --flow "<steps>" [--json] [--out <folder>] [--format md,json]
+  a11y-genie narrate <url> --flow "<steps>" [--json] [--out <folder>] [--format md,json,html]
                   [--browser-channel chrome|msedge|chromium] [--no-download] [--allow-private]
                   [--fail-on <impact>] [--same-origin] [--offline] [--timeout <seconds>]
                   [--max-tabs <n>] [--storage-state <file>] [--commit <sha>]
@@ -48,7 +48,9 @@ Flags:
                      copied into the scan
   --json             print scan.json on stdout; everything else goes to stderr
   --out <folder>     where the scan folder goes; default is the per-user scans folder
-  --format           which reports to write beside scan.json: md, json, or md,json (the default)
+  --format           which files to write, comma-separated: md (report.md), json (scan.json alone)
+                     and html (report.html, one file that opens from disk); default md,json,html.
+                     scan.json is always written
   --browser-channel  which browser to launch: chrome (the default) or msedge, installed on this machine,
                      or chromium, Playwright's own, downloaded once if it is not there yet
   --no-download      never download Playwright's Chromium: with no Chrome, refuse instead (--offline does too)
@@ -72,10 +74,10 @@ With no Chrome, and no --browser-channel, A11y Genie says so and downloads Playw
 
 Commands:
   scan       load each page, in each state, in a browser with a new, empty profile, run axe-core on
-             it, and write scan.json and report.md. Exit 0: no findings. Exit 1: findings, or a
-             page or state could not be scanned (the scan says why). When the site was scanned before,
-             the first line says what is new and what is fixed since then, or why the two cannot be
-             compared; the exit reads only this scan.
+             it, and write scan.json, report.md and report.html. Exit 0: no findings. Exit 1:
+             findings, or a page or state could not be scanned (the scan says why). When the site
+             was scanned before, the first line says what is new and what is fixed since then, or why
+             the two cannot be compared; the exit reads only this scan.
 
   check      scan as scan does, with the same flags, and compare with --baseline by finding id and
              element: each finding is new, still open or fixed, and the first line counts them:
