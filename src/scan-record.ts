@@ -5,6 +5,7 @@
  */
 
 import { nativeModalLine } from "./keyboard-trap.js";
+import { narrationFiles, unnamedStepFinding, type NarratedStep, type WorkflowResult } from "./narrate.js";
 import type { AxeScan, Finding, FindingElement, Impact, NeedsReview, Rule } from "./finding.js";
 import { IMPACTS } from "./finding.js";
 import { LIMITS, type Limits, type Stopped } from "./context.js";
@@ -12,7 +13,7 @@ import { atOrAbove, DEFAULT_FAIL_ON } from "./rule-flags.js";
 import { mergeStates } from "./merge-states.js";
 import { orderFindings } from "./order.js";
 import { wordingOf } from "./plain.js";
-import { escapeJsonControls } from "./printable.js";
+import { escapeJsonControls, printableLine } from "./printable.js";
 import type { Walk } from "./walk.js";
 
 /**
@@ -32,8 +33,11 @@ import type { Walk } from "./walk.js";
  * 1.9 added a walk's `cycled` end and its `cycleFrom`, where focus went twice round a later part of the page, and
  * the findings `genie/keyboard-trap` and `genie/focus-not-returned`, and a `cannotSee` line after the fixed list
  * for each page with a native modal dialog open. A 1.8 record has none of them.
+ * 1.10 added `workflows[]`, the narrated flows (`narrate --flow`, and a config's `workflows`): each flow's steps and
+ * what each said, the file of its transcript, and the finding `genie/unnamed-step`; and `command: "narrate"`. A 1.9
+ * record has `workflows: []`.
  */
-export const SCHEMA_VERSION = "1.9";
+export const SCHEMA_VERSION = "1.10";
 
 /**
  * What a scan cannot see: the questions a person has to answer, because automated rules cannot. Fixed
@@ -56,6 +60,9 @@ export const CANNOT_SEE: readonly string[] = [
   "Whether moving content pauses, and whether motion respects the reduced-motion setting (WCAG 2.2.2).",
   "Whether a person using a real screen reader can finish the page's main task (WCAG 4.1.2).",
 ];
+
+/** The longest a workflow's name is kept, in characters. */
+const WORKFLOW_NAME_CHARS = 80;
 
 export interface RecordElement extends FindingElement {
   /** The states of the page the element was found in, in the order they were scanned. `default` comes first. */
@@ -109,6 +116,19 @@ export interface RecordNeedsReview extends Omit<NeedsReview, "elements"> {
   elementsCut?: number;
 }
 
+/** One narrated flow, as `scan.json` keeps it. */
+export interface RecordWorkflow {
+  /** `flow` for `--flow`; the workflow's name in the config file. */
+  name: string;
+  /** The key of the page it was run on. */
+  page: string;
+  /** Its transcript, relative to the scan folder: `narration/<name>.txt`. */
+  file: string;
+  steps: NarratedStep[];
+  /** Why the flow stopped before its last step, or never started; absent when it ran to the end. */
+  notScanned?: string;
+}
+
 export interface RecordPage {
   key: string;
   /** The address the page ended on, after redirects; the address asked for when it was not scanned. */
@@ -145,7 +165,7 @@ export interface RecordLimits {
 export interface ScanRecord {
   schema: string;
   tool: { name: string; version: string };
-  command: "scan" | "check";
+  command: "scan" | "check" | "narrate";
   exit: 0 | 1;
   engine: { axeCore: string; browser: string; fallback: boolean; tags: string[] | null; rulesRun: number };
   target: { origin: string; commit: string | null };
@@ -174,7 +194,7 @@ export interface ScanRecord {
   findings: RecordFinding[];
   needsReview: RecordNeedsReview[];
   ignored: unknown[];
-  workflows: unknown[];
+  workflows: RecordWorkflow[];
   checklist: null;
   cannotSee: string[];
   /** Added in 1.1: a 1.0 record has none. */
@@ -457,9 +477,13 @@ export interface PageResult {
   redirects?: number;
   stopped?: Stopped[];
   states: StateResult[];
+  /** The flows narrated on this page, in the order they were asked for (src/narrate.ts). */
+  workflows?: WorkflowResult[];
 }
 
 export interface PagesInput {
+  /** `narrate` for a run of flows only, which has no axe-core results; default `scan`. */
+  command?: "scan" | "narrate";
   tool: { name: string; version: string };
   browser: string;
   fallback: boolean;
@@ -489,6 +513,7 @@ export function buildPagesRecord(input: PagesInput): ScanRecord {
   const findings: RecordFinding[] = [];
   const needsReview: RecordNeedsReview[] = [];
   const pages: RecordPage[] = [];
+  const workflows: Omit<RecordWorkflow, "file">[] = [];
   let axeCore = input.axeCore ?? "";
   let rulesRun = 0;
   // Page-specific lines after the fixed list: a native modal dialog the trap check could not walk.
@@ -504,12 +529,29 @@ export function buildPagesRecord(input: PagesInput): ScanRecord {
     const asked = page.states.map((state) => state.name);
     const modalStates = scanned.filter(({ axe }) => axe.nativeModal === true).map(({ state }) => state);
     if (modalStates.length > 0) cannotSee.push(nativeModalLine(page.key, modalStates));
+    // A step that reached an element with no name is a finding of the page, found in the default state's load.
+    const unnamed = unnamedStepFinding(page.key, page.workflows ?? []);
     findings.push(
       ...mergeStates(
-        scanned.map(({ state, axe }) => ({ state, items: axe.findings })),
+        [
+          ...scanned.map(({ state, axe }) => ({ state, items: axe.findings })),
+          ...(unnamed === undefined ? [] : [{ state: "default", items: [unnamed] }]),
+        ],
         asked,
       ).map((finding) => toRecordFinding(finding, limits)),
     );
+    for (const flow of page.workflows ?? []) {
+      workflows.push({
+        name: cutText(printableLine(flow.name), WORKFLOW_NAME_CHARS),
+        page: page.key,
+        steps: flow.steps.map((step) => ({
+          ...step,
+          name: cutText(step.name, limits.excerptChars),
+          spoken: cutText(step.spoken, limits.excerptChars),
+        })),
+        ...(flow.notScanned === undefined ? {} : { notScanned: flow.notScanned }),
+      });
+    }
     needsReview.push(
       ...mergeStates(
         scanned.map(({ state, axe }) => ({ state, items: axe.needsReview })),
@@ -538,7 +580,18 @@ export function buildPagesRecord(input: PagesInput): ScanRecord {
   const pageOrder = pages.map((page) => page.key);
   const ordered = orderFindings(findings, pageOrder);
   const orderedReview = orderFindings(needsReview, pageOrder);
-  const notScanned = pages.reduce((count, page) => count + page.notScanned.length, 0);
+  const files = narrationFiles(workflows.map((flow) => flow.name));
+  const recordWorkflows: RecordWorkflow[] = workflows.map((flow, at) => ({
+    name: flow.name,
+    page: flow.page,
+    file: files[at] as string,
+    steps: flow.steps,
+    ...(flow.notScanned === undefined ? {} : { notScanned: flow.notScanned }),
+  }));
+  // A flow that could not be narrated is not scanned, like a page or a state: the exit is never 0 for it.
+  const notScanned =
+    pages.reduce((count, page) => count + page.notScanned.length, 0) +
+    recordWorkflows.filter((flow) => flow.notScanned !== undefined).length;
   const violations = ordered.filter((f) => f.kind === "violation");
   const failOn = input.failOn ?? DEFAULT_FAIL_ON;
   const count = (impact: Impact): number => violations.filter((f) => f.impact === impact).length;
@@ -546,7 +599,7 @@ export function buildPagesRecord(input: PagesInput): ScanRecord {
   const record: ScanRecord = {
     schema: SCHEMA_VERSION,
     tool: input.tool,
-    command: "scan",
+    command: input.command ?? "scan",
     // Advice and needs-review items never change the exit; a violation does at or above `--fail-on`.
     exit: violations.some((f) => atOrAbove(f.impact, failOn)) || notScanned > 0 ? 1 : 0,
     engine: {
@@ -573,7 +626,7 @@ export function buildPagesRecord(input: PagesInput): ScanRecord {
     findings: ordered,
     needsReview: orderedReview,
     ignored: [],
-    workflows: [],
+    workflows: recordWorkflows,
     checklist: null,
     cannotSee,
     limits: {

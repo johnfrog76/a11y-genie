@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import type { BrowserContext, Page } from "playwright-core";
+import type { Browser, BrowserContext, Page } from "playwright-core";
 import { scanPage } from "./axe.js";
 import { actionSteps, applyMedia, runSteps, SETTLE_MS, StepFailure } from "./drive.js";
 import type { BrowserChannel } from "./browser.js";
@@ -20,6 +20,7 @@ import {
 import type { AxeScan } from "./finding.js";
 import { pageKeyOf } from "./map-axe.js";
 import { packageInfo } from "./package-info.js";
+import { narrateSteps, type WorkflowResult, type WorkflowSpec } from "./narrate.js";
 import { Refusal } from "./refusal.js";
 import type { NoDownloadFlag } from "./browser-choice.js";
 import type { Impact } from "./finding.js";
@@ -180,6 +181,16 @@ export interface RunScanOptions {
   failOn?: Impact;
   /** `--max-tabs`: the keyboard walk's limit, and the most presses a `Tab to` step makes. Default 200. */
   maxTabs?: number;
+  /**
+   * The flows to narrate (src/narrate.ts), each on the page its `page` names, from a fresh load, after that
+   * page's states. `scan --config` passes the file's `workflows`; `narrate` passes its `--flow`.
+   */
+  workflows?: WorkflowSpec[];
+  /**
+   * `narrate`: only the flows run. The pages are loaded for them, and axe-core and the keyboard walk do not
+   * run, so the record has no axe-core results.
+   */
+  narrateOnly?: boolean;
   /** The flag a refused download names. Default: `--offline` when `offline`, else `--no-download`. */
   noDownloadFlag?: NoDownloadFlag;
   /**
@@ -229,6 +240,61 @@ type Loaded =
   | { scanned: true; axe: AxeScan; url: string; redirects: number }
   | { scanned: false; reason: string; url: string; redirects: number };
 
+/** What loading a page gave: where it ended, or why it cannot be used. */
+type PageLoad = { ok: true; redirects: number } | { ok: false; reason: string; redirects: number };
+
+/**
+ * Loads the page, inside the page time limit counted by `left`: the first request, the load, and what a
+ * hostile page may have done meanwhile (src/context.ts). A page that does not answer is a refusal (thrown) when
+ * it is the run's first; every other failure reads *not scanned*, with why.
+ */
+async function loadPage(
+  tab: Page,
+  guard: ContextGuard,
+  options: RunScanOptions,
+  limits: Limits,
+  unit: { url: string; first: boolean },
+  left: () => number,
+): Promise<PageLoad> {
+  const requested = unit.url;
+  const seconds = limits.pageMs / 1000;
+  const failed = (reason: string, redirects = 0): PageLoad => ({ ok: false, reason, redirects });
+
+  // Wait for the answer only; the load itself is held to the page time limit below.
+  const timeout = Math.min(navigationTimeoutMs(), left());
+  let redirects: number;
+  try {
+    const response = await tab.goto(requested, { timeout, waitUntil: "commit" });
+    redirects = redirectsOf(response?.request());
+  } catch (error) {
+    const why = answeredButNotScanned(error, guard, limits);
+    if (why !== undefined) return failed(why);
+    if (!unit.first) {
+      // Only the first page of a run must answer; a later one that does not reads *not scanned*.
+      const reason = noAnswerReason(error, timeout);
+      if (reason !== null) return failed(`it did not answer: ${reason}`);
+    }
+    throw noAnswerRefusal(error, requested, timeout) ?? error;
+  }
+
+  try {
+    await tab.waitForLoadState("load", { timeout: left() });
+  } catch (error) {
+    if (tab.isClosed()) return failed("the page closed itself before it finished loading", redirects);
+    if ((error as Error).name !== "TimeoutError") throw error;
+    return failed(`it did not finish loading within ${seconds} seconds`, redirects);
+  }
+  const stoppedGoing = navigationReason(guard);
+  if (stoppedGoing !== undefined) return failed(stoppedGoing, redirects);
+  const loadedUrl = tab.url();
+  if (!isAllowedScheme(loadedUrl)) {
+    return failed(`it went to ${schemeOf(loadedUrl)}, which is not http: or https:`, redirects);
+  }
+
+  await options.onLoaded?.(tab);
+  return { ok: true, redirects };
+}
+
 /**
  * Loads the page and runs axe-core on it, inside the page time limit. A page that does not answer is a
  * refusal (thrown); a page that answers and then breaks a rule of src/context.ts reads *not scanned*.
@@ -251,38 +317,9 @@ async function loadAndScan(
     redirects,
   });
 
-  // Wait for the answer only; the load itself is held to the page time limit below.
-  const timeout = Math.min(navigationTimeoutMs(), left());
-  let redirects: number;
-  try {
-    const response = await tab.goto(requested, { timeout, waitUntil: "commit" });
-    redirects = redirectsOf(response?.request());
-  } catch (error) {
-    const why = answeredButNotScanned(error, guard, limits);
-    if (why !== undefined) return notScanned(why);
-    if (!unit.first) {
-      // Only the first page of a run must answer; a later one that does not reads *not scanned*.
-      const reason = noAnswerReason(error, timeout);
-      if (reason !== null) return notScanned(`it did not answer: ${reason}`);
-    }
-    throw noAnswerRefusal(error, requested, timeout) ?? error;
-  }
-
-  try {
-    await tab.waitForLoadState("load", { timeout: left() });
-  } catch (error) {
-    if (tab.isClosed()) return notScanned("the page closed itself before it finished loading", redirects);
-    if ((error as Error).name !== "TimeoutError") throw error;
-    return notScanned(`it did not finish loading within ${seconds} seconds`, redirects);
-  }
-  const stoppedGoing = navigationReason(guard);
-  if (stoppedGoing !== undefined) return notScanned(stoppedGoing, redirects);
-  const loadedUrl = tab.url();
-  if (!isAllowedScheme(loadedUrl)) {
-    return notScanned(`it went to ${schemeOf(loadedUrl)}, which is not http: or https:`, redirects);
-  }
-
-  await options.onLoaded?.(tab);
+  const load = await loadPage(tab, guard, options, limits, unit, left);
+  if (!load.ok) return notScanned(load.reason, load.redirects);
+  const redirects = load.redirects;
 
   if (actionSteps(unit.state.steps).length > 0) {
     let done: unknown;
@@ -359,6 +396,88 @@ function mergeStopped(lists: Stopped[][], limits: Limits): Stopped[] {
   return STOPPED_KINDS.flatMap((kind) => merged.get(kind) ?? []);
 }
 
+/** What narrating one flow left: its result, where its page ended, and what the page tried. */
+interface Narrated {
+  result: WorkflowResult;
+  landed?: { url: string; redirects: number };
+  stopped: Stopped[];
+}
+
+/** The browser's words when the page the readers belong to went away under them (Chrome 158). */
+const PAGE_WENT_AWAY =
+  /Execution context was destroyed|Cannot find context|Target (page, context or browser )?has been closed|Session closed|Inspected target navigated or closed/;
+
+/**
+ * Narrates one flow (src/narrate.ts) on a fresh load of its page, in a context of its own, held to the page
+ * time limit and the rules of src/context.ts. A page that stops it, a step that fails and a flow that runs
+ * out of time leave `notScanned` on the result, with the steps read before.
+ */
+async function narrateWorkflow(
+  browser: Browser,
+  options: RunScanOptions,
+  limits: Limits,
+  page: { url: string; key: string },
+  flow: WorkflowSpec,
+  first: boolean,
+): Promise<Narrated> {
+  const context = await browser.newContext({
+    ...CONTEXT_OPTIONS,
+    ...(options.storageState === undefined ? {} : { storageState: options.storageState }),
+  });
+  try {
+    const guard = await armContext(context, limits, {
+      target: options.url,
+      allowPrivate: options.allowPrivate ?? false,
+      publicOrigins: options.publicOrigins ?? testPublicOrigins(),
+      sameOrigin: options.sameOrigin ?? false,
+      offline: options.offline ?? false,
+    });
+    await options.onContext?.(context);
+    const tab = await context.newPage();
+    await guard.watchMainPage(tab);
+    const deadline = Date.now() + limits.pageMs;
+    const left = () => Math.max(1, deadline - Date.now());
+    const seconds = limits.pageMs / 1000;
+    const result: WorkflowResult = { name: flow.name, page: page.key, steps: [], evidence: [] };
+    const narrated = (landed?: Narrated["landed"]): Narrated => ({
+      result,
+      ...(landed === undefined ? {} : { landed }),
+      stopped: guard.stopped(),
+    });
+
+    const load = await loadPage(tab, guard, options, limits, { url: page.url, first }, left);
+    if (!load.ok) {
+      result.notScanned = load.reason;
+      return narrated();
+    }
+    const landed = { url: tab.url(), redirects: load.redirects };
+    const halted = (): string | undefined => {
+      const stopped = navigationReason(guard);
+      if (stopped !== undefined) return stopped;
+      const url = tab.url();
+      return isAllowedScheme(url) ? undefined : `it went to ${schemeOf(url)}, which is not http: or https:`;
+    };
+    let done: string | undefined | typeof TIMED_OUT;
+    try {
+      done = await within(
+        narrateSteps(tab, flow.steps, { msLeft: left, maxTabs: maxTabsOf(options), halted }, result),
+        left(),
+      );
+    } catch (error) {
+      if (tab.isClosed()) result.notScanned = "the page closed itself while its steps ran";
+      else if (error instanceof Error && PAGE_WENT_AWAY.test(error.message)) {
+        result.notScanned = "the page went to another address while its steps were read";
+      } else throw error;
+      return narrated(landed);
+    }
+    if (done === TIMED_OUT) result.notScanned = `its steps did not finish within ${seconds} seconds`;
+    else if (done !== undefined) result.notScanned = done;
+    return narrated(landed);
+  } finally {
+    await context.close().catch(() => undefined);
+  }
+}
+
 /**
  * Scans each page in each of its states (spec 5.2): for every state, `default` first, a new browser context
  * of a browser with a new, empty profile, guarded by src/context.ts, with a fresh load of the page, so no
@@ -386,7 +505,7 @@ export async function runScan(options: RunScanOptions): Promise<ScanRecord> {
       const stopped: Stopped[][] = [];
       let landed: { url: string; redirects: number } | undefined;
       let defaultLoad: { url: string; redirects: number } | undefined;
-      for (const state of [DEFAULT_STATE, ...spec.states]) {
+      for (const state of options.narrateOnly === true ? [] : [DEFAULT_STATE, ...spec.states]) {
         const context = await browser.newContext({
           ...CONTEXT_OPTIONS,
           ...(options.storageState === undefined ? {} : { storageState: options.storageState }),
@@ -417,6 +536,23 @@ export async function runScan(options: RunScanOptions): Promise<ScanRecord> {
           await context.close().catch(() => undefined);
         }
       }
+      // The flows asked for on this page, each from a fresh load, after its states.
+      const flows: WorkflowResult[] = [];
+      for (const flow of (options.workflows ?? []).filter((candidate) => candidate.page === key)) {
+        const ran = await narrateWorkflow(browser, options, limits, { url: spec.url, key }, flow, first);
+        first = false;
+        flows.push(ran.result);
+        stopped.push(ran.stopped);
+        landed ??= ran.landed;
+      }
+      if (options.narrateOnly === true) {
+        // No axe-core: the page's one state is the flows' own load, and holds nothing but what they found.
+        defaultLoad = landed;
+        states.push({
+          name: "default",
+          axe: { axeCore: installedAxeVersion(), rulesRun: 0, findings: [], needsReview: [] },
+        });
+      }
       // The page is where its default state ended; failing that, where the first state that loaded did.
       const where =
         defaultLoad !== undefined && states[0]?.axe !== null ? defaultLoad : (landed ?? defaultLoad);
@@ -427,9 +563,11 @@ export async function runScan(options: RunScanOptions): Promise<ScanRecord> {
         redirects: where?.redirects ?? 0,
         stopped: mergeStopped(stopped, limits),
         states,
+        ...(flows.length === 0 ? {} : { workflows: flows }),
       });
     }
     return buildPagesRecord({
+      ...(options.narrateOnly === true ? { command: "narrate" as const } : {}),
       tool: packageInfo(),
       browser: `${used.channel} ${browser.version()}`,
       fallback: used.fallback,

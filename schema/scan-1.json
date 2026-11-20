@@ -32,7 +32,7 @@
         "version": { "type": "string", "minLength": 1 }
       }
     },
-    "command": { "enum": ["scan", "check"] },
+    "command": { "enum": ["scan", "check", "narrate"] },
     "exit": { "enum": [0, 1] },
     "engine": {
       "type": "object",
@@ -156,7 +156,7 @@
     "findings": { "type": "array", "items": { "$ref": "#/$defs/finding" } },
     "needsReview": { "type": "array", "items": { "$ref": "#/$defs/needsReview" } },
     "ignored": { "type": "array" },
-    "workflows": { "type": "array" },
+    "workflows": { "type": "array", "items": { "$ref": "#/$defs/workflow" } },
     "checklist": { "type": "null" },
     "cannotSee": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
     "options": {
@@ -206,6 +206,42 @@
         "maxTabs": { "type": "integer", "minimum": 1 },
         "stopsCut": { "type": "integer", "minimum": 1 },
         "cycleFrom": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "workflow": {
+      "description": "One narrated flow (src/narrate.ts), added in 1.10: its steps, what each said, and the file of its transcript.",
+      "type": "object",
+      "required": ["name", "page", "file", "steps"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "page": { "type": "string", "minLength": 1 },
+        "file": { "type": "string", "pattern": "^narration/[^/]+\\.txt$" },
+        "steps": { "type": "array", "items": { "$ref": "#/$defs/workflowStep" } },
+        "notScanned": { "type": "string", "minLength": 1 }
+      }
+    },
+    "workflowStep": {
+      "type": "object",
+      "required": ["key", "role", "name", "states", "spoken", "unnamed", "selector"],
+      "properties": {
+        "key": { "type": "string", "minLength": 1 },
+        "role": { "oneOf": [{ "type": "null" }, { "type": "string" }] },
+        "name": { "type": "string" },
+        "states": { "type": "array", "items": { "type": "string" } },
+        "spoken": { "type": "string" },
+        "unnamed": { "type": "boolean" },
+        "selector": { "oneOf": [{ "type": "null" }, { "type": "string", "minLength": 1 }] },
+        "produced": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind", "spoken"],
+            "properties": {
+              "kind": { "enum": ["dialog", "focus", "change", "live", "page"] },
+              "spoken": { "type": "string" }
+            }
+          }
+        }
       }
     },
     "walkStop": {

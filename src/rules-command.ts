@@ -12,6 +12,7 @@ import "./focus-visible.js"; // registers `genie/focus-visible`
 import { genieRules } from "./genie-rules.js";
 import "./keyboard-trap.js"; // registers `genie/keyboard-trap` and `genie/focus-not-returned`
 import "./landmarks.js"; // registers `genie/no-landmarks`; each later check is imported here too
+import "./narrate.js"; // registers `genie/unnamed-step`
 import "./skip-link.js"; // registers `genie/skip-link`
 import { wcagCriteria } from "./map-axe.js";
 import { Refusal } from "./refusal.js";
