@@ -1,10 +1,20 @@
-import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterAll, describe, expect, it } from "vitest";
+import { readScanFile } from "../../src/baseline.js";
 import { isAllowedScheme, LIMITS } from "../../src/context.js";
 import { mapAxeResults } from "../../src/map-axe.js";
 import { renderReport } from "../../src/report.js";
 import { answeredButNotScanned } from "../../src/run-scan.js";
-import { buildScanRecord, fitToSize, scanJson, type RecordInput } from "../../src/scan-record.js";
+import {
+  buildScanRecord,
+  fitToSize,
+  scanJson,
+  type RecordInput,
+  type RecordWalk,
+  type ScanRecord,
+} from "../../src/scan-record.js";
 import { readGoldenRecord } from "../helpers/goldens.js";
 import { validate } from "../helpers/json-schema.js";
 
@@ -43,6 +53,31 @@ function withElements(n: number): RecordInput {
     target: [`img:nth-of-type(${i + 1})`],
   }));
   return { ...base, axe: { ...axe, findings: [{ ...first!, elements: many }, ...rest] } };
+}
+
+/** A walk of `stops` stops, each with a name long enough to weigh something. */
+function walkOf(state: string, stops: number): RecordWalk {
+  return {
+    state,
+    stops: Array.from({ length: stops }, (_, i) => ({
+      index: i + 1,
+      selector: `#stop-${i + 1}`,
+      target: [`#stop-${i + 1}`],
+      tag: "a",
+      role: "link",
+      name: `Link number ${i + 1} ${"x".repeat(60)}`,
+      focusVisible: true,
+    })),
+    end: "max-tabs",
+    tabs: stops,
+    maxTabs: stops,
+  };
+}
+
+function withWalks(counts: number[]): ScanRecord {
+  const record = buildScanRecord(input());
+  record.pages[0]!.walks = counts.map((n, i) => walkOf(`state-${i}`, n));
+  return record;
 }
 
 describe("the record's limits", () => {
@@ -158,5 +193,90 @@ describe("which loads read not scanned rather than refused", () => {
       expect(isAllowedScheme(url), url).toBe(false);
     }
     expect(isAllowedScheme("not an address")).toBe(false);
+  });
+
+  describe("walks and the size cap", () => {
+    const folders: string[] = [];
+    afterAll(() => {
+      for (const folder of folders) rmSync(folder, { recursive: true, force: true });
+    });
+
+    it("cuts walks to their first stops before it drops a finding's element, and a baseline read accepts it", () => {
+      const full = withWalks([600, 40, 3]);
+      const bare = Buffer.byteLength(scanJson(withWalks([1, 1, 1])));
+      const size = Buffer.byteLength(scanJson(full));
+      // Room for the findings and a part of the walks, but not all of them.
+      const limit = bare + Math.floor((size - bare) / 4);
+      const fitted = fitToSize(full, limit);
+      const written = scanJson(fitted);
+      expect(Buffer.byteLength(written)).toBeLessThanOrEqual(limit);
+      const walks = fitted.pages[0]!.walks!;
+      expect(walks).toHaveLength(3);
+      // The cut is the same N for every walk; a walk shorter than N is whole and has no count.
+      const kept = walks[0]!.stops.length;
+      expect(kept).toBeGreaterThan(1);
+      expect(walks[0]!.stopsCut).toBe(600 - kept);
+      expect(walks[1]!.stops.length).toBe(Math.min(40, kept));
+      expect(walks[1]!.stopsCut).toBe(40 > kept ? 40 - kept : undefined);
+      expect(walks[2]!.stops).toHaveLength(3);
+      expect(walks[2]!.stopsCut).toBeUndefined();
+      // The stops kept are the first ones, in order, and what the walk did is still recorded.
+      expect(walks[0]!.stops.map((s) => s.index)).toEqual(Array.from({ length: kept }, (_, i) => i + 1));
+      expect(walks[0]!.tabs).toBe(600);
+      // Findings were left whole.
+      expect(fitted.findings).toEqual(full.findings);
+      expect(fitted.pages[0]!.notScanned).toEqual([]);
+      expect(validate(schema, fitted)).toEqual([]);
+      // The record it was given is left as it was.
+      expect(full.pages[0]!.walks![0]!.stops).toHaveLength(600);
+      expect(full.pages[0]!.walks![0]!.stopsCut).toBeUndefined();
+
+      const folder = mkdtempSync(join(tmpdir(), "a11y-genie-fit-"));
+      folders.push(folder);
+      writeFileSync(join(folder, "scan.json"), written);
+      expect(readScanFile(folder, "--baseline", limit).pages[0]!.walks).toEqual(walks);
+    });
+
+    it("leaves walks whole when the record already fits", () => {
+      const full = withWalks([20]);
+      expect(fitToSize(full, Buffer.byteLength(scanJson(full)))).toBe(full);
+    });
+
+    it("drops elements once every walk is down to one stop", () => {
+      const base = withElements(400);
+      const record = buildScanRecord(base);
+      record.pages[0]!.walks = [walkOf("default", 50)];
+      const ones = structuredClone(record);
+      ones.pages[0]!.walks = [walkOf("default", 1)];
+      const limit = Math.floor(Buffer.byteLength(scanJson(ones)) / 2);
+      const fitted = fitToSize(record, limit);
+      expect(Buffer.byteLength(scanJson(fitted))).toBeLessThanOrEqual(limit);
+      expect(fitted.pages[0]!.walks![0]!.stops).toHaveLength(1);
+      expect(fitted.pages[0]!.walks![0]!.stopsCut).toBe(49);
+      expect(fitted.findings[0]!.elementsCut).toBeGreaterThan(0);
+      expect(validate(schema, fitted)).toEqual([]);
+    });
+
+    it("keeps the not scanned fallback valid, with its walks emptied and counted", () => {
+      const fitted = fitToSize(withWalks([30, 5]), 3000);
+      expect(fitted.findings).toEqual([]);
+      expect(fitted.pages[0]!.notScanned[0]?.reason).toMatch(/larger than the 3000 byte limit/);
+      const walks = fitted.pages[0]!.walks!;
+      expect(walks.map((w) => [w.stops.length, w.stopsCut])).toEqual([
+        [0, 30],
+        [0, 5],
+      ]);
+      expect(validate(schema, fitted)).toEqual([]);
+    });
+
+    it("still reads a 1.7 record, which has no stopsCut", () => {
+      const old = structuredClone(withWalks([4])) as unknown as Record<string, unknown>;
+      old.schema = "1.7";
+      expect(validate(schema, old)).toEqual([]);
+      const folder = mkdtempSync(join(tmpdir(), "a11y-genie-fit-"));
+      folders.push(folder);
+      writeFileSync(join(folder, "scan.json"), JSON.stringify(old));
+      expect(readScanFile(folder, "--baseline").schema).toBe("1.7");
+    });
   });
 });
