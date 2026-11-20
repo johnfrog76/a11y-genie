@@ -83,6 +83,24 @@ describe.skipIf(!hasChrome)(
       expect(skip).toBeUndefined();
     });
 
+    it("no-landmarks-tampered.html: a page that fakes its landmarks and headings still has none", async () => {
+      // axe-core runs in the page's own world and may be fooled; the product's own checks are not.
+      const { result, skip } = await scan("no-landmarks-tampered.html");
+      expect(result.findings.map((f) => f.id)).toContain("genie/no-landmarks@no-landmarks-tampered.html");
+      expect(skip).toMatchObject({ kind: "violation", impact: "moderate" });
+    });
+
+    it("skip-link-frame.html: a fragment link inside a frame is not a skip link for the page", async () => {
+      const { skip } = await scan("skip-link-frame.html");
+      expect(skip).toMatchObject({ kind: "advice", impact: "minor" });
+    });
+
+    it("skip-link-shadow.html: a skip link in a shadow root to the top document's main still counts", async () => {
+      const { result, skip } = await scan("skip-link-shadow.html");
+      expect(skip).toBeUndefined();
+      expect(result.findings).toEqual([]);
+    });
+
     it("few-tabbable.html is not checked: two Tab stops before main is nothing much to skip", async () => {
       const { result } = await scan("few-tabbable.html");
       expect(result.findings).toEqual([]);

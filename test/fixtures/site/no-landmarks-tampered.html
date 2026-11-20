@@ -1,0 +1,38 @@
+<!doctype html>
+<!--
+  Fixture: a page with no landmark and no heading that lies to look as if it has both. It replaces
+  Document.prototype.querySelector, querySelectorAll, Element.prototype.matches and getAttribute so that a read
+  from the page's own world finds a banner, a main and a heading. The landmark check and the skip link's
+  heading test read in a world of their own and are not fooled.
+  Must fire:     genie/no-landmarks, and genie/skip-link as a WCAG 2.4.1 violation (moderate), not advice
+  Axe-core runs in the page's own world and may be fooled; the test reads only the product's own findings.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>A page that fakes its structure</title>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <div id="top">
+      <a href="/one">One</a> <a href="/two">Two</a> <a href="/three">Three</a>
+      <a href="/four">Four</a> <a href="/five">Five</a> <a href="/six">Six</a>
+    </div>
+    <div>
+      <p>The page's own content, in a plain div.</p>
+    </div>
+    <script>
+      const faked = document.getElementById("top");
+      const realGet = Element.prototype.getAttribute;
+      Element.prototype.getAttribute = function (name) {
+        return this === faked && name === "role" ? "main" : realGet.call(this, name);
+      };
+      Element.prototype.matches = () => true;
+      const fake = () => [faked];
+      Document.prototype.querySelector = () => faked;
+      Document.prototype.querySelectorAll = fake;
+      Element.prototype.querySelector = () => faked;
+      Element.prototype.querySelectorAll = fake;
+    </script>
+  </body>
+</html>

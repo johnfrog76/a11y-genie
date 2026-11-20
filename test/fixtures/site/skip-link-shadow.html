@@ -1,0 +1,30 @@
+<!doctype html>
+<!--
+  Fixture: a page whose first Tab stop is a skip link inside an open shadow root, to #main in the top document.
+  Must fire:     nothing
+  Must not fire: genie/skip-link, any axe-core rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>A skip link in a shadow root</title>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <header>
+      <div id="host"></div>
+      <nav aria-label="Site">
+        <a href="/one">One</a> <a href="/two">Two</a> <a href="/three">Three</a>
+        <a href="/four">Four</a> <a href="/five">Five</a> <a href="/six">Six</a>
+      </nav>
+    </header>
+    <main id="main">
+      <h1>A skip link in a shadow root</h1>
+      <p>The first Tab stop is a link in a shadow root to this main.</p>
+    </main>
+    <script>
+      document.getElementById("host").attachShadow({ mode: "open" }).innerHTML =
+        '<a href="#main">Skip to main content</a>';
+    </script>
+  </body>
+</html>
