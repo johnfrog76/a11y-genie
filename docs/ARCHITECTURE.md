@@ -278,7 +278,10 @@ with one of its tags. Like `genie/no-landmarks` it does not change `engine.rules
 **What is a control.** As spec 6.2 says: `a[href]`, `button`, `input`, `select`, `textarea`, `summary`, `label`
 and `option`; any element whose `role` names one of ARIA's widget roles (`button`, `link`, `checkbox`,
 `menuitem`, `tab`, `switch` and the rest, the composite ones such as `listbox` and `grid` included); and any
-element with `tabindex` 0 or more. Everything else is a candidate. A candidate that is not shown
+element with `tabindex` 0 or more. A `role` of several tokens counts when any one of them names a control:
+browsers use the first token they recognise, so `role="presentation button"` is presented as no role at all, but
+the author marked it a control, and reading any token is the conservative choice for a tool that must not
+claim more than it knows (`#multi-role` in the fixture gives no finding). Everything else is a candidate. A candidate that is not shown
 (`checkVisibility()` is false: `hidden`, `display: none`) is left out, since no one can click it.
 
 **When it is flagged.** A candidate is flagged when it carries an inline `onclick` attribute, or when the DevTools

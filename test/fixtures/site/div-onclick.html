@@ -7,7 +7,8 @@
   Needs review:  genie/click-on-non-control, on exactly the two #delegated items: each has a pointer cursor and
                  no handler of its own, because the one listener is on their list (a delegated handler)
   Must not fire: on #real-button (a real button), on #role-button (a div with role="button", tabindex="0" and a
-                 key handler), on #delegated-list (its listener is real, but it does not look clickable, so it is
+                 key handler), on #multi-role (role="presentation button": any token that names a control counts), on
+                 #delegated-list (its listener is real, but it does not look clickable, so it is
                  not asked), on the spans inside #delegated items (they inherit the pointer, they do not set it),
                  or on #hidden-div (not shown); and no axe-core rule
 -->
@@ -37,6 +38,11 @@
 
       <!-- Must not fire: a div made a control, with a role, a tabindex and Enter and Space handled. -->
       <div id="role-button" role="button" tabindex="0" class="clickable">Archive</div>
+
+      <!-- Must not fire: a role of several tokens, one of them a control's. Browsers use the first token they
+           recognise, here presentation, but the check reads any token naming a control as a control, so it never
+           flags an element an author has marked as one. -->
+      <div id="multi-role" role="presentation button" class="clickable" onclick="this.textContent = 'Shown'">More</div>
 
       <!-- Needs review, not a finding: the listener is on the list, and each item only looks clickable. -->
       <ul id="delegated-list">

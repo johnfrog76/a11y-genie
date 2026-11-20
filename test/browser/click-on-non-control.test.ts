@@ -71,12 +71,18 @@ describe.skipIf(!hasChrome)("click on a non-control (skipped where Chrome is not
     );
   });
 
-  it("does not flag a real button, a div with role and tabindex, the delegating list or a hidden div", async () => {
+  it("does not flag a real button, a div with role and tabindex, a role of several tokens, the delegating list or a hidden div", async () => {
     const [result] = await scan("div-onclick.html");
     const named = [...result.findings, ...result.needsReview].flatMap((f) =>
       f.elements.map((e) => e.selector),
     );
-    for (const selector of ["#real-button", "#role-button", "#delegated-list", "#hidden-div"]) {
+    for (const selector of [
+      "#real-button",
+      "#role-button",
+      "#multi-role",
+      "#delegated-list",
+      "#hidden-div",
+    ]) {
       expect(named).not.toContain(selector);
     }
   });
