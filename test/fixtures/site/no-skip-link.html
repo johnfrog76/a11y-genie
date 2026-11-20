@@ -1,0 +1,25 @@
+<!doctype html>
+<!--
+  Fixture: a page with landmarks and headings but no skip link, and six links before its main content.
+  Must fire:     genie/skip-link as advice (minor), once for the page
+  Must not fire: any axe-core rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>No skip link fixture</title>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <header>
+      <nav aria-label="Site">
+        <a href="/one">One</a> <a href="/two">Two</a> <a href="/three">Three</a>
+        <a href="/four">Four</a> <a href="/five">Five</a> <a href="/six">Six</a>
+      </nav>
+    </header>
+    <main id="main">
+      <h1>No skip link fixture</h1>
+      <p>The first thing a keyboard reaches is the navigation.</p>
+    </main>
+  </body>
+</html>

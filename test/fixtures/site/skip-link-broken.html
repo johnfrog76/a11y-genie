@@ -1,0 +1,26 @@
+<!doctype html>
+<!--
+  Fixture: a page whose first link goes to an id that is not on the page.
+  Must fire:     genie/skip-link as advice (minor): a link to nowhere is not a skip link
+  Must not fire: any axe-core rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Broken skip link fixture</title>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <a href="#content">Skip to main content</a>
+    <header>
+      <nav aria-label="Site">
+        <a href="/one">One</a> <a href="/two">Two</a> <a href="/three">Three</a>
+        <a href="/four">Four</a> <a href="/five">Five</a> <a href="/six">Six</a>
+      </nav>
+    </header>
+    <main id="main">
+      <h1>Broken skip link fixture</h1>
+      <p>There is no element with the id content.</p>
+    </main>
+  </body>
+</html>

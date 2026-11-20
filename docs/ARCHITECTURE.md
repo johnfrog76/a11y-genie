@@ -341,6 +341,18 @@ described at all, and the rest are counted in one *needs review* line on `body`.
 within the 5,000 is flagged whatever the first cap, since it needs no asking. The whole check runs inside the page
 time limit, with axe-core.
 
+### The skip link (`src/skip-link.ts`)
+
+`genie/skip-link` (spec 6.4) presses Tab three times from the top of the page, after axe-core and the other
+checks, and reads each element that takes focus. A skip link is a same-page link (`href="#id"`) whose target
+exists and is the page's `main` or inside it. With none, the finding is **advice** (`minor`) when the page has a
+landmark or a heading, and a WCAG 2.4.1 **violation** (`moderate`) when it has neither. A page with fewer than
+five tabbable elements before its main content (all of them when it has no main) is not checked. It is tagged
+`best-practice`, as `genie/no-landmarks` is, and the registry lists the violation's impact. The check does not
+test whether the link shows itself on focus or whether its target takes focus; the spec asks for neither.
+Advice never changes the exit code. Fixtures: `no-skip-link.html`, `no-skip-no-structure.html`,
+`skip-link-ok.html`, `skip-link-broken.html`, `few-tabbable.html`; test: `test/browser/skip-link.test.ts`.
+
 ### The list of rules (`src/rules-command.ts`, `src/genie-rules.ts`)
 
 `a11y-genie rules` prints axe-core's rules from `axe.getRules()` at the installed version and the product's own

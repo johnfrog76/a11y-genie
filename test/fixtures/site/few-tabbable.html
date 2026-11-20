@@ -1,0 +1,22 @@
+<!doctype html>
+<!--
+  Fixture: a page with no skip link but only two links before its main content: nothing much to skip.
+  Must fire:     nothing
+  Must not fire: genie/skip-link, any axe-core rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Few tabbable fixture</title>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <header>
+      <nav aria-label="Site"><a href="/one">One</a> <a href="/two">Two</a></nav>
+    </header>
+    <main>
+      <h1>Few tabbable fixture</h1>
+      <p>Two Tab stops come before this.</p>
+    </main>
+  </body>
+</html>
