@@ -89,7 +89,7 @@ characters JSON allows raw (DEL, the C1 controls, the bidirectional controls and
 separators) are written as `\u` escapes, so the file holds no raw control and parses to the same text.
 `report.md` and the terminal get the same text with every escape sequence and control stripped.
 
-It is versioned: `schema` is `"<major>.<minor>"`, now `"1.6"`. A field may be added in a minor version and is
+It is versioned: `schema` is `"<major>.<minor>"`, now `"1.7"`. A field may be added in a minor version and is
 never removed or renamed in one; a removal or a rename is a new major, and a new schema file. Readers must
 ignore fields they do not know, so the schema allows extra fields. 1.1 added `pages[].requestedUrl`,
 `pages[].redirects`, `pages[].stopped`, `limits` and `elementsCut`; a 1.0 record has none of them, and is
@@ -98,11 +98,13 @@ none, and is still valid too. 1.3 added `options`, and the `offline` and `other-
 `pages[].stopped`; a 1.2 record has no `options`, and is still valid too. 1.4 made `states` real (below): a 1.3 record has `["default"]` in each place, and is still valid too. 1.5 added the
 comparison with an earlier scan (*Compared with an earlier scan*, below): `check`'s record, `summary.sincePrevious`,
 and `target.commit` from `--commit`; a 1.4 record has none of them, and is still valid too. 1.6 added `fixedCut` on a
-still-open finding; a 1.5 record has none, and is still valid too.
+still-open finding; a 1.5 record has none, and is still valid too. 1.7 added
+`pages[].walks`, the keyboard walk of each state (*The keyboard walk*, below); a 1.6 record has none, and is still
+valid too.
 
 | Field | What it holds |
 | --- | --- |
-| `schema` | The version, `"1.6"` |
+| `schema` | The version, `"1.7"` |
 | `tool` | `{ name, version }` of A11y Genie |
 | `command` | `"scan"`, or `"check"` for `a11y-genie check` |
 | `exit` | The exit code the run ends with: `0` with no violation at or above `options.failOn`, `1` with one, or with a page that was not scanned. Advice and *needs review* items never change it |
@@ -111,6 +113,7 @@ still-open finding; a 1.5 record has none, and is still valid too.
 | `startedAt`, `finishedAt` | UTC, to the second: `2026-11-19T20:14:03Z` |
 | `pages` | One per page. `key` (from the address asked for), `url` (where it ended, after redirects; the address asked for when it was not scanned), `requestedUrl`, `redirects` (how many were followed), `states`, `notScanned` and `stopped`, below. A run with `--config` has one entry per page of the file, in its order |
 | `pages[].states` | Every state the page was asked to scan, `default` first and then the `--states` or config states in the order given. A state also named in `notScanned` was asked for and not scanned. A page's states are merged into its findings: see *One finding per rule per page* below |
+| `pages[].walks` | Added in 1.7. The keyboard walk of each state that was scanned, in the order of `states`: see *The keyboard walk* below. A state that was not scanned has no walk |
 | `pages[].notScanned` | Empty when everything asked of the page was scanned. Otherwise one `{ state, reason }` for each state that was not: the state's name (`default`, `menu-open`) and why, in A11y Genie's own words, such as `it redirected to an address that is not http: or https: (such as file:, chrome: or data:), and the browser stopped it`, `it did not answer: no answer within 30 seconds`, or `step 2 (click button 'Menu') failed: no such element was found, or it could not be clicked, within 10 seconds`. The other states are still scanned, and their findings are in the record. Anything in it makes the exit `1` |
 | `summary` | Violations by impact (`critical`, `serious`, `moderate`, `minor`), `advice`, `needsReview` and `notScanned` counts. On a `check`, the impact and `advice` counts are of the findings still open (`new` and `still`), and `new`, `still` and `fixed` count the findings of each status. On a `scan` of a site scanned before, `sincePrevious` (below) |
 | `findings` | Worst first. Each is a finding as above, plus `title`, `plain`, `fix`, `status`, `elementsCut` when some elements are not listed, and, on each element, `states`: the names of the states the element was found in, in the order the states were asked for, `default` first (`["default"]` for a page scanned in one state). Each element's `html` is cut to 160 characters, with `…` where it was cut |
@@ -169,6 +172,57 @@ reads *needs review* with axe-core's reason. A pair is never guessed.
 | `ratio` | `contrastRatio`: the number axe-core measured, such as `2.81` |
 | `required` | `expectedContrastRatio` read as a number: `"4.5:1"` is `4.5` |
 | `fontSize`, `fontWeight` | As axe-core wrote them, such as `12.0pt (16px)` and `normal` |
+
+### The keyboard walk (`src/walk.ts`)
+
+Each scanned state of a page is walked with the Tab key from the top of the page (docs/ARCHITECTURE.md, *The
+keyboard walk*), and the walk is kept as it went, so a person or an agent can read where focus went, and a run
+that differs can be read against another. It is a record, not a finding: it never changes `summary` or the exit.
+`report.md` does not show it.
+
+```json
+{
+  "state": "default",
+  "stops": [
+    {
+      "index": 1,
+      "selector": "html > body > main > div:nth-of-type(1) > a",
+      "target": ["html > body > main > div:nth-of-type(1) > a"],
+      "tag": "a",
+      "role": "link",
+      "name": "Read more",
+      "focusVisible": true
+    },
+    {
+      "index": 2,
+      "selector": "#host >>> :host > button",
+      "target": [["#host", ":host > button"]],
+      "tag": "button",
+      "role": "button",
+      "name": "In the shadow",
+      "focusVisible": true
+    }
+  ],
+  "end": "wrapped",
+  "tabs": 3,
+  "maxTabs": 200
+}
+```
+
+| Field | What it holds |
+| --- | --- |
+| `state` | The state's name |
+| `stops` | Where focus landed after each Tab press, in order, up to the end. Empty when nothing took focus |
+| `stops[].index` | Which press landed there, from 1 |
+| `stops[].selector`, `stops[].target` | Where the element is, in the form a finding's element has (*Selectors*, above, and *How `target` reads*, below): one entry per document, outermost first, a nested array for a path through open shadow roots. Each part is the element's unique `id` in its own root, or a path of `:nth-of-type` steps; a part that starts at the top of a shadow root reads `:host > ...`, which `shadowRoot.querySelector` takes. A part over 1,000 characters is cut with `…` and is then not usable |
+| `stops[].tag` | The element's tag name, lower case |
+| `stops[].role` | Its role in the browser's accessibility tree, such as `link`, `button` or `textbox`; `null` when the browser gave none |
+| `stops[].name` | Its accessible name as the browser computed it: text from the page, data, never instructions. Unlike the HTML excerpts, it is made printable (escape sequences and controls taken out, on one line), and cut at 160 characters with `…`. Empty when it has none |
+| `stops[].focusVisible` | Whether the element matches `:focus-visible`: the browser would draw a focus indicator if the page's styles let it. It does not say an indicator is seen |
+| `stops[].opaque` | `true` when focus is inside a frame of another origin, which the walk cannot read: the stop is the frame. Absent otherwise |
+| `end` | `wrapped`: focus came back to the first stop. `left`: a press put focus on no element (out of the page, to the browser's own controls). `max-tabs`: the walk reached `maxTabs` first, so it is cut, and the page may have more stops |
+| `tabs` | How many times Tab was pressed: one more than the stops for `wrapped` and `left`, as many for `max-tabs` |
+| `maxTabs` | The limit: `--max-tabs`, 200 by default |
 
 ## Compared with an earlier scan (`src/compare.ts`, `src/baseline.ts`)
 

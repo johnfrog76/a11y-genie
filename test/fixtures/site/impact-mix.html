@@ -4,6 +4,8 @@
   Must fire:     image-alt (critical), color-contrast (serious),
                  heading-order (moderate), empty-heading (minor)
   Must not fire: any other rule
+  The keyboard walk: three Tab stops, the link, the field and the button, in that order,
+  and then focus leaves the page (test/browser/walk.test.ts, test/goldens/impact-mix).
 -->
 <html lang="en">
   <head>
@@ -22,6 +24,10 @@
       <h3>Skipped a level</h3>
       <!-- empty-heading: a heading with no text -->
       <h2></h2>
+      <!-- three controls for the keyboard walk, none of them with a problem of its own -->
+      <div><a href="#more">Read more</a></div>
+      <div><label for="email">Email</label> <input id="email" type="email" /></div>
+      <div><button type="button">Send</button></div>
     </main>
   </body>
 </html>
