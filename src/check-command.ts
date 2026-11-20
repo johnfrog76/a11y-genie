@@ -8,6 +8,7 @@
  * browser is opened.
  */
 
+import { printRunBanner } from "./banner.js";
 import { readScanFile } from "./baseline.js";
 import {
   checkLine,
@@ -114,6 +115,7 @@ export async function checkCommand(args: string[], helpHint: string): Promise<vo
     );
   }
   checkComparable(baseline, prepared);
+  printRunBanner(prepared.json);
 
   const now = await runPrepared(prepared);
   const record = checkRecord(now, { path: baselinePath, record: baseline });

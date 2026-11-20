@@ -5,6 +5,7 @@
  * (src/scan-command.ts), without the ones that make no sense for a flow: `--states`, `--config` and `--tags`.
  */
 
+import { printRunBanner } from "./banner.js";
 import { FLOW_NAME, MAX_FLOW_STEPS } from "./narrate.js";
 import { Refusal } from "./refusal.js";
 import { pageKeyOf } from "./map-axe.js";
@@ -61,6 +62,7 @@ export async function narrateCommand(args: string[], helpHint: string): Promise<
     workflows: [{ name: FLOW_NAME, page, steps }],
     narrateOnly: true,
   };
+  printRunBanner(prepared.json);
   const record = await runPrepared(prepared);
   const folder = writeScan(prepared, record);
   finish(record, prepared, scanLines(record, prepared, folder));

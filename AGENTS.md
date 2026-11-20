@@ -61,8 +61,10 @@ Run all five before you ask for a review. CI runs the same five in that order, o
   the lines it prints. `src/prompt-command.ts` is `a11y-genie prompt`, which prints it from the package's own
   folder. `test/cli/prompt.test.ts` holds it to the product: every command and flag it names is in `--help`,
   and every field it names is in `schema/scan-1.json`. Change the prompt when the loop's commands or fields change.
-- `src/banner.ts` holds the genie and his bottle, the drawing for a person at a terminal. Nothing prints it
-  yet, and the README's first block is the same drawing.
+- `src/banner.ts` holds the genie and his bottle, the drawing for a person at a terminal, and the one
+  function (`shouldShowBanner`) that decides whether to print it: `--help` prints it on stdout, and `scan`,
+  `check` and `narrate` on stderr once their arguments are accepted; never under `--json`, to a pipe, in CI or on a
+  terminal narrower than it. The README's first block is the same drawing.
 - `src/scan-record.ts` builds `scan.json` (`schema/scan-1.json` is its JSON Schema, shipped in the package),
   `src/report.ts` writes `report.md` from it, `src/scans-folder.ts` says where a scan goes, and
   `src/run-scan.ts` loads a page and scans it. `docs/JSON.md` documents all of it.

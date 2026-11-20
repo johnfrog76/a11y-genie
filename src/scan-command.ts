@@ -7,6 +7,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
+import { printRunBanner } from "./banner.js";
 import { previousScan } from "./baseline.js";
 import { BROWSER_CHANNELS, DEFAULT_CHANNEL, isBrowserChannel } from "./browser.js";
 import { sincePreviousLine, withPrevious } from "./compare.js";
@@ -345,6 +346,7 @@ export function finish(record: ScanRecord, prepared: PreparedScan, lines: string
 export async function scanCommand(args: string[], helpHint: string): Promise<void> {
   const { values, positionals } = parseFlags(args, SCAN_FLAGS, helpHint);
   const prepared = prepareScan(values as ScanFlagValues, positionals, "scan", helpHint);
+  printRunBanner(prepared.json);
   let record = await runPrepared(prepared);
   const previous = previousScan(prepared.root, record.target.origin);
   if (previous !== undefined) record = withPrevious(record, previous);

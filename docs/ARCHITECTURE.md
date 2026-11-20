@@ -912,6 +912,12 @@ report is a pure function of the record, so a stored `scan.json` can write it ag
   Refusals (exit 2), Ctrl-C (130) and the unexpected (3) are in `docs/EXIT-CODES.md`.
 - **`--json`.** stdout holds the document and nothing else; every line meant for a person goes to stderr.
   Without it, the summary goes to stdout.
+- **The drawing.** At a terminal, `--help` prints the genie (`src/banner.ts`) above its text on stdout, and `scan`,
+  `check` and `narrate` print it on stderr, once the arguments and every up-front refusal check have passed, so a
+  refusal stays one `Error:` line and one `Hint:` line. `shouldShowBanner` says no under `--json`, when the stream
+  is not a terminal, when `CI` is set (to anything but empty, `0` or `false`), and when the terminal is narrower
+  than the drawing. It has no colour and no escape sequence, so `NO_COLOR` changes nothing. `--version` and an
+  unknown command print none.
 - **Never into the project.** Nothing is written in the folder the command runs from, or the scanned
   project. Scans go to the per-user scans folder or `--out` (docs/JSON.md says where).
 - **The schema is checked without a validator dependency.** `src/json-schema.ts` is a small
