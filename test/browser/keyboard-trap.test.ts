@@ -157,7 +157,7 @@ describe.skipIf(!hasChrome)("the keyboard trap (skipped where Chrome is not inst
     expect(finding?.elements[0]?.states).toEqual(["delete-dialog"]);
     expect(record.pages[0]?.walks?.map((w) => w.state)).toEqual(["default", "delete-dialog"]);
     expect(record.pages[0]?.walks?.[1]).toMatchObject({ end: "cycled", cycleFrom: 3 });
-    expect(record.schema).toBe("1.9");
+    expect(record.schema).toBe("1.10");
   });
 
   it("a native dialog opened with showModal() is named in What this scan cannot see, and only there", async () => {
