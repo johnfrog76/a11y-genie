@@ -1,0 +1,6 @@
+flow, on workflow.html
+1  Tab    Email, edit text, required
+2  Tab    button
+   ^ This step has no name. A screen reader says "button", and stops.
+3  Tab    Save, button
+4  Enter  Saved, status

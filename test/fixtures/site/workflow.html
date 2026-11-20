@@ -5,7 +5,8 @@
   a labelled field with a value, an invalid field, a radio group, a checkbox, a pressed toggle, a menu button
   that opens, a control marked disabled, a link, and a heading.
   The flow "Tab; Tab; Tab; Enter" goes Email, the button with no name, Save, and Enter puts "Saved" in the
-  status region (test/browser/narrate.test.ts, M9).
+  status region (test/browser/narrate.test.ts, M9). The form is novalidate: without it, Chrome stops the
+  submit at the empty required Email, and moves focus there instead.
   Must fire: button-name (the button with no name), and genie/unnamed-step in a flow that stops on it
 -->
 <html lang="en">
@@ -17,7 +18,7 @@
   <body>
     <main>
       <h1 id="heading" tabindex="-1">Account settings</h1>
-      <form id="settings">
+      <form id="settings" novalidate>
         <p>
           <label for="email">Email</label>
           <input id="email" type="email" required />

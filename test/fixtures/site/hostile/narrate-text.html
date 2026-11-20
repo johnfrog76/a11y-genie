@@ -1,0 +1,35 @@
+<!doctype html>
+<!--
+  Hostile fixture: page text that narration reads aloud and quotes. A button's name and a status region's text
+  carry terminal escape sequences (a colour, a window title, a carriage return, a bidi override), the status
+  text is also far longer than a transcript line may be, and the button has a role and a name made only of an
+  escape. The file itself holds none of the sequences: the script builds each from its code.
+  Must: no escape or control character reaches the terminal, a transcript or report.md; the text is cut.
+  Test: test/browser/narrate.test.ts
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hostile fixture: narrated text</title>
+  </head>
+  <body>
+    <main>
+      <h1>Hostile fixture</h1>
+      <button id="go" type="button"></button>
+      <button id="blank" type="button"></button>
+      <p id="status" role="status"></p>
+    </main>
+    <script>
+      const ESC = String.fromCharCode(0x1b);
+      const BEL = String.fromCharCode(0x07);
+      const RLO = String.fromCharCode(0x202e);
+      const red = `${ESC}[31mRED${ESC}[0m`;
+      const title = `${ESC}]0;window title${BEL}`;
+      document.getElementById("go").setAttribute("aria-label", `Go ${red}${title}\rfake${RLO}txt`);
+      document.getElementById("blank").setAttribute("aria-label", `${ESC}[31m${ESC}[0m`);
+      document.getElementById("go").addEventListener("click", () => {
+        document.getElementById("status").textContent = `${red} said${title}\r ` + "word ".repeat(400);
+      });
+    </script>
+  </body>
+</html>

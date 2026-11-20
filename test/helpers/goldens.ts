@@ -75,3 +75,19 @@ export function expectGolden(page: string, file: "scan.json" | "report.md", actu
     `${file} for ${page}.html differs from its golden; review it and run UPDATE_GOLDENS=1 npm test`,
   ).toBe(readFileSync(path, "utf8"));
 }
+
+/**
+ * Compares `actual` with `test/goldens/<path>`, a text file that is not a page's `scan.json` or `report.md`
+ * (the narration transcripts); with `UPDATE_GOLDENS=1` it rewrites the file instead.
+ */
+export function expectTextGolden(path: string, actual: string): void {
+  const file = `${GOLDEN_DIR}${path}`;
+  if (process.env.UPDATE_GOLDENS === "1") {
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, actual, "utf8");
+    return;
+  }
+  expect(actual, `${path} differs from its golden; review it and run UPDATE_GOLDENS=1 npm test`).toBe(
+    readFileSync(file, "utf8"),
+  );
+}

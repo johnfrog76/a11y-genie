@@ -1,0 +1,48 @@
+<!doctype html>
+<!--
+  Fixture: what a press of Enter, Space or a click produces, for narrated flows (spec 6.6,
+  test/browser/narrate.test.ts). A button opens a dialog named "Settings" and moves focus into it; Close
+  closes it and puts focus back; a second button adds text to an aria-live region, a little after the press,
+  and a third does nothing at all; a link goes to another place on the same page; one more link goes to
+  another page (clean.html).
+  Must fire: nothing
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Press results</title>
+  </head>
+  <body>
+    <main>
+      <h1>Press results</h1>
+      <p><button id="open" type="button">Open settings</button></p>
+      <p><button id="refresh" type="button">Refresh</button></p>
+      <p><button id="idle" type="button">Do nothing</button></p>
+      <p><a id="down" href="#end">Jump down</a></p>
+      <p><a id="away" href="/clean.html">Another page</a></p>
+      <div id="log" aria-live="polite"></div>
+      <p id="end">The end</p>
+      <div id="dialog" role="dialog" aria-labelledby="dialog-title" aria-modal="true" hidden>
+        <h2 id="dialog-title">Settings</h2>
+        <button id="close" type="button">Close</button>
+      </div>
+    </main>
+    <script>
+      const dialog = document.getElementById("dialog");
+      document.getElementById("open").addEventListener("click", () => {
+        dialog.hidden = false;
+        document.getElementById("close").focus();
+      });
+      document.getElementById("close").addEventListener("click", () => {
+        dialog.hidden = true;
+        document.getElementById("open").focus();
+      });
+      document.getElementById("refresh").addEventListener("click", () => {
+        setTimeout(() => {
+          document.getElementById("log").textContent += "Updated at noon. ";
+        }, 40);
+      });
+    </script>
+  </body>
+</html>
