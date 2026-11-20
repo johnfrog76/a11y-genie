@@ -133,7 +133,8 @@ describe.skipIf(!hasChrome)("focus visible (skipped where Chrome is not installe
         s.result.findings.find((f) => f.rule.id === "keyboard-trap");
       expect(trap(withIt), page).toEqual(trap(without));
     }
-  });
+    // Ten scans, each in a browser of its own.
+  }, 120_000);
 
   it("--tags without its tags does not run it; wcag2aa, cat.keyboard or wcag247 does", async () => {
     expect((await scan("focus-hidden.html", ["wcag2a"])).finding).toBeUndefined();
