@@ -353,9 +353,13 @@ async function loadAndScan(
       left(),
     );
   } catch (error) {
-    // A page that moves while axe-core reads it leaves nothing to read: say so rather than fail.
+    // A page that moves while axe-core reads it leaves nothing to read: say so rather than fail. A move a
+    // network rule stopped is named by that rule, whenever the page's frame happened to change under axe-core.
     if (navigations > 0 || tab.isClosed()) {
-      return notScanned("it went to another address while it was being scanned", redirects);
+      return notScanned(
+        navigationReason(guard) ?? "it went to another address while it was being scanned",
+        redirects,
+      );
     }
     throw error;
   }
