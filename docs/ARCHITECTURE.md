@@ -14,12 +14,36 @@ Playwright's own Chromium once and uses that (see "Playwright's Chromium, when C
 Every launch is `chromium.launch({ channel, headless: true })`. It is never `launchPersistentContext()`, and
 the person's own browser profile, with its cookies, extensions and sign-ins, is never opened.
 
-`launch()` already does what we need, so A11y Genie does not make a profile folder of its own:
+`launch()` already does what we need, so A11y Genie does not make a profile folder of its own. It does give
+each process a temp folder of its own, below:
 
-- playwright-core makes a new folder in the system temp folder for each launch
+- playwright-core makes a new folder in the temp folder for each launch
   (`playwright_chromiumdev_profile-` and a random suffix), and passes it to the browser as `--user-data-dir`;
 - it deletes that folder when the browser closes;
 - `withBrowser()` closes the browser in a `finally`, so the folder goes whether the run returns or throws.
+
+#### One private temp folder per process (`src/private-temp.ts`)
+
+The first thing `src/cli.ts` does is make a folder under the system temp folder (`a11y-genie-` and a random
+suffix) and set `TMPDIR` to it in `process.env`, and `TEMP` and `TMP` too on Windows. playwright-core reads the
+temp folder each time it launches, not once at import, so its profile and artifacts folders, and everything the
+browser and the browser installer (a child process) make, land in it. The folder is removed when the process
+exits, however it exits: a normal end, a refusal (exit 2), an unexpected error (exit 3), and Ctrl-C (130, through
+`process.exit()` in `src/interrupt.ts`), all of which run the `exit` handler.
+
+Why: the system temp folder is shared by every process on the machine. Cleaning up after a failed launch there,
+as this code once did, can remove another run's brand-new, still-empty profile folder, and that browser then
+fails to start (*Failed to create a ProcessSingleton*). In the private folder nothing else is running, so the
+failed-launch cleanup in `withBrowser()` reads only that folder, and the shared one is never read for it.
+
+Not covered: `SIGKILL`. Nothing runs, so the folder stays, one folder named `a11y-genie-*` (the browser and its
+profile are inside it), until the system clears the temp folder.
+
+**Tests** get the same isolation: `test/setup/private-temp.ts` (a vitest setup file) gives each test file its own
+temp folder and removes it after the file, so test files that launch browsers side by side, or one that tests a
+missing browser, never share one. The shared one is in `A11Y_GENIE_TEST_SHARED_TMP`.
+`test/cli/private-temp.test.ts` runs the built command with a temp folder of its own on every exit path, and runs
+a Chrome scan for 20 rounds beside loops of missing-browser launches.
 
 The other way, `launchPersistentContext()` on a folder from `mkdtemp`, would put the folder's lifetime in our
 hands: more code that can leak a folder, for nothing `launch()` does not already give. It is also the API that
@@ -29,8 +53,7 @@ opens a person's real profile when handed the wrong path, so the code never call
 folder from its own `chrome://version` page, and checks that the folder is in the temp folder, was made for
 this run, differs between two runs, and is gone after the run, including a run that throws.
 
-One case is not covered: if the A11y Genie process itself is killed outright (`SIGKILL`), nothing runs to
-delete the folder, and it stays in the temp folder until the system clears it. On Ctrl-C, `src/interrupt.ts` closes the browser (so the folder is deleted) and exits 130; the launch passes
+On Ctrl-C, `src/interrupt.ts` closes the browser (so the folder is deleted) and exits 130; the launch passes
 `handleSIGINT: false`, so playwright-core's own handler does not race it. On a normal `SIGTERM`,
 playwright-core closes the browser and deletes the folder.
 
@@ -47,8 +70,8 @@ refusal and is passed on.
 playwright-core 1.65.1 makes the profile folder and an artifacts folder (`playwright-artifacts-` and a
 suffix) before it looks for the browser, and leaves both behind, empty, when the browser is not installed.
 So after any failed launch, `withBrowser()` removes the folders with those two names that appeared during the
-launch. It removes them with `rmdir`, which deletes only an empty folder, so a folder another browser is
-already using is never touched.
+launch, in this process's private temp folder (above). It removes them with `rmdir`, which deletes only an empty
+folder. The whole private folder goes at exit anyway; this keeps a long run, or a caller that launches again, tidy.
 
 **For tests only:** setting `A11Y_GENIE_TEST_NO_BROWSER=1` makes every channel read as not installed,
 Playwright's Chromium included, and turns the download into a refusal, so the no-browser paths can be tested on
