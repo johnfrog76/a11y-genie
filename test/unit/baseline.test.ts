@@ -45,7 +45,7 @@ describe("readScanFile", () => {
     );
     const folder = fresh();
     writeFileSync(join(folder, "scan.json"), readGolden("impact-mix", "scan.json"));
-    expect(readScanFile(folder, "--baseline").schema).toBe("1.5");
+    expect(readScanFile(folder, "--baseline").schema).toBe("1.6");
   });
 
   it("reads a 1.4 record, and one from a later minor version with fields it does not know", () => {

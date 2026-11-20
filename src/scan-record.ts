@@ -23,8 +23,10 @@ import { escapeJsonControls } from "./printable.js";
  * 1.5 added `check`'s record (`command: "check"`, `baseline`, `summary.new`, `still` and `fixed`, and on findings
  * `fixedIn`, `fixedElements`, `unverified`, and an element's `status`), plain `scan`'s `summary.sincePrevious`
  * and `sincePreviousReason`, and `target.commit` from `--commit`. A 1.4 record has none of them.
+ * 1.6 added `fixedCut` on a still-open finding: fixed elements carried from a baseline and not listed. A 1.5
+ * record has none.
  */
-export const SCHEMA_VERSION = "1.5";
+export const SCHEMA_VERSION = "1.6";
 
 /**
  * What a scan cannot see: the questions a person has to answer, because automated rules cannot. Fixed

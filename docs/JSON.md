@@ -89,7 +89,7 @@ characters JSON allows raw (DEL, the C1 controls, the bidirectional controls and
 separators) are written as `\u` escapes, so the file holds no raw control and parses to the same text.
 `report.md` and the terminal get the same text with every escape sequence and control stripped.
 
-It is versioned: `schema` is `"<major>.<minor>"`, now `"1.5"`. A field may be added in a minor version and is
+It is versioned: `schema` is `"<major>.<minor>"`, now `"1.6"`. A field may be added in a minor version and is
 never removed or renamed in one; a removal or a rename is a new major, and a new schema file. Readers must
 ignore fields they do not know, so the schema allows extra fields. 1.1 added `pages[].requestedUrl`,
 `pages[].redirects`, `pages[].stopped`, `limits` and `elementsCut`; a 1.0 record has none of them, and is
@@ -97,11 +97,12 @@ still valid against `schema/scan-1.json`. 1.2 added `colorPair` on a `color-cont
 none, and is still valid too. 1.3 added `options`, and the `offline` and `other-origin` kinds of
 `pages[].stopped`; a 1.2 record has no `options`, and is still valid too. 1.4 made `states` real (below): a 1.3 record has `["default"]` in each place, and is still valid too. 1.5 added the
 comparison with an earlier scan (*Compared with an earlier scan*, below): `check`'s record, `summary.sincePrevious`,
-and `target.commit` from `--commit`; a 1.4 record has none of them, and is still valid too.
+and `target.commit` from `--commit`; a 1.4 record has none of them, and is still valid too. 1.6 added `fixedCut` on a
+still-open finding; a 1.5 record has none, and is still valid too.
 
 | Field | What it holds |
 | --- | --- |
-| `schema` | The version, `"1.5"` |
+| `schema` | The version, `"1.6"` |
 | `tool` | `{ name, version }` of A11y Genie |
 | `command` | `"scan"`, or `"check"` for `a11y-genie check` |
 | `exit` | The exit code the run ends with: `0` with no violation at or above `options.failOn`, `1` with one, or with a page that was not scanned. Advice and *needs review* items never change it |

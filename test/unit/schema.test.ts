@@ -32,6 +32,15 @@ describe("schema/scan-1.json", () => {
     expect(validate(schema, record).join("\n")).toContain("ratio");
   });
 
+  it("holds a 1.5 record with no fixedCut, and refuses a fixedCut below 1", () => {
+    const record = structuredClone(readGoldenRecord("impact-mix")) as unknown as Record<string, any>;
+    for (const finding of record.findings) delete finding.fixedCut;
+    record.schema = "1.5";
+    expect(validate(schema, record)).toEqual([]);
+    record.findings[0].fixedCut = 0;
+    expect(validate(schema, record).join("\n")).toContain("fixedCut");
+  });
+
   describe("refuses", () => {
     const refuses = (change: (record: Record<string, any>) => void, mention: string) => {
       const record = structuredClone(readGoldenRecord("impact-mix")) as unknown as Record<string, any>;
