@@ -66,6 +66,18 @@ export const RULE_WORDING: Readonly<Record<string, RuleWording>> = Object.freeze
       "An image has no text alternative, so a person who cannot see it hears nothing about it from a screen reader, or only its file name.",
     fix: 'Add an alt attribute that says what the image shows or what it is for. If it is only decoration, use alt="" so that screen readers skip it.',
   },
+  "axe/input-button-name": {
+    title: "Button with no name",
+    plain:
+      'A button made with an input element has no text on it, so a screen reader announces it only as "button" and its user cannot tell what it does.',
+    fix: 'Give it a value attribute that says what it does, such as value="Search", or an aria-label if the button must show no text.',
+  },
+  "axe/label": {
+    title: "Form field with no label",
+    plain:
+      "A form field has no label, so a screen reader cannot say what to type in it, and anyone who finds a small field hard to tap gets no bigger label to tap on.",
+    fix: "Add a visible label tied to the field: a label element with a for attribute that matches the field's id, or a label wrapped around the field. Where a visible label cannot fit, use aria-label or aria-labelledby; placeholder text is not a label.",
+  },
   "axe/landmark-no-duplicate-main": {
     title: "More than one main landmark",
     plain:
@@ -94,6 +106,12 @@ export const RULE_WORDING: Readonly<Record<string, RuleWording>> = Object.freeze
     plain:
       "Some content sits outside every landmark, so a screen-reader user who moves through the page by its landmarks can miss it.",
     fix: "Put all of the page's content inside landmarks: header, nav, main, aside or footer. Content that belongs to none of the others goes in main.",
+  },
+  "axe/select-name": {
+    title: "Drop-down list with no label",
+    plain:
+      "A drop-down list has no label, so a screen reader cannot say what the choices are for, and its user has to guess before picking one.",
+    fix: "Add a visible label tied to the list: a label element with a for attribute that matches the list's id, or a label wrapped around it. Where a visible label cannot fit, use aria-label or aria-labelledby.",
   },
   "genie/click-on-non-control": {
     title: "Clickable element that is not a control",

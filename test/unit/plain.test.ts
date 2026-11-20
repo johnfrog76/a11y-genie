@@ -29,6 +29,7 @@ const FIXTURE_AXE_RULES = [
   "empty-heading",
   "heading-order",
   "image-alt",
+  "label",
   "landmark-no-duplicate-main",
   "landmark-one-main",
   "page-has-heading-one",
@@ -83,6 +84,17 @@ describe("the wording table", () => {
   it("has an entry for every axe-core rule a fixture page hits, and for link-name, which the spec names", () => {
     for (const id of [...FIXTURE_AXE_RULES, "link-name"]) {
       expect(Object.keys(RULE_WORDING), id).toContain(`axe/${id}`);
+    }
+  });
+
+  it("words an unlabelled form field: a visible label first, aria-label where one cannot fit, and never a placeholder", () => {
+    const label = wordingOf({ source: "axe", id: "label" }, "violation");
+    expect(label?.title).toBe("Form field with no label");
+    expect(label?.fix).toMatch(/label element with a for attribute/);
+    expect(label?.fix).toMatch(/aria-label or aria-labelledby/);
+    expect(label?.fix).toMatch(/placeholder text is not a label/);
+    for (const id of ["select-name", "input-button-name"]) {
+      expect(wordingOf({ source: "axe", id }, "violation"), id).toBeDefined();
     }
   });
 
