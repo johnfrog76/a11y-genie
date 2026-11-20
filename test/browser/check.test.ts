@@ -114,6 +114,12 @@ describe.skipIf(!hasBrowser)("check --baseline (skipped where the test browser i
     });
     expect(checkLine(record)).toBe("1 fixed, 1 new, 1 still open (worst: critical, button-name on page)");
     expect(record.exit).toBe(1);
+    // The unlabelled field reads in the wording table's words, not axe-core's own help and summary.
+    const report = renderReport(record);
+    expect(report).toContain("Form field with no label");
+    expect(report).toContain(
+      "- Fix: Add a visible label tied to the field: a label element with a for attribute",
+    );
   });
 
   it("never reads a page that was not scanned as fixed: its findings are still open, unverified, and it exits 1", async () => {
