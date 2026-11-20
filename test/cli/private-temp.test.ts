@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SCANS_DIR_ENV } from "../../src/scans-folder.js";
+import { channelArgs } from "../helpers/test-browser.js";
 import { testBrowserIsInstalled } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 
@@ -29,7 +30,7 @@ interface Run {
 }
 
 function start(args: string[], shared: string, scans: string, nodeArgs: string[] = []) {
-  const child = spawn(process.execPath, [...nodeArgs, cli, ...args], {
+  const child = spawn(process.execPath, [...nodeArgs, cli, ...channelArgs(args)], {
     env: { ...process.env, TMPDIR: shared, TEMP: shared, TMP: shared, [SCANS_DIR_ENV]: scans },
   });
   let stderr = "";

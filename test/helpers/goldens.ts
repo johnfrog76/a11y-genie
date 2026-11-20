@@ -56,7 +56,9 @@ export function normalise(record: ScanRecord): ScanRecord {
   const copy = JSON.parse(text) as ScanRecord;
   copy.tool.version = "0.0.0";
   copy.engine.axeCore = "0.0.0";
-  copy.engine.browser = copy.engine.browser.replace(/\d+(\.\d+)*$/, "0.0.0.0");
+  // The tests run on Playwright's Chromium (test/helpers/test-browser.ts), the goldens were written on Chrome:
+  // both read as "chrome 0.0.0.0", so the golden does not depend on which browser the tests were run on.
+  copy.engine.browser = copy.engine.browser.replace(/^\w+ \d+(\.\d+)*$/, "chrome 0.0.0.0");
   copy.startedAt = NORMAL_TIME;
   copy.finishedAt = NORMAL_TIME;
   return copy;
