@@ -40,7 +40,7 @@ A finding is one rule on one page, with every element the rule hit on that page.
 | Field | What it holds |
 | --- | --- |
 | `id` | `<source>/<rule>@<page key>`. The key for cards, ignores and the rescan. |
-| `rule.source` | `axe` for axe-core's rules; `genie` for the product's own checks, so far `genie/no-landmarks`; `manual` (the checklist) comes later. A `genie` finding has an empty `helpUrl` and carries the WCAG criteria it bears on. |
+| `rule.source` | `axe` for axe-core's rules; `genie` for the product's own checks, so far `genie/no-landmarks` and `genie/click-on-non-control`; `manual` (the checklist) comes later. A `genie` finding has an empty `helpUrl` and carries the WCAG criteria it bears on. |
 | `rule.id` | The rule's id. Never empty: an axe-core result with no rule id is dropped, never reported. |
 | `rule.help`, `rule.helpUrl` | axe-core's `help` and `helpUrl`, as it gave them. |
 | `rule.wcag` | The WCAG success criteria in the rule's tags: `wcag143` is `1.4.3`, `wcag1410` is `1.4.10`. Level tags such as `wcag2aa` are left out. Empty for a best-practice rule. |
@@ -59,12 +59,14 @@ compare by code point, so the order is the same on every machine (`src/order.ts`
 ### *Needs review*
 
 axe-core's `incomplete` results are things it could not decide, such as text over a gradient whose contrast
-it cannot measure. They are never passes and never findings. Each is a *needs review* item: the same fields
-as a finding except `kind`, and each element has one more field.
+it cannot measure. The product's own checks have them too: `genie/click-on-non-control` lists an element that
+looks clickable but has no click handler of its own, since a handler further up the page may act on it. They
+are never passes and never findings. Each is a *needs review* item: the same fields as a finding except
+`kind`, and each element has one more field.
 
 | Field | What it holds |
 | --- | --- |
-| `elements[].reason` | Why axe-core could not decide, in its own words: the messages of the element's checks, such as "Element's background color could not be determined due to a background gradient". |
+| `elements[].reason` | Why it could not be decided. For axe-core, in its own words: the messages of the element's checks, such as "Element's background color could not be determined due to a background gradient". For an own check, the check's words, which end with what to do. |
 
 *Needs review* items are ordered by the same rule as findings and never change the exit code.
 

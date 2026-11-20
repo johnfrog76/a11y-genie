@@ -1,0 +1,37 @@
+<!doctype html>
+<!--
+  Fixture: a page that replaces the functions a click check would read, so that a check running in the page's
+  own world would see no candidate at all.
+  Must fire:     genie/click-on-non-control on #tampered-div (an inline onclick) and #tampered-span (a click
+                 listener), as if nothing were replaced: the check reads the page from an isolated world
+  Must not fire: on #tampered-button (a real button)
+  axe-core is not run on this page; the replaced functions would break it too.
+  Test: test/browser/click-on-non-control.test.ts
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Click check tampered fixture</title>
+    <style>
+      #tampered-span {
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div id="tampered-div" onclick="void 0">Open</div>
+      <span id="tampered-span">Close</span>
+      <button id="tampered-button" type="button">Send</button>
+    </main>
+    <script>
+      document.getElementById("tampered-span").addEventListener("click", () => undefined);
+      Element.prototype.matches = () => true;
+      Element.prototype.hasAttribute = () => false;
+      Element.prototype.getAttribute = () => "button";
+      window.getComputedStyle = () => ({ cursor: "auto" });
+      Document.prototype.querySelectorAll = () => [];
+      Element.prototype.querySelectorAll = () => [];
+    </script>
+  </body>
+</html>

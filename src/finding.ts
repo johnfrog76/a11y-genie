@@ -81,13 +81,16 @@ export interface Finding {
 }
 
 export interface NeedsReviewElement extends FindingElement {
-  /** Why axe-core could not decide, in its own words, such as "...due to a background gradient". */
+  /**
+   * Why it could not be decided: axe-core's own words, such as "...due to a background gradient", or the
+   * product's own check's, such as why a pointer cursor with no handler of its own needs a look.
+   */
   reason: string;
 }
 
 /**
- * Something axe-core could not decide (its `incomplete`), for a person to look at. It is never a pass,
- * and never a finding: it is listed apart and never changes the exit code.
+ * Something axe-core (its `incomplete`) or one of the product's own checks could not decide, for a person to
+ * look at. It is never a pass, and never a finding: it is listed apart and never changes the exit code.
  */
 export interface NeedsReview {
   /** `<source>/<rule>@<page key>`, as for a finding. */

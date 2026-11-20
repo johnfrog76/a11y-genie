@@ -103,7 +103,7 @@ function elementLines(element: RecordElement, fix: string, reason?: string): str
   if (why.trim() !== "") {
     lines.push(
       "",
-      reason === undefined ? "  What axe-core said:" : "  Why axe-core could not decide:",
+      reason === undefined ? "  What axe-core said:" : "  Why it could not be decided:",
       "",
       ...indent(fenced(why)),
     );
@@ -264,7 +264,7 @@ export function renderReport(record: ScanRecord): string {
     out.push(
       "## Needs review",
       "",
-      "axe-core could not decide these. They are not problems found and they are not rules met: a person has to look.",
+      "Neither axe-core nor A11y Genie's own checks could decide these. They are not problems found and they are not rules met: a person has to look.",
       "",
     );
     for (const item of record.needsReview) {
