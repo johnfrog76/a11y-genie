@@ -83,8 +83,9 @@ describe.skipIf(!hasChrome)(
       expect(skip).toBeUndefined();
     });
 
-    it("no-landmarks-tampered.html: a page that fakes its landmarks and headings still has none", async () => {
-      // axe-core runs in the page's own world and may be fooled; the product's own checks are not.
+    it("no-landmarks-tampered.html: pins that faking landmarks and headings changes nothing", async () => {
+      // A pin, not a regression catch: the old reads (Playwright's getByRole) already ran in Playwright's own
+      // world and were not foolable. This keeps it so for the isolated read. axe-core may be fooled; the own checks are not.
       const { result, skip } = await scan("no-landmarks-tampered.html");
       expect(result.findings.map((f) => f.id)).toContain("genie/no-landmarks@no-landmarks-tampered.html");
       expect(skip).toMatchObject({ kind: "violation", impact: "moderate" });

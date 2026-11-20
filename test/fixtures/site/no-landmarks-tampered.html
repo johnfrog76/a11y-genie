@@ -3,7 +3,7 @@
   Fixture: a page with no landmark and no heading that lies to look as if it has both. It replaces
   Document.prototype.querySelector, querySelectorAll, Element.prototype.matches and getAttribute so that a read
   from the page's own world finds a banner, a main and a heading. The landmark check and the skip link's
-  heading test read in a world of their own and are not fooled.
+  heading test read in a world of their own and are not fooled. A pin: the old reads (Playwright's getByRole) were not foolable either.
   Must fire:     genie/no-landmarks, and genie/skip-link as a WCAG 2.4.1 violation (moderate), not advice
   Axe-core runs in the page's own world and may be fooled; the test reads only the product's own findings.
 -->
