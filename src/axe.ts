@@ -6,7 +6,8 @@ import { checkLandmarks } from "./landmarks.js";
 import { mapAxeResults, pageKeyOf } from "./map-axe.js";
 import { orderFindings } from "./order.js";
 import { BEST_PRACTICE_TAG } from "./rule-flags.js";
-import { checkSkipLink } from "./skip-link.js";
+import { checkSkipLink, focusedIsSkipLink, SKIP_LINK_STOPS } from "./skip-link.js";
+import { walkPage } from "./walk.js";
 
 /**
  * Runs axe-core on a page that is already loaded, and maps what it found (src/map-axe.ts).
@@ -20,21 +21,26 @@ import { checkSkipLink } from "./skip-link.js";
  *
  * After axe-core it runs the product's own checks: `genie/no-landmarks` and `genie/skip-link`, best practices
  * like the landmark rules, so a `--tags` list without `best-practice` does not run them; and
- * `genie/click-on-non-control`, which runs when a `--tags` list has one of its tags (`wcag2a` among them). The
- * skip link's check runs last, because it presses Tab.
+ * `genie/click-on-non-control`, which runs when a `--tags` list has one of its tags (`wcag2a` among them).
  *
- * `pageKey` names the page in finding ids; without it, the key comes from the page's URL (D6).
+ * Last comes the keyboard walk (src/walk.ts), because it presses Tab. It runs whatever the tags, since it is
+ * a record of where focus goes and not a rule, and it is kept on the result as `walk`. The skip link's check
+ * reads the walk's first stops rather than pressing Tab itself (spec 6.5: one walk feeds 6.3 and 6.4).
+ *
+ * `pageKey` names the page in finding ids; without it, the key comes from the page's URL (D6). `maxTabs` is
+ * `--max-tabs`, the walk's limit.
  */
 export async function scanPage(
   page: Page,
   pageKey: string = pageKeyOf(page.url()),
   tags: readonly string[] | null = null,
+  options: { maxTabs?: number } = {},
 ): Promise<AxeScan> {
   const builder = new AxeBuilder({ page });
   if (tags !== null) builder.withTags([...tags]);
   const results: unknown = await builder.analyze();
   const scan = mapAxeResults(results, pageKey);
-  // The product's own checks. The skip link's runs last: it presses Tab.
+  // The product's own checks, then the keyboard walk, which presses Tab.
   const bestPractice = tags === null || tags.includes(BEST_PRACTICE_TAG);
   // A page with no landmark at all (src/landmarks.ts).
   const noLandmarks = bestPractice ? await checkLandmarks(page, pageKey) : undefined;
@@ -43,12 +49,23 @@ export async function scanPage(
     tags === null || CLICK_ON_NON_CONTROL_TAGS.some((t) => tags.includes(t))
       ? await checkClickOnNonControl(page, pageKey)
       : undefined;
+  // The keyboard walk (src/walk.ts). At its first stops it asks whether focus is on a skip link.
+  let skipLinkSeen = false;
+  const walk = await walkPage(page, {
+    ...(options.maxTabs === undefined ? {} : { maxTabs: options.maxTabs }),
+    onStop: async (stop) => {
+      if (bestPractice && !skipLinkSeen && stop.index <= SKIP_LINK_STOPS) {
+        skipLinkSeen = await focusedIsSkipLink(page);
+      }
+    },
+  });
   // No skip link (src/skip-link.ts).
-  const noSkipLink = bestPractice ? await checkSkipLink(page, pageKey) : undefined;
+  const noSkipLink = bestPractice ? await checkSkipLink(page, pageKey, skipLinkSeen) : undefined;
   const findings = [noLandmarks, click?.finding, noSkipLink].filter((f) => f !== undefined);
   const needsReview = [click?.needsReview].filter((n) => n !== undefined);
   return {
     ...scan,
+    walk,
     findings: findings.length === 0 ? scan.findings : orderFindings([...scan.findings, ...findings]),
     needsReview:
       needsReview.length === 0 ? scan.needsReview : orderFindings([...scan.needsReview, ...needsReview]),

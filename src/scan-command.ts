@@ -16,7 +16,7 @@ import { Refusal } from "./refusal.js";
 import { emptyScanSentence, renderReport } from "./report.js";
 import { DEFAULT_FAIL_ON, parseFailOn, parseTags } from "./rule-flags.js";
 import { runScan, type RunScanOptions } from "./run-scan.js";
-import { checkStorageState, parseTimeout } from "./scan-options.js";
+import { checkStorageState, parseMaxTabs, parseTimeout } from "./scan-options.js";
 import { planScan, type ScanPlan } from "./scan-plan.js";
 import { scanJson, type ScanRecord } from "./scan-record.js";
 import { defaultScansDir, makeScanFolder, writeScanFile } from "./scans-folder.js";
@@ -52,6 +52,7 @@ export const SCAN_FLAGS = {
   states: { type: "string", multiple: true },
   config: { type: "string" },
   timeout: { type: "string" },
+  "max-tabs": { type: "string" },
   "storage-state": { type: "string" },
   commit: { type: "string" },
 } as const;
@@ -71,6 +72,7 @@ export interface ScanFlagValues {
   states?: string[] | undefined;
   config?: string | undefined;
   timeout?: string | undefined;
+  "max-tabs"?: string | undefined;
   "storage-state"?: string | undefined;
   commit?: string | undefined;
 }
@@ -190,6 +192,7 @@ export function prepareScan(
   checkTarget(plan.url);
   if (values.offline === true) checkOfflineTarget(plan.url);
   const pageMs = values.timeout === undefined ? undefined : parseTimeout(values.timeout);
+  const maxTabs = values["max-tabs"] === undefined ? undefined : parseMaxTabs(values["max-tabs"]);
   if (values["storage-state"] !== undefined) checkStorageState(values["storage-state"]);
 
   const run: RunScanOptions = {
@@ -205,6 +208,7 @@ export function prepareScan(
     offline: values.offline === true,
     failOn,
     ...(tags === undefined ? {} : { tags }),
+    ...(maxTabs === undefined ? {} : { maxTabs }),
     // `--offline` downloads nothing; the refusal names the flag the person gave.
     noDownloadFlag: values["no-download"] === true ? "--no-download" : "--offline",
   };

@@ -21,7 +21,7 @@ Usage:
   a11y-genie scan <url> [--states "<name>: <steps>"]... [--json] [--out <folder>] [--format md,json]
                   [--browser-channel chrome|msedge|chromium] [--no-download] [--allow-private]
                   [--tags <list>] [--fail-on <impact>] [--same-origin] [--offline]
-                  [--timeout <seconds>] [--storage-state <file>] [--commit <sha>]
+                  [--timeout <seconds>] [--max-tabs <n>] [--storage-state <file>] [--commit <sha>]
   a11y-genie scan [<url>] --config <file> [the same flags, but not --states]
   a11y-genie check --baseline <scan> [<url>] [scan's flags]
 
@@ -33,6 +33,8 @@ Flags:
                      optional when the file has a baseUrl, and one given here takes its place
   --timeout          seconds one page in one state may take, from its first request to the end of
                      its scan; default 60. Past it, that state reads "not scanned"
+  --max-tabs <n>     the most Tab presses in the keyboard walk of each state, and in a "Tab to" step;
+                     default 200, up to 1000. A walk that reaches it is recorded as cut
   --storage-state    a Playwright storage state file, for signed-in pages. It is read and never
                      copied into the scan
   --json             print scan.json on stdout; everything else goes to stderr

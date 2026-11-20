@@ -166,6 +166,21 @@ describe("scan --states and --config refusals", () => {
     );
   });
 
+  it("refuses a --max-tabs that is not a whole number from 1 to 1000, on scan and on check", async () => {
+    for (const value of ["0", "lots", "1001"]) {
+      const root = fresh();
+      expectRefused(
+        await run(["scan", URL_, "--max-tabs", value], root),
+        root,
+        `--max-tabs takes a whole number of Tab presses from 1 to 1000, not "${value}".`,
+      );
+    }
+    const root = fresh();
+    const result = await run(["check", "--baseline", join(root, "nope.json"), URL_, "--max-tabs=-3"], root);
+    expectRefused(result, root, '--max-tabs takes a whole number of Tab presses from 1 to 1000, not "-3".');
+    expect(result.stderr).toContain("Hint: for example --max-tabs 500. The default is 200.");
+  });
+
   it("refuses a --timeout that is not a number of seconds, and a --storage-state that is not there", async () => {
     const root = fresh();
     expectRefused(

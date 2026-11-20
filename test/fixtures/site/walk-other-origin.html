@@ -1,0 +1,28 @@
+<!doctype html>
+<!--
+  Fixture: a frame of another origin, which the walk cannot read inside. Its address comes from the query
+  string (?inner=<address>), so a test can serve it from a second fixture server. The walk: "Before", then the
+  frame, marked opaque, as long as focus is inside it, then "After" (test/browser/walk.test.ts).
+  Must not fire: any rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Walk past a frame of another origin</title>
+  </head>
+  <body>
+    <main>
+      <h1>Walk past a frame of another origin</h1>
+      <p><a href="#before">Before</a></p>
+      <iframe id="other" title="Another origin"></iframe>
+      <p><button type="button">After</button></p>
+    </main>
+    <script>
+      const inner = new URLSearchParams(location.search).get("inner");
+      if (inner !== null && /^http:\/\/127\.0\.0\.1:[0-9]+\//.test(inner)) {
+        document.getElementById("other").src = inner;
+      }
+    </script>
+  </body>
+</html>

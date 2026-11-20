@@ -343,8 +343,9 @@ time limit, with axe-core.
 
 ### The skip link (`src/skip-link.ts`)
 
-`genie/skip-link` (spec 6.4) presses Tab three times from the top of the page, after axe-core and the other
-checks, and reads each element that takes focus. A skip link is a same-page link (`href="#id"`) whose target
+`genie/skip-link` (spec 6.4) reads the first three stops of the keyboard walk (below), which runs after
+axe-core and the other checks and starts at the top of the page: at each, it asks whether the element that has
+focus is a skip link. It presses no Tab of its own (spec 6.5: one walk feeds 6.3 and 6.4). A skip link is a same-page link (`href="#id"`) whose target
 exists and is the page's `main` or inside it. With none, the finding is **advice** (`minor`) when the page has a
 landmark or a heading, and a WCAG 2.4.1 **violation** (`moderate`) when it has neither. A page with fewer than
 five tabbable elements before its main content (all of them when it has no main) is not checked. It is tagged
@@ -352,6 +353,79 @@ five tabbable elements before its main content (all of them when it has no main)
 test whether the link shows itself on focus or whether its target takes focus; the spec asks for neither.
 Advice never changes the exit code. Fixtures: `no-skip-link.html`, `no-skip-no-structure.html`,
 `skip-link-ok.html`, `skip-link-broken.html`, `few-tabbable.html`; test: `test/browser/skip-link.test.ts`.
+
+### The keyboard walk (`src/walk.ts`)
+
+The walk (spec 6.5) presses Tab from the top of the page, up to `--max-tabs` times (default 200, at most 1000),
+and records where focus lands after each press: a *stop*. It is not a rule and makes no finding: it is a record,
+kept in `scan.json` as `pages[].walks` (docs/JSON.md), that the skip link reads now and the trap and
+focus-visible checks will read. It runs in every state that is scanned, last in `scanPage`, because it moves
+focus, and whatever `--tags` says. Each state's walk is kept apart; walks are not merged across states, since
+a trap may exist in one state only.
+
+**Where it starts.** Blurring the focused element is not enough. Chrome starts the next Tab from the element
+that last had focus or was clicked (its sequential focus navigation starting point), so after a state's steps
+a blur-and-Tab begins part way down the page. Checked at Chrome 158: after a click on the fourth control, a
+blur and a Tab landed on the fifth. Focusing the root element (given `tabindex="-1"` for a moment, then put
+back as it was) moves the starting point to the top, but that is still not the start: from an element outside
+the Tab order, Chrome goes to the next tabbable element in source order, so a `tabindex="1"` after a
+`tabindex="2"` was skipped. So the walk then presses Shift+Tab once. From the top that takes focus out of the
+page, and the next Tab enters it where a person's first Tab does, positive `tabindex` first
+(`walk-order.html`, and the same walk after a click lower on the page).
+
+**Where it ends (V5).** Checked at Chrome 158 (headless, Playwright 1.65.1) on pages with a plain list of
+controls, a same-origin frame last, an open shadow root last, and no control at all, each from a fresh page:
+
+- The first Tab past the last tabbable element takes focus out of the document, to the browser's own controls:
+  `document.activeElement` is `body` and `document.hasFocus()` is `false`. It does not stay on the last element,
+  and it does not wrap.
+- The next Tab comes back into the page, to the first tabbable element.
+- On the laps after that, Chrome alternates: one lap goes from the last element straight to the first, without
+  leaving the document, and the next leaves it again. The same holds when the last stop is in a frame or a
+  shadow root.
+- On a page with nothing to focus, every Tab leaves focus on `body`, with `hasFocus()` false.
+
+Since the walk has just left the page with its Shift+Tab, its lap goes from the last element straight back to
+the first. The walk does not rely on which happens: it ends at a press that puts focus on no element
+(`end: "left"`), or at one that brings it back to the first stop (`end: "wrapped"`), whichever comes first, or at
+the limit (`end: "max-tabs"`; the walk is then cut, and the page may have more stops). Only the stops before the
+end are recorded; `tabs` counts every press. Playwright's Chromium was not installed at the pinned version on
+the machine this was checked on, so V5 is recorded for Chrome only.
+
+**What a stop holds.** Its press number (`index`, from 1), its `selector` and `target` in the form a finding's
+element has (one entry per document, outermost first; a nested array is a path through open shadow roots;
+` >>> ` joins the parts in `selector`), its tag, the role and accessible name from the browser's own
+accessibility tree (`Accessibility.getPartialAXTree`), and `focusVisible`: whether the element matches
+`:focus-visible`, which says the browser would draw an indicator if the page's styles let it, not that one is
+seen (that is `genie/focus-visible`, M8). Each part of a selector is the element's `id` when that id is unique in
+its own root, or a path of `:nth-of-type` steps up to one, as the click check's are; an element at the top of a
+shadow root is anchored with `:host >`, which `shadowRoot.querySelector` reads in Chrome, so the part matches
+that element and nothing deeper. A part longer than 1,000 characters is cut with `…`. The same unchanged page
+walked twice gives the same stops.
+
+**Frames and shadow roots.** It reads into open shadow roots and frames of the same origin. A frame of another
+origin cannot be read inside: while focus is in it, the stop is the frame itself, marked `opaque`, and an opaque
+stop is never taken as the walk coming back to its first stop. A closed shadow root cannot be read either: the
+stop is its host.
+
+**The page cannot steer it.** Focus is read in an isolated world of the walk's own (`Page.createIsolatedWorld`),
+so a page that replaces `document.activeElement`, `Element.prototype.matches` or `getRootNode` changes nothing
+it reads (`walk-tampered.html`). The isolated world of the top page reaches the same-origin frames' documents
+and the open shadow roots. What comes back is checked field by field. The one thing the walk changes in the page
+is the root element's `tabindex`, for the moment it takes to move the starting point, and the page's own
+handlers see the focus, the blur and the key presses. Names are made printable (escape sequences and controls
+taken out, on one line) and cut at 160 characters in `scan.json` (`walk-names.html`).
+
+**For the checks that come next.** `FocusReader` is the walk's reader on its own: open it on a page, move to the
+top, read where focus is after any key, close it. A trap check can press Shift+Tab or Escape and read again with
+the same reader, and compare stops with `sameStop` (the same `target`). `walkPage` calls `onStop` after each stop
+is read, while focus is still on it; the skip link uses it, and a focus-visible check can take its screenshots
+there.
+
+**The cost.** A stop is three DevTools Protocol calls after the key press; a 30-stop page walks in well under a
+second. Fixtures: `impact-mix.html` (its golden), `walk-shadow.html`, `walk-frame.html` and
+`walk-frame-inner.html`, `walk-order.html`, `walk-long.html`, `walk-tampered.html`, `walk-other-origin.html`,
+`walk-names.html`, `walk-nothing.html`; test: `test/browser/walk.test.ts`.
 
 ### Plain words (`src/plain.ts`)
 
@@ -414,7 +488,7 @@ without `wcag2a` (or another of its tags) leaves out `genie/click-on-non-control
 `--states` flags or the `--config` file, `src/config.ts`), launches the browser (`withChosenBrowser`, which may
 fall back to Playwright's Chromium), and then, for each page and for each of its states, `default` first, makes a
 new context with the hostile-page rules (`src/context.ts`, below), sets the state's media, loads the page, runs
-the state's steps (`src/drive.ts`), runs `scanPage`, and closes the context, so no state sees another's cookies,
+the state's steps (`src/drive.ts`), runs `scanPage` (axe-core, the own checks, then the keyboard walk), and closes the context, so no state sees another's cookies,
 storage or page. The states of a page are merged into one finding per rule (`src/merge-states.ts`), and the record
 is built (`src/scan-record.ts`). A page or state that answers and then breaks one of those rules, or whose step
 fails, is not scanned: the record says why, and the run goes on with the rest, still writes its files and exits 1.

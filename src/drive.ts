@@ -2,7 +2,7 @@
  * Runs a state's steps in the browser (spec 5.2: apply the state's options, load, run its steps). Each step
  * of src/steps.ts becomes Playwright calls here, and only here:
  *
- * - a key is `keyboard.press`; `Tab to` presses Tab until focus is on the element, up to `MAX_TABS` times;
+ * - a key is `keyboard.press`; `Tab to` presses Tab until focus is on the element, up to `--max-tabs` times;
  * - `click` and `wait` use a locator; `type` is `keyboard.type`;
  * - `colorScheme` and `reducedMotion` are `page.emulateMedia`, and `viewport` is `setViewportSize`. They are
  *   the state's options, so they are applied before the page loads (`applyMedia`); `runSteps` skips them.
@@ -23,9 +23,7 @@
 
 import type { Locator, Page } from "playwright-core";
 import { formatStep, type Step, type Target } from "./steps.js";
-
-/** The most Tab presses `Tab to` makes before it gives up; the keyboard walk's `--max-tabs` default (spec 4.2). */
-export const MAX_TABS = 200;
+import { DEFAULT_MAX_TABS } from "./walk.js";
 
 /** How long the page is given to settle after a state's steps, in milliseconds (spec 5.2). */
 export const SETTLE_MS = 500;
@@ -106,7 +104,7 @@ async function hasFocus(locator: Locator): Promise<boolean> {
   );
 }
 
-async function runOne(page: Page, step: Step, timeout: number): Promise<void> {
+async function runOne(page: Page, step: Step, timeout: number, maxTabs: number): Promise<void> {
   switch (step.kind) {
     case "press":
       await page.keyboard.press(step.key);
@@ -124,7 +122,7 @@ async function runOne(page: Page, step: Step, timeout: number): Promise<void> {
       const locator = locate(page, step.target);
       for (let presses = 0; ; presses += 1) {
         if (await hasFocus(locator)) return;
-        if (presses >= MAX_TABS) {
+        if (presses >= maxTabs) {
           const error = new Error("tab limit");
           error.name = "TabLimit";
           throw error;
@@ -141,18 +139,24 @@ async function runOne(page: Page, step: Step, timeout: number): Promise<void> {
 
 /**
  * Runs the steps in order on a loaded page, and throws a `StepFailure` at the first one that fails.
- * `msLeft()` is how long the state has left, and bounds each step's own wait.
+ * `msLeft()` is how long the state has left, and bounds each step's own wait. `maxTabs` is `--max-tabs`: the
+ * most Tab presses a `Tab to` step makes before it fails.
  */
-export async function runSteps(page: Page, steps: readonly Step[], msLeft: () => number): Promise<void> {
+export async function runSteps(
+  page: Page,
+  steps: readonly Step[],
+  msLeft: () => number,
+  maxTabs: number = DEFAULT_MAX_TABS,
+): Promise<void> {
   for (const [index, step] of steps.entries()) {
     if (MEDIA_KINDS.has(step.kind)) continue;
     // Short of the state's own limit, so a step that waits out its time is reported as that step.
     const timeout = Math.max(1, Math.min(STEP_TIMEOUT_MS, msLeft() - 300));
     try {
-      await runOne(page, step, timeout);
+      await runOne(page, step, timeout, maxTabs);
     } catch (error) {
       if (error instanceof Error && error.name === "TabLimit") {
-        throw new StepFailure(index + 1, step, `focus did not reach it within ${MAX_TABS} Tab presses`);
+        throw new StepFailure(index + 1, step, `focus did not reach it within ${maxTabs} Tab presses`);
       }
       throw new StepFailure(index + 1, step, reasonOf(error, step, timeout, page));
     }

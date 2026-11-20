@@ -12,6 +12,7 @@ import { mergeStates } from "./merge-states.js";
 import { orderFindings } from "./order.js";
 import { wordingOf } from "./plain.js";
 import { escapeJsonControls } from "./printable.js";
+import type { Walk } from "./walk.js";
 
 /**
  * 1.1 added `pages[].requestedUrl`, `redirects` and `stopped`, `limits`, and `elementsCut` on findings.
@@ -25,8 +26,9 @@ import { escapeJsonControls } from "./printable.js";
  * and `sincePreviousReason`, and `target.commit` from `--commit`. A 1.4 record has none of them.
  * 1.6 added `fixedCut` on a still-open finding: fixed elements carried from a baseline and not listed. A 1.5
  * record has none.
+ * 1.7 added `pages[].walks`, the keyboard walk of each state that was scanned. A 1.6 record has none.
  */
-export const SCHEMA_VERSION = "1.6";
+export const SCHEMA_VERSION = "1.7";
 
 /**
  * What a scan cannot see: the questions a person has to answer, because automated rules cannot. Fixed
@@ -112,6 +114,13 @@ export interface RecordPage {
   notScanned: { state: string; reason: string }[];
   /** What the page tried that the scan stopped: dialogs, pop-ups and downloads (src/context.ts). */
   stopped?: Stopped[];
+  /** Added in 1.7: the keyboard walk of each state that was scanned, in the order of `states` (src/walk.ts). */
+  walks?: RecordWalk[];
+}
+
+/** One state's keyboard walk, as `scan.json` keeps it: each stop's name cut to the excerpt limit. */
+export interface RecordWalk extends Walk {
+  state: string;
 }
 
 /** The limits the scan held the page to, as `scan.json` records them. */
@@ -461,6 +470,9 @@ export function buildPagesRecord(input: PagesInput): ScanRecord {
         state.notScanned === undefined ? [] : [{ state: state.name, reason: state.notScanned }],
       ),
       stopped: page.stopped ?? [],
+      walks: page.states.flatMap((state) =>
+        state.axe?.walk === undefined ? [] : [recordWalk(state.name, state.axe.walk, limits)],
+      ),
     });
   }
   const pageOrder = pages.map((page) => page.key);
@@ -514,6 +526,17 @@ export function buildPagesRecord(input: PagesInput): ScanRecord {
     options: { failOn, sameOrigin: input.sameOrigin ?? false, offline: input.offline ?? false },
   };
   return fitToSize(record, limits.scanJsonBytes);
+}
+
+/** A state's walk for the record: the stops as the walk read them, each name cut to the excerpt limit. */
+function recordWalk(state: string, walk: Walk, limits: Limits): RecordWalk {
+  return {
+    state,
+    stops: walk.stops.map((stop) => ({ ...stop, name: cutText(stop.name, limits.excerptChars) })),
+    end: walk.end,
+    tabs: walk.tabs,
+    maxTabs: walk.maxTabs,
+  };
 }
 
 /** The record of one page in one state, `default`: what a scan of a single address gives. */

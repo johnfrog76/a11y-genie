@@ -91,7 +91,8 @@
                 "examples": { "type": "array", "items": { "type": "string" } }
               }
             }
-          }
+          },
+          "walks": { "type": "array", "items": { "$ref": "#/$defs/walk" } }
         }
       }
     },
@@ -191,6 +192,32 @@
         "help": { "type": "string" },
         "helpUrl": { "type": "string" },
         "wcag": { "type": "array", "items": { "type": "string", "pattern": "^[1-4]\\.[0-9]+\\.[0-9]+$" } }
+      }
+    },
+    "walk": {
+      "description": "One state's keyboard walk (src/walk.ts), added in 1.7.",
+      "type": "object",
+      "required": ["state", "stops", "end", "tabs", "maxTabs"],
+      "properties": {
+        "state": { "type": "string", "minLength": 1 },
+        "stops": { "type": "array", "items": { "$ref": "#/$defs/walkStop" } },
+        "end": { "enum": ["wrapped", "left", "max-tabs"] },
+        "tabs": { "type": "integer", "minimum": 0 },
+        "maxTabs": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "walkStop": {
+      "type": "object",
+      "required": ["index", "selector", "target", "tag", "role", "name", "focusVisible"],
+      "properties": {
+        "index": { "type": "integer", "minimum": 1 },
+        "selector": { "type": "string", "minLength": 1 },
+        "target": { "$ref": "#/$defs/target" },
+        "tag": { "type": "string" },
+        "role": { "oneOf": [{ "type": "null" }, { "type": "string" }] },
+        "name": { "type": "string" },
+        "focusVisible": { "type": "boolean" },
+        "opaque": { "const": true }
       }
     },
     "target": {

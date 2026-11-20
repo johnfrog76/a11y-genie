@@ -1,0 +1,26 @@
+<!doctype html>
+<!--
+  Fixture: a page that lies about focus. It replaces document.activeElement, Element.prototype.matches and
+  getRootNode, so a walk that read them from the page would see nothing, or the wrong element. The walk reads
+  them in a world of its own: "One", then "Two", then the walk ends (test/browser/walk.test.ts).
+  Must not fire: any rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>A page that lies about focus</title>
+  </head>
+  <body>
+    <main>
+      <h1>A page that lies about focus</h1>
+      <p><button type="button">One</button></p>
+      <p><button type="button">Two</button></p>
+    </main>
+    <script>
+      Object.defineProperty(Document.prototype, "activeElement", { get: () => document.querySelector("h1") });
+      Element.prototype.matches = () => false;
+      Node.prototype.getRootNode = () => null;
+    </script>
+  </body>
+</html>

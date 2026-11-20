@@ -1,8 +1,8 @@
 /**
  * `genie/skip-link` (spec 6.4): a page whose first controls give a keyboard user no way past the navigation.
  *
- * axe-core has no rule for it. The check presses Tab three times from the top of the page and reads each
- * element that takes focus. A skip link is a same-page link (`href="#id"`) whose target exists and is the
+ * axe-core has no rule for it. The check reads the first three stops of the keyboard walk (src/walk.ts), which
+ * starts at the top of the page. A skip link is a same-page link (`href="#id"`) whose target exists and is the
  * page's `main` or sits inside it. With none, the finding is advice when landmarks or headings already let a
  * screen-reader user jump past the repeated content, and a WCAG 2.4.1 violation when nothing does. A page with
  * fewer than five tabbable elements before its main content has nothing much to skip and is not checked.
@@ -26,7 +26,7 @@ export const SKIP_LINK_RULE = {
 const VIOLATION_IMPACT = "moderate";
 const ADVICE_IMPACT = "minor";
 
-/** How many Tab presses the check reads, and how many tabbable elements before `main` a page needs to be checked. */
+/** How many Tab stops the check reads, and how many tabbable elements before `main` a page needs to be checked. */
 const TABS_READ = 3;
 const MIN_TABBABLE = 5;
 
@@ -78,21 +78,29 @@ const FOCUSED_IS_SKIP_LINK = `(() => {
   return main !== null && main.contains(target);
 })()`;
 
-/** Whether one of the first three Tab stops is a skip link. Moves focus, so it runs after axe-core. */
-export async function hasSkipLink(page: Page): Promise<boolean> {
-  await page.evaluate("document.activeElement instanceof HTMLElement && document.activeElement.blur()");
-  for (let i = 0; i < TABS_READ; i++) {
-    await page.keyboard.press("Tab");
-    if ((await page.evaluate(FOCUSED_IS_SKIP_LINK)) === true) return true;
-  }
-  return false;
+/** How many of the keyboard walk's first stops the check reads (src/walk.ts). */
+export const SKIP_LINK_STOPS = TABS_READ;
+
+/**
+ * Whether the element focus is on now is a skip link. The keyboard walk asks it at each of its first three
+ * stops (`SKIP_LINK_STOPS`), so the check needs no Tab presses of its own (spec 6.5: the same walk feeds 6.4).
+ */
+export async function focusedIsSkipLink(page: Page): Promise<boolean> {
+  return (await page.evaluate(FOCUSED_IS_SKIP_LINK)) === true;
 }
 
-/** The finding for a page with no skip link, or undefined when it has one or has too little to skip. */
-export async function checkSkipLink(page: Page, pageKey: string): Promise<Finding | undefined> {
+/**
+ * The finding for a page with no skip link, or undefined when it has one or has too little to skip.
+ * `skipLinkSeen` is what the keyboard walk found at its first three stops (`focusedIsSkipLink`).
+ */
+export async function checkSkipLink(
+  page: Page,
+  pageKey: string,
+  skipLinkSeen: boolean,
+): Promise<Finding | undefined> {
   const tabbable: unknown = await page.evaluate(COUNT_TABBABLE);
   if (typeof tabbable !== "number" || tabbable < MIN_TABBABLE) return undefined;
-  if (await hasSkipLink(page)) return undefined;
+  if (skipLinkSeen) return undefined;
   const structure = (await hasLandmark(page)) || (await page.getByRole("heading").count()) > 0;
   const html: unknown = await page.evaluate(
     "document.body.cloneNode(false).outerHTML.replace(/<\\/body>$/, '')",

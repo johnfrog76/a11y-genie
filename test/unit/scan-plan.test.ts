@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { Refusal } from "../../src/refusal.js";
-import { checkStorageState, parseTimeout } from "../../src/scan-options.js";
+import { checkStorageState, parseMaxTabs, parseTimeout } from "../../src/scan-options.js";
 import { parseStateFlags, planScan } from "../../src/scan-plan.js";
 import { StepError } from "../../src/steps.js";
 import { mergeStates } from "../../src/merge-states.js";
@@ -112,6 +112,32 @@ describe("--config", () => {
     const path = file("e.yaml", "pages:\n  - path: /\n    colour: red\n");
     expect(refusal(() => planScan({ url: "http://127.0.0.1:1", states: [], config: path })).message).toBe(
       `${path}, line 3: unknown key "colour" in a page; the keys it takes are key, path, states.`,
+    );
+  });
+});
+
+describe("--max-tabs", () => {
+  it("reads a whole number of Tab presses from 1 to 1000", () => {
+    expect(parseMaxTabs("1")).toBe(1);
+    expect(parseMaxTabs("200")).toBe(200);
+    expect(parseMaxTabs("1000")).toBe(1000);
+  });
+
+  it.each(["0", "-1", "1001", "99999", "2.5", "1e3", "", " 5", "lots", "0x10", "NaN"])(
+    "refuses --max-tabs %j",
+    (text) => {
+      const refused = refusal(() => parseMaxTabs(text));
+      expect(refused.message).toMatch(
+        /^--max-tabs takes a whole number of Tab presses from 1 to 1000, not "/,
+      );
+      expect(refused.hint).toBe("for example --max-tabs 500. The default is 200.");
+    },
+  );
+
+  it("prints a refused value on one line, without its controls, and cut", () => {
+    const refused = refusal(() => parseMaxTabs(`\u001b[31m${"9".repeat(80)}`));
+    expect(refused.message).toBe(
+      `--max-tabs takes a whole number of Tab presses from 1 to 1000, not "${"9".repeat(40)}".`,
     );
   });
 });

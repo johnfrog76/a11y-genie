@@ -1,0 +1,28 @@
+<!doctype html>
+<!--
+  Fixture: the keyboard walk goes into open shadow roots, one inside another.
+  The walk: "Before", then "In the shadow" and "Deeper still" inside the shadow roots, then "After",
+  then focus leaves the page (test/browser/walk.test.ts).
+  Must not fire: any rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Walk through shadow roots</title>
+  </head>
+  <body>
+    <main>
+      <h1>Walk through shadow roots</h1>
+      <p><a href="#before">Before</a></p>
+      <div id="host"></div>
+      <p><button type="button">After</button></p>
+    </main>
+    <script>
+      const outer = document.getElementById("host").attachShadow({ mode: "open" });
+      outer.innerHTML = '<p>Text</p><button type="button">In the shadow</button><span class="inner"></span>';
+      const inner = outer.querySelector(".inner").attachShadow({ mode: "open" });
+      inner.innerHTML = '<div><input type="text" aria-label="Deeper still" /></div>';
+    </script>
+  </body>
+</html>
