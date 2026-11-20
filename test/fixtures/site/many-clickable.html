@@ -1,0 +1,39 @@
+<!doctype html>
+<!--
+  Fixture: more elements that look clickable than a scan asks listeners for (MAX_LISTENER_QUERIES, 2000).
+  Builds 2100 divs with a pointer cursor, none a control; the first 10 and the last 10 have a click listener.
+  Must fire:     genie/click-on-non-control (serious), on exactly the first 10 (they are within the cap)
+  Needs review:  genie/click-on-non-control, on the other 2090: 1990 asked with no handler of their own, and
+                 100 past the cap, the last 10 among them, each saying it was not asked
+  Must not fire: any axe-core rule
+  Test: test/browser/click-on-non-control.test.ts
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Many clickable elements fixture</title>
+    <style>
+      .row {
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <main>
+      <h1>Many clickable elements fixture</h1>
+    </main>
+    <script>
+      const main = document.querySelector("main");
+      const total = 2100;
+      for (let i = 0; i < total; i += 1) {
+        const row = document.createElement("div");
+        row.id = `row-${i}`;
+        row.className = "row";
+        row.textContent = `Row ${i}`;
+        if (i < 10 || i >= total - 10) row.addEventListener("click", () => undefined);
+        main.append(row);
+      }
+    </script>
+  </body>
+</html>
