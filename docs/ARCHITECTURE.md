@@ -268,6 +268,76 @@ do not count: a page with only those has none of the four. It runs on the page's
 it does not change `engine.rulesRun`, which stays axe-core's count. The report lists it as any other finding;
 no landmark map is drawn.
 
+### Click on a non-control (`src/click-on-non-control.ts`)
+
+axe-core has no rule for a `div` with an `onclick`. `genie/click-on-non-control` (serious, WCAG 2.1.1 and 4.1.2,
+tagged `cat.keyboard`, `wcag2a`, `wcag211` and `wcag412`) flags an element that has a click handler of its own and
+is not a control. It runs after axe-core, on the page's own frame, under the default rule set or a `--tags` list
+with one of its tags. Like `genie/no-landmarks` it does not change `engine.rulesRun`.
+
+**What is a control.** As spec 6.2 says: `a[href]`, `button`, `input`, `select`, `textarea`, `summary`, `label`
+and `option`; any element whose `role` names one of ARIA's widget roles (`button`, `link`, `checkbox`,
+`menuitem`, `tab`, `switch` and the rest, the composite ones such as `listbox` and `grid` included); and any
+element with `tabindex` 0 or more. Everything else is a candidate. A candidate that is not shown
+(`checkVisibility()` is false: `hidden`, `display: none`) is left out, since no one can click it.
+
+**When it is flagged.** A candidate is flagged when it carries an inline `onclick` attribute, or when the DevTools
+Protocol lists a `click` listener on the element itself (`DOMDebugger.getEventListeners`). Listeners are asked for
+only where the computed `cursor` is `pointer`; an element with an `onclick` needs no asking. The fix names the
+button: "Make it a `<button>` with the same handler and the same text", or give it `role="button"`,
+`tabindex="0"` and the same handler on Enter and Space.
+
+**Delegated handlers go to *needs review*.** A list with one listener for all its items, or a framework such as
+React with one listener at the root, leaves the item with no handler of its own, and from the item alone that
+cannot be told from a pointer cursor that does nothing (spec 13, G3). So a candidate that sets a pointer cursor
+and has no click handler of its own is a *needs review* item, never a finding: "looks clickable, has no role and
+cannot take focus; check whether it does something". Only the element that sets the pointer is listed: the
+elements inside it inherit the cursor (their parent's cursor is a pointer too), and listing each would say the
+same thing many times. The delegating parent itself is not asked unless it looks clickable, so on
+`div-onclick.html` the list with the listener is neither flagged nor listed.
+
+**The page cannot steer it.** The script that finds candidates runs in an isolated world of its own
+(`Page.createIsolatedWorld`), so a page that replaces `getComputedStyle`, `Element.prototype.matches` or
+`querySelectorAll` changes nothing it reads (`click-tampered.html`). What it hands back is checked field by field.
+It reads the page's own document, not its frames and not inside shadow roots. Each element's `html` is its opening
+tag, up to 80 characters of its text, and its closing tag, never the whole subtree. Its `selector` is the
+element's unique `id`, or a path of `:nth-of-type` steps up to one.
+
+**What `getEventListeners` needs (V8).** Checked at playwright-core 1.65.1 against Chrome:
+
+- `DOMDebugger.getEventListeners` takes a remote object id (`objectId`), not a DOM node id, so each candidate is
+  first resolved to a remote object. The page script returns the candidates as one array, and
+  `Runtime.getProperties` on it gives each element's object id.
+- A listener belongs to the world that added it. Asked with an object from the isolated world,
+  `getEventListeners` lists none of the page's listeners, even on an element that has one. So each candidate is
+  resolved again in the page's main world, through its backend node id (`DOM.describeNode`, then `DOM.resolveNode`,
+  whose default is the main world), and asked there: three calls a candidate.
+- An inline `onclick` attribute is listed as a `click` listener too, beside the ones `addEventListener` added,
+  and so is a handler set as a property (seen with `onmouseover`, listed as a `mouseover` listener).
+- `getEventListeners` on `document` with `depth: -1` lists every listener in the document, each with its
+  `backendNodeId`, in one call. The check does not use it, because matching those nodes back to the candidates
+  costs a call a node again, but it is the way to a cheaper check if one is needed.
+
+**The cost, and the caps.** Measured with the scan's own code on generated pages, each a flat list of `div`s, a
+share of them with a pointer cursor and a share of those with a click listener; the three calls of each
+candidate are sent together, so their round trips overlap. Times are the third run on one page, on a laptop:
+
+| Elements | Pointer candidates | Asked | Time |
+| --- | --- | --- | --- |
+| 1,000 | 100 | 100 | 14 ms |
+| 10,000 | 1,000 | 1,000 | 125 ms |
+| 10,000 | 2,000 | 2,000 | 250 ms |
+| 20,000 | 5,000 | 2,000 (the cap) | 270 ms |
+| 50,000 | 10,000 | 2,000 (the cap) | 290 ms |
+| 50,000 | none | none | 14 ms |
+
+About an eighth of a millisecond a candidate, and a page with no pointer cursor costs one walk of its elements.
+Two caps hold it on a page with many: at most `MAX_LISTENER_QUERIES` (2,000) elements are asked, and each one past
+it is a *needs review* item saying it was not asked (`many-clickable.html`); at most `MAX_CANDIDATES` (5,000) are
+described at all, and the rest are counted in one *needs review* line on `body`. An element with an `onclick`
+within the 5,000 is flagged whatever the first cap, since it needs no asking. The whole check runs inside the page
+time limit, with axe-core.
+
 ### The list of rules (`src/rules-command.ts`, `src/genie-rules.ts`)
 
 `a11y-genie rules` prints axe-core's rules from `axe.getRules()` at the installed version and the product's own
@@ -276,9 +346,11 @@ in Node alone: no browser, no network. axe-core's `getRules()` leaves out each r
 from `axe._audit.rules`, the one place axe-core keeps it, and shown as `null` if it is ever missing (a test
 fails when it is, at the pinned version). The own rules come from one registry, `src/genie-rules.ts`: a check
 calls `registerGenieRule` in its module (`src/landmarks.ts` does, for `genie/no-landmarks`, `moderate`, tagged
-`best-practice`), and `src/rules-command.ts` imports that module. A check added later registers itself and
+`best-practice`; `src/click-on-non-control.ts` does, for `genie/click-on-non-control`, `serious`, tagged
+`cat.keyboard`, `wcag2a`, `wcag211` and `wcag412`), and `src/rules-command.ts` imports that module. A check added later registers itself and
 imports it there, and a rule not built yet is not listed. `--tags` keeps the rules that carry any of the tags,
-as axe-core's own `--tags` runs them, so a list without `best-practice` leaves the landmark rules out.
+as axe-core's own `--tags` runs them, so a list without `best-practice` leaves the landmark rules out, and one
+without `wcag2a` (or another of its tags) leaves out `genie/click-on-non-control`.
 
 ### The rule flags (`src/rule-flags.ts`)
 

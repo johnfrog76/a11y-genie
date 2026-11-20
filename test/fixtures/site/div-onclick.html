@@ -1,0 +1,74 @@
+<!doctype html>
+<!--
+  Fixture: click handlers on elements that are, and are not, controls.
+  Must fire:     genie/click-on-non-control (serious), on exactly two elements:
+                   #inline-div  a div with an inline onclick attribute
+                   #listener-span  a span with a click listener added by addEventListener
+  Needs review:  genie/click-on-non-control, on exactly the two #delegated items: each has a pointer cursor and
+                 no handler of its own, because the one listener is on their list (a delegated handler)
+  Must not fire: on #real-button (a real button), on #role-button (a div with role="button", tabindex="0" and a
+                 key handler), on #delegated-list (its listener is real, but it does not look clickable, so it is
+                 not asked), on the spans inside #delegated items (they inherit the pointer, they do not set it),
+                 or on #hidden-div (not shown); and no axe-core rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Click on a non-control fixture</title>
+    <style>
+      .clickable {
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <main>
+      <h1>Click on a non-control fixture</h1>
+
+      <!-- Must fire: an inline onclick on a div, with no role and no tabindex. -->
+      <div id="inline-div" onclick="this.textContent = 'Saved'">Save</div>
+
+      <!-- Must fire: a click listener on a span, added from script below. -->
+      <span id="listener-span" class="clickable">Delete</span>
+
+      <!-- Must not fire: a real button. -->
+      <button id="real-button" type="button" onclick="this.textContent = 'Sent'">Send</button>
+
+      <!-- Must not fire: a div made a control, with a role, a tabindex and Enter and Space handled. -->
+      <div id="role-button" role="button" tabindex="0" class="clickable">Archive</div>
+
+      <!-- Needs review, not a finding: the listener is on the list, and each item only looks clickable. -->
+      <ul id="delegated-list">
+        <li id="delegated-one" class="clickable"><span>First item</span></li>
+        <li id="delegated-two" class="clickable"><span>Second item</span></li>
+      </ul>
+
+      <!-- Must not fire: hidden, so no one can click it. -->
+      <div id="hidden-div" onclick="void 0" hidden>Hidden</div>
+
+      <p id="out" aria-live="polite"></p>
+    </main>
+    <script>
+      const out = document.getElementById("out");
+      document.getElementById("listener-span").addEventListener("click", () => {
+        out.textContent = "Deleted";
+      });
+      const roleButton = document.getElementById("role-button");
+      const archive = () => {
+        out.textContent = "Archived";
+      };
+      roleButton.addEventListener("click", archive);
+      roleButton.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          archive();
+        }
+      });
+      document.getElementById("delegated-list").addEventListener("click", (event) => {
+        const item = event.target.closest("li");
+        if (item) out.textContent = `Chose ${item.textContent}`;
+      });
+    </script>
+  </body>
+</html>

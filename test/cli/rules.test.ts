@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
 import { IMPACTS } from "../../src/finding.js";
 import { genieRules } from "../../src/genie-rules.js";
+import "../../src/click-on-non-control.js";
 import "../../src/landmarks.js";
 
 // Runs the built command (npm test builds first), as a person would. `rules` needs no browser or network.
@@ -39,6 +40,7 @@ describe("a11y-genie rules", () => {
     expect(status).toBe(0);
     for (const g of own) expect(stdout).toContain(`genie/${g.rule.id}`);
     expect(stdout).toContain("genie/no-landmarks");
+    expect(stdout).toContain("genie/click-on-non-control");
     expect(stdout).toContain(`axe-core ${axe.version}`);
   });
 
@@ -62,9 +64,13 @@ describe("a11y-genie rules", () => {
     expect(doc.rules.some((r) => r.id === "no-landmarks")).toBe(true);
     for (const r of doc.rules)
       expect(r.tags.some((t) => ["wcag2aa", "best-practice"].includes(t))).toBe(true);
-    // A tag the product's own rules lack leaves them out.
-    const wcag = JSON.parse(run("--tags", "wcag2a", "--json").stdout) as Doc;
+    // A tag the product's own rules lack leaves them out; one tag of a rule's keeps it.
+    const wcag = JSON.parse(run("--tags", "wcag2aa", "--json").stdout) as Doc;
     expect(wcag.rules.some((r) => r.source === "genie")).toBe(false);
+    const levelA = JSON.parse(run("--tags", "wcag2a", "--json").stdout) as Doc;
+    expect(levelA.rules.filter((r) => r.source === "genie").map((r) => r.id)).toEqual([
+      "click-on-non-control",
+    ]);
   });
 
   it("--json matches the documented shape", () => {
@@ -85,8 +91,11 @@ describe("a11y-genie rules", () => {
     expect(doc.rules.filter((r) => r.impact === null)).toEqual([]);
     const colour = doc.rules.find((r) => r.id === "color-contrast");
     expect(colour).toMatchObject({ source: "axe", impact: "serious", wcag: ["1.4.3"] });
-    const own = doc.rules.find((r) => r.source === "genie");
-    expect(own).toMatchObject({ id: "no-landmarks", impact: "moderate", wcag: ["1.3.1", "2.4.1"] });
+    const landmarks = doc.rules.find((r) => r.source === "genie" && r.id === "no-landmarks");
+    expect(landmarks).toMatchObject({ impact: "moderate", wcag: ["1.3.1", "2.4.1"] });
+    const click = doc.rules.find((r) => r.source === "genie" && r.id === "click-on-non-control");
+    expect(click).toMatchObject({ impact: "serious", wcag: ["2.1.1", "4.1.2"] });
+    expect(click?.tags).toEqual(["cat.keyboard", "wcag2a", "wcag211", "wcag412"]);
   });
 
   it("refuses a bad flag with one Error line and one Hint line, and exit 2", () => {
