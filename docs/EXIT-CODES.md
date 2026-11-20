@@ -16,7 +16,7 @@ With `--config`, or with `--states`, the run covers several pages or states, and
 violation was found in any state, or any page or state was *not scanned*; 0 only when every one was scanned and
 none had a violation.
 
-A scan with no findings says how much it checked. It never says a site is accessible.
+A scan with no findings says how much it checked. It never tells you a site has no problems, or that it meets a standard: automated checks find some problems, not all of them.
 
 **`--fail-on <impact>`** (`critical`, `serious`, `moderate` or `minor`; default `minor`, so any violation fails the
 run) sets the lowest impact that makes the exit 1. With `--fail-on serious`, a page whose only findings are

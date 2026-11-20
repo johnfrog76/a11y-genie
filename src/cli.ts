@@ -14,7 +14,8 @@ import { scanCommand } from "./scan-command.js";
 
 const HELP = `A11y Genie: an accessibility scanner for agents and people.
 
-It never says a site is "accessible" or "compliant". Automated checks find some problems, not all of them.
+It never tells you a site has no problems, or that it meets a standard:
+automated checks find some problems, not all of them.
 
 Usage:
   a11y-genie --version

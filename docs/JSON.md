@@ -63,7 +63,7 @@ it cannot measure. The product's own checks have them too: `genie/click-on-non-c
 looks clickable but has no click handler of its own, since a handler further up the page may act on it, and
 `genie/focus-visible` lists an element whose focus changes too faintly to be sure of, or that it could not
 photograph (docs/ARCHITECTURE.md, *Focus visible*). They
-are never passes and never findings. Each is a *needs review* item: the same fields as a finding except
+are never counted as a pass and never as findings. Each is a *needs review* item: the same fields as a finding except
 `kind`, and each element has one more field.
 
 | Field | What it holds |
@@ -370,7 +370,7 @@ axe-core could not decide something; *What the page tried, and was stopped*, whe
 pop-ups or started downloads, with the first few quoted; and *What this scan cannot see*, the same fixed
 list in every report, last.
 
-- It never calls a site accessible, compliant or conformant and never says it passes WCAG. A page that was
+- It never tells you a site has no problems, or that it meets a standard: automated checks find some problems, not all of them. A page that was
   not scanned never reads as nothing found. A scan with no findings reads: `No problems found by these {rulesRun} rules on {pages}. Automated rules find only some
   problems; the checklist covers what they cannot see.` Both counts come from the record (`engine.rulesRun`,
   and the number of `pages`, written "this page" for one and "these 3 pages" for more; the header line reads "90 rules ran on this page" for one page and "90 rules ran on 3 pages" for more).

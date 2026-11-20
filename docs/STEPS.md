@@ -143,7 +143,7 @@ browser as a selector string it did not come from:
 - a CSS selector is read as CSS and nothing else, by two locks. The parser refuses a selector that holds `>>`
   (Playwright's chain into another engine) and one that starts with a word and `=` (`^[a-z-]+=`, such as
   `xpath=//a`, `text=Menu` or `id=foo`, which Playwright reads as another engine), each with an `Error:` and a
-  `Hint:`. And the driver never passes the selector bare: it is `page.locator("css=" + selector)`, so even one
+  `Hint:`. And the driver never hands the selector over bare: it is `page.locator("css=" + selector)`, so even one
   the parser let through is read as CSS, where an engine prefix is only a syntax error.
 
 ## Errors
@@ -225,7 +225,7 @@ was taken:
   and finding entries, and a name that differs from another only in case would collide on some file systems.
 - **A viewport is from 1 to 10000 pixels each way.**
 - **A name is matched whole, and case-sensitively** (decided with `--states`): `click button 'Menu'` is the button
-  whose accessible name is `Menu`, not `Menu settings` and not `menu`. The driver passes `exact: true` to
+  whose accessible name is `Menu`, not `Menu settings` and not `menu`. The driver gives `exact: true` to
   `getByRole()`. The steps are meant to read like what a screen reader says, and a partial match would click the
   wrong thing without a word; a name that is too short matches nothing, and the state reads *not scanned* with
   the step named, which is the signal. Two elements with the same role and name are an error too (`click`), not

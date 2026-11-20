@@ -25,8 +25,9 @@ An accessibility scanner for agents and people. It drives a real browser through
 states, runs axe-core and its own checks, and writes a plain-language report with the fixes, worst first,
 as JSON, Markdown and HTML.
 
-It never says a site is "accessible" or "compliant". Automated checks find some problems, not all of them,
-and every report says what a scan cannot see.
+It never tells you a site has no problems, or that it meets a standard:
+automated checks find some problems, not all of them.
+Every report says what a scan cannot see.
 
 A11y Genie is in early development. Today:
 

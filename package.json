@@ -1,7 +1,7 @@
 {
   "name": "a11y-genie",
   "version": "0.0.0",
-  "description": "An accessibility scanner for agents and people. It never says a site is accessible.",
+  "description": "An accessibility scanner for agents and people. It never tells you a site has no problems, or that it meets a standard: automated checks find some problems, not all of them.",
   "license": "MIT",
   "type": "module",
   "bin": {

@@ -18,7 +18,7 @@ the person's own browser profile, with its cookies, extensions and sign-ins, is 
 each process a temp folder of its own, below:
 
 - playwright-core makes a new folder in the temp folder for each launch
-  (`playwright_chromiumdev_profile-` and a random suffix), and passes it to the browser as `--user-data-dir`;
+  (`playwright_chromiumdev_profile-` and a random suffix), and hands it to the browser as `--user-data-dir`;
 - it deletes that folder when the browser closes;
 - `withBrowser()` closes the browser in a `finally`, so the folder goes whether the run returns or throws.
 
@@ -69,7 +69,7 @@ folder from its own `chrome://version` page, and checks that the folder is in th
 this run, differs between two runs, and is gone after the run, including a run that throws.
 
 On Ctrl-C, a plain `kill` (`SIGTERM`) or a closed terminal (`SIGHUP`), `src/interrupt.ts` closes the browser (so
-the folder is deleted) and exits 130, 143 or 129; the launch passes `handleSIGINT: false`, `handleSIGTERM: false`
+the folder is deleted) and exits 130, 143 or 129; the launch sets `handleSIGINT: false`, `handleSIGTERM: false`
 and `handleSIGHUP: false`, so playwright-core's own handlers (all on by default) do not race it or change the code.
 
 ### A browser that is not installed
@@ -819,7 +819,7 @@ under *Narrated flows*. The golden is `test/goldens/narration/flow.txt`, from `w
 `spoken` is what a speech engine would be given.
 
 **`genie/unnamed-step`** (serious, WCAG 4.1.2): a step that brings focus to an element that has a role that is
-said and no name (`unnamed` of `Accessible`). A step that leaves focus where the step before it left it is not
+said and no name (the tree reader's `unnamed` field). A step that leaves focus where the step before it left it is not
 counted again, and the same element reached by two flows is one element of the finding. The finding is the page's, in
 the record's default state, and makes `narrate` exit 1 at the default `--fail-on`. It is registered with the tags
 `cat.name-role-value`, `wcag2a` and `wcag412`, like the other level-A own rules (decided 2026-11-19). The tags only
@@ -836,8 +836,8 @@ Enter on Save submits instead of stopping at the empty required Email), `narrate
 A finding's `plain` (what is wrong, and who it hurts) and `fix` (what to change), and the short `title` that
 heads it in the report, come from one table,
 `RULE_WORDING`, keyed by `<source>/<id>`, such as `axe/image-alt` or `genie/skip-link`. They are written for a
-reader who knows no WCAG, in plain facts and never in the genie's voice (D7), and never call a site accessible,
-compliant or conformant (C16). A second table, `CRITERION_WORDING`, names each WCAG criterion the rules carry,
+reader who knows no WCAG, in plain facts and never in the genie's voice (D7), and never tell a reader a site has
+no problems or meets a standard (C16). A second table, `CRITERION_WORDING`, names each WCAG criterion the rules carry,
 with what it asks in a few words; the report prints `1.4.3 Contrast (Minimum): text must stand out from its
 background`. A rule with no entry keeps axe-core's `help` and `failureSummary`, and a criterion with no entry
 reads as its number. The tables are data: no page text and nothing axe-core said goes into them, and the
@@ -960,7 +960,7 @@ The comparison is a pure function of two records, so the browser tests and the u
   the file failed the schema and never the value. What a check carries forward from it (its fixed findings, and
   elements no longer failing) is copied field by field, only the fields this version knows, with each excerpt cut
   to 160 characters again, with `failure` and `selector` cut to 1,000 and at most 500 elements kept per finding (the
-  rest counted in `elementsCut`), so a crafted baseline cannot carry more into a record than these caps allow (a fresh scan takes `failure` and `selector` as axe-core and the checks wrote them, which are short; carried ones come from a file and are capped); and everything printed from it passes through `src/printable.ts`.
+  rest counted in `elementsCut`), so a crafted baseline cannot carry more into a record than these caps allow (a fresh scan takes `failure` and `selector` as axe-core and the checks wrote them, which are short; carried ones come from a file and are capped); and everything printed from it goes through `src/printable.ts`.
 - **Plain `scan` reads its last scan too**, for one line and `summary.sincePrevious`: the newest scan folder of the
   site under the scans folder or `--out`, read the same way. A last scan that cannot be read, or that covered other
   pages, states or tags, reads *not comparable* and says why; it is never a refusal, and it never changes the exit.
@@ -1067,7 +1067,7 @@ never looks a name up, so a public name that resolves to a private address is no
 `SECURITY.md`). A target that is itself loopback or private (the usual dev server) is not limited at all, and
 `--allow-private` turns the rule off.
 
-**V12: what passes through Playwright's routes.** Checked with playwright-core 1.65.1 and Chrome 158 on macOS,
+**V12: what goes through Playwright's routes.** Checked with playwright-core 1.65.1 and Chrome 158 on macOS,
 against loopback servers; the two *not*s below are pinned by the test *V12, at playwright-core 1.65.1* in
 `hostile.test.ts`, so an upgrade that changes them fails it:
 
