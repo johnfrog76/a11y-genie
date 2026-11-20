@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { CRITERION_WORDING, RULE_WORDING } from "../../src/plain.js";
 import { emptyScanSentence, renderReport } from "../../src/report.js";
@@ -34,6 +35,13 @@ describe("the phrase list (C16)", () => {
     expect(neverClaimViolations(text, { docs: true })).toEqual([]);
     expect(neverClaimViolations(text)).toEqual(["passes", "passes", "passes"]);
     expect(neverClaimViolations("The page passes, and the tests pass.", { docs: true })).toEqual(["passes"]);
+  });
+});
+
+describe("what the prompt file says", () => {
+  it("agentic/fix-loop.prompt.md claims nothing", () => {
+    const prompt = readFileSync(new URL("../../agentic/fix-loop.prompt.md", import.meta.url), "utf8");
+    expect(neverClaimViolations(prompt, { docs: true })).toEqual([]);
   });
 });
 
