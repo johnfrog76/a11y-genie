@@ -20,8 +20,8 @@
  * measurements the numbers were tuned on (V4).
  *
  * The page must not notice. Focus is taken off with `blur()` and given back with `focus()`, in an isolated
- * world, while listeners of that world on each window in the way stop the `blur`, `focusout`, `focus` and
- * `focusin` events before the page's own handlers see them. Focus ends where the Tab key put it, so the walk
+ * world, while a guard (src/focus-guard.ts), installed at document start and so ahead of any listener of the
+ * page's own, stops the `blur`, `focusout`, `focus` and `focusin` events before the page's handlers see them. Focus ends where the Tab key put it, so the walk
  * and the trap check read on as if nothing happened.
  *
  * The screenshots stay in memory, are compared, and are dropped. None is written to disk or to the record.
@@ -32,6 +32,7 @@
 
 import type { Page } from "playwright-core";
 import type { Finding, FindingElement, NeedsReview, NeedsReviewElement } from "./finding.js";
+import type { FocusGuard } from "./focus-guard.js";
 import { registerGenieRule } from "./genie-rules.js";
 import { changedPixels, decodePng } from "./png.js";
 import { FocusReader, type WalkStop } from "./walk.js";
@@ -148,7 +149,7 @@ const HELPERS = `
  */
 const HOLD = `function () {
   ${HELPERS}
-  globalThis.${HELD} = { el: this, guards: [], paused: [] };
+  globalThis.${HELD} = { el: this, paused: [] };
   return { box: boxOf(this), html: htmlOf(this), styles: stylesOf(this) };
 }`;
 
@@ -159,33 +160,18 @@ const STYLES = `function () {
   return held ? stylesOf(held.el) : null;
 }`;
 
-/**
- * Takes focus off the kept element. Before it, a listener on each window from the element's out to the top
- * stops the focus events in their capture phase, so the page's own handlers never see the blur, or the focus
- * that gives it back. Returns whether focus left it.
- */
+/** Takes focus off the kept element, with the guard held by the caller. Returns whether focus left it. */
 const BLUR = `function () {
   const held = globalThis.${HELD};
   if (!held) return false;
-  const stop = (event) => { event.stopImmediatePropagation(); };
-  let win = held.el.ownerDocument.defaultView;
-  while (win) {
-    for (const type of ["blur", "focusout", "focus", "focusin"]) {
-      win.addEventListener(type, stop, true);
-      held.guards.push([win, type, stop]);
-    }
-    let frame = null;
-    try { frame = win.frameElement; } catch (e) { frame = null; }
-    win = frame ? frame.ownerDocument.defaultView : null;
-  }
   held.el.blur();
   const root = held.el.getRootNode();
   return root.activeElement !== held.el;
 }`;
 
 /**
- * Gives focus back to the kept element, takes the listeners away, and forgets the element. Returns whether
- * focus is on it again.
+ * Gives focus back to the kept element, with the guard still held by the caller, and forgets the element.
+ * Returns whether focus is on it again.
  */
 const REFOCUS = `function () {
   const held = globalThis.${HELD};
@@ -196,7 +182,6 @@ const REFOCUS = `function () {
     held.el.focus({ preventScroll: true });
     back = held.el.getRootNode().activeElement === held.el;
   } finally {
-    for (const [win, type, stop] of held.guards) win.removeEventListener(type, stop, true);
     delete globalThis.${HELD};
   }
   return back;
@@ -380,6 +365,7 @@ export class FocusVisibleCheck {
     private readonly page: Page,
     private readonly pageKey: string,
     private readonly reader: FocusReader,
+    private readonly guard: FocusGuard,
   ) {}
 
   /** Looks at the stop focus is on now. Never throws for what the page does: a stop it cannot measure is *needs review*. */
@@ -428,6 +414,7 @@ export class FocusVisibleCheck {
       const focusedShot = await shot();
       // Read after the screenshot, which has run any animation to its end.
       const focusedStyles = stylesOf(await this.reader.call(STYLES));
+      await this.guard.hold(true);
       if ((await this.reader.call(BLUR)) !== true) throw new Error("focus did not leave the element");
       const unfocusedShot = await shot();
       const unfocusedStyles = stylesOf(await this.reader.call(STYLES));
@@ -448,6 +435,8 @@ export class FocusVisibleCheck {
   /** Puts focus back on the kept element, if it is kept; when that fails, the check stops taking screenshots. */
   private async giveBack(): Promise<void> {
     const back = await this.reader.call(REFOCUS).catch(() => false);
+    // Last: the events the refocus fired have been stopped before the guard is let go.
+    await this.guard.hold(false).catch(() => undefined);
     if (back !== true) this.stopped = true;
   }
 
