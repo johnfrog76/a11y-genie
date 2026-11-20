@@ -111,7 +111,7 @@ export const RULE_WORDING: Readonly<Record<string, RuleWording>> = Object.freeze
     title: "No visible sign of keyboard focus",
     plain:
       "When the Tab key moves focus to this element, nothing about it changes on screen, so a person using a keyboard cannot see where they are on the page or what Enter will press.",
-    fix: "Give it a focus style that can be seen: do not remove the outline with outline: none unless something takes its place, such as an outline or a box-shadow ring in :focus-visible.",
+    fix: "Give it a focus style that can be seen: do not remove the outline with outline: none unless something takes its place, such as an outline or a box-shadow ring in :focus-visible. If the page shows focus somewhere else, such as a highlight on another element, check it by hand.",
   },
   "genie/keyboard-trap": {
     title: "Keyboard focus trapped in one part",
