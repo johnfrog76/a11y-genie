@@ -4,8 +4,8 @@ This document has two parts:
 
 1. **Findings**: the shape A11y Genie gives each finding and each *needs review* item. `scan.json` is built
    from these.
-2. **`scan.json`**: the record `a11y-genie scan` writes, which `--json` prints and `report.md` is made from.
-   Its JSON Schema is `schema/scan-1.json`.
+2. **`scan.json`**: the record `a11y-genie scan` and `a11y-genie check` write, which `--json` prints and
+   `report.md` is made from. Its JSON Schema is `schema/scan-1.json`.
 3. **axe-core's results**: the shape axe-core hands back, at the version A11y Genie pins, as checked
    against a real browser. The findings are filled from it.
 
@@ -82,39 +82,43 @@ below for what each form looks like and how to use it.
 
 ## `scan.json` (`src/scan-record.ts`, `schema/scan-1.json`)
 
-`a11y-genie scan <url>` writes `scan.json` on every run, and `--json` prints the same document on stdout.
+`a11y-genie scan <url>` and `a11y-genie check` write `scan.json` on every run, and `--json` prints the same
+document on stdout.
 Text from the page is kept in it exactly, terminal escape sequences included: it is data. The control
 characters JSON allows raw (DEL, the C1 controls, the bidirectional controls and the line and paragraph
 separators) are written as `\u` escapes, so the file holds no raw control and parses to the same text.
 `report.md` and the terminal get the same text with every escape sequence and control stripped.
 
-It is versioned: `schema` is `"<major>.<minor>"`, now `"1.4"`. A field may be added in a minor version and is
+It is versioned: `schema` is `"<major>.<minor>"`, now `"1.5"`. A field may be added in a minor version and is
 never removed or renamed in one; a removal or a rename is a new major, and a new schema file. Readers must
 ignore fields they do not know, so the schema allows extra fields. 1.1 added `pages[].requestedUrl`,
 `pages[].redirects`, `pages[].stopped`, `limits` and `elementsCut`; a 1.0 record has none of them, and is
 still valid against `schema/scan-1.json`. 1.2 added `colorPair` on a `color-contrast` element; a 1.1 record has
 none, and is still valid too. 1.3 added `options`, and the `offline` and `other-origin` kinds of
-`pages[].stopped`; a 1.2 record has no `options`, and is still valid too. 1.4 made `states` real (below): a 1.3 record has `["default"]` in each place, and is still valid too.
+`pages[].stopped`; a 1.2 record has no `options`, and is still valid too. 1.4 made `states` real (below): a 1.3 record has `["default"]` in each place, and is still valid too. 1.5 added the
+comparison with an earlier scan (*Compared with an earlier scan*, below): `check`'s record, `summary.sincePrevious`,
+and `target.commit` from `--commit`; a 1.4 record has none of them, and is still valid too.
 
 | Field | What it holds |
 | --- | --- |
-| `schema` | The version, `"1.4"` |
+| `schema` | The version, `"1.5"` |
 | `tool` | `{ name, version }` of A11y Genie |
-| `command` | `"scan"` |
+| `command` | `"scan"`, or `"check"` for `a11y-genie check` |
 | `exit` | The exit code the run ends with: `0` with no violation at or above `options.failOn`, `1` with one, or with a page that was not scanned. Advice and *needs review* items never change it |
 | `engine` | `axeCore` (its version), `browser` (the channel that ran and its version, such as `chrome 158.0.8127.36` or `chromium 159.0.8154.6`), `fallback` (`true` when Chrome was missing and Playwright's Chromium ran in its place; `false` otherwise, `--browser-channel chromium` included), `tags` (`null` when axe-core's default rule set ran, or the list `--tags` gave, in the order given, which ran exactly those: a rule with none of them does not run, and the landmark rules, which carry `best-practice`, need that tag), `rulesRun` (distinct rule ids axe-core ran, the most any one state ran, with `--tags` the ones those tags selected; `0` when nothing was scanned) |
-| `target` | `origin` of the address asked for (not of where a redirect ended), and `commit` (`null`) |
+| `target` | `origin` of the address asked for (not of where a redirect ended), and `commit`: `--commit`, or the `GITHUB_SHA` environment variable when it is set and `--commit` is not, or `null` |
 | `startedAt`, `finishedAt` | UTC, to the second: `2026-11-19T20:14:03Z` |
 | `pages` | One per page. `key` (from the address asked for), `url` (where it ended, after redirects; the address asked for when it was not scanned), `requestedUrl`, `redirects` (how many were followed), `states`, `notScanned` and `stopped`, below. A run with `--config` has one entry per page of the file, in its order |
 | `pages[].states` | Every state the page was asked to scan, `default` first and then the `--states` or config states in the order given. A state also named in `notScanned` was asked for and not scanned. A page's states are merged into its findings: see *One finding per rule per page* below |
 | `pages[].notScanned` | Empty when everything asked of the page was scanned. Otherwise one `{ state, reason }` for each state that was not: the state's name (`default`, `menu-open`) and why, in A11y Genie's own words, such as `it redirected to an address that is not http: or https: (such as file:, chrome: or data:), and the browser stopped it`, `it did not answer: no answer within 30 seconds`, or `step 2 (click button 'Menu') failed: no such element was found, or it could not be clicked, within 10 seconds`. The other states are still scanned, and their findings are in the record. Anything in it makes the exit `1` |
-| `summary` | Violations by impact (`critical`, `serious`, `moderate`, `minor`), `advice`, `needsReview` and `notScanned` counts |
+| `summary` | Violations by impact (`critical`, `serious`, `moderate`, `minor`), `advice`, `needsReview` and `notScanned` counts. On a `check`, the impact and `advice` counts are of the findings still open (`new` and `still`), and `new`, `still` and `fixed` count the findings of each status. On a `scan` of a site scanned before, `sincePrevious` (below) |
 | `findings` | Worst first. Each is a finding as above, plus `title`, `plain`, `fix`, `status`, `elementsCut` when some elements are not listed, and, on each element, `states`: the names of the states the element was found in, in the order the states were asked for, `default` first (`["default"]` for a page scanned in one state). Each element's `html` is cut to 160 characters, with `…` where it was cut |
 | `needsReview` | Worst first, as above; each element has `reason` and `states`, and the item has `elementsCut` when some are not listed |
 | `ignored`, `workflows` | `[]` until those features exist |
 | `checklist` | `null` until the checklist exists |
 | `cannotSee` | The fixed list of what a scan cannot see: the same lines that end `report.md` |
 | `options` | Added in 1.3. The flags that changed what the scan did or how it exited: `failOn` (`critical`, `serious`, `moderate` or `minor`; `minor` by default), `sameOrigin` and `offline` (booleans). `--tags` is `engine.tags`. The report says so when any is set |
+| `baseline` | On a `check` only: `path`, the `--baseline` as it was given; `startedAt`, when the baseline's scan began; and `commit`, the baseline's own `target.commit` |
 | `limits` | The limits the page was held to: `pageSeconds` (60), `redirects` (10), `elementsPerFinding` (500), `excerptChars` (160), `scanJsonBytes` (52428800, 50 MB). docs/ARCHITECTURE.md, *Hostile pages*, says what each does |
 
 **One finding per rule per page.** A page is a URL, and the states of a page are merged into it (D6). A finding is one rule on one page, so
@@ -140,8 +144,8 @@ What an agent can rely on in major version 1: per finding `id`, `rule.source`, `
 **`plain` and `fix` until plain-language fixes are written.** `plain` is axe-core's `help` for the rule. `fix`
 is axe-core's `failureSummary` for the finding's first element, on one line ("Fix any of the following:" then
 its messages, separated by semicolons); where axe-core gave none, it is the rule's `help` and `helpUrl`. A
-finding always has a fix. `title` is the `help` and the page. `status` is `new` until a scan is compared
-with the one before it. Each element's `failure` stays as axe-core wrote it, newlines included.
+finding always has a fix. `title` is the `help` and the page. `status` is `new` when there is no earlier scan to
+compare with (below). Each element's `failure` stays as axe-core wrote it, newlines included.
 
 `summary` counts findings (one per rule per page), not elements. `toolkit` is not written yet.
 
@@ -156,6 +160,52 @@ reads *needs review* with axe-core's reason. A pair is never guessed.
 | `ratio` | `contrastRatio`: the number axe-core measured, such as `2.81` |
 | `required` | `expectedContrastRatio` read as a number: `"4.5:1"` is `4.5` |
 | `fontSize`, `fontWeight` | As axe-core wrote them, such as `12.0pt (16px)` and `normal` |
+
+## Compared with an earlier scan (`src/compare.ts`, `src/baseline.ts`)
+
+`check --baseline <scan>` compares its scan with the baseline, and plain `scan` with the site's previous scan, when
+there is one. Both compare by finding `id` (`<source>/<rule>@<page key>`), then by element `selector` within a
+finding. A finding's `status`:
+
+| `status` | Means |
+| --- | --- |
+| `new` | Not in the earlier scan; or in it, with an element it did not have. On a `scan` with no earlier scan, every finding |
+| `still` | In both. Its `elements` are the ones failing now |
+| `fixed` | In the earlier scan, and not found now. Only a `check` lists fixed findings |
+
+**Elements.** Within a finding found in both, elements are matched by `selector`. When the elements left unmatched on
+each side are as many as each other, they are read as the same elements under selectors that moved, so the finding
+reads `still`, never fixed plus new. Otherwise an unmatched element found now is `new`, and makes its finding `new`,
+and an unmatched earlier element is fixed. On a `check`, each element has a `status` (`new`, `still`, or `fixed` on a
+fixed finding), and a finding still open lists the earlier elements that no longer fail in `fixedElements`.
+
+**Not scanned is never fixed.** An earlier element found in a state of its page that was not scanned this time is
+not read as fixed: it stays in `elements` with `status: "still"` and `unverified: true`, and its finding reads
+`still` with `unverified: true`. Such a run exits 1 anyway, since a page or state was not scanned.
+
+**`check`'s record** has `command: "check"`, `baseline`, every finding with its `status` (the open ones worst first,
+then the fixed ones worst first), and `summary.new`, `still` and `fixed`. A fixed finding keeps the earlier
+scan's elements and has `fixedIn`: `{ startedAt, commit }` of the scan it was first found gone in. That is this
+check, unless the baseline is itself a `check` that already had the finding as fixed, whose `fixedIn` is kept.
+`exit` is `1` on a `new` violation at or above `options.failOn`, or on a page or state not scanned, and `0`
+otherwise: a finding still open from the baseline never fails a check.
+
+**Plain `scan`'s `summary.sincePrevious`** is `{ new, fixed, startedAt }`: how many findings are new since the
+site's previous scan, how many of its findings are not found now, and when it began. Each finding's `status` is
+`new` or `still` against it, and no fixed finding is listed. It is compared only when the two scans covered the
+same pages (by key), each in the same states, with the same `engine.tags`; otherwise `sincePrevious` is `null` and
+`sincePreviousReason` says why: `different pages, states or tags`, or `it cannot be read as a scan.json of this
+version`. With no previous scan, neither field is written. The previous scan is the newest folder under
+`<scans>/<origin key>/` (`--out` when given), a `check`'s included. `sincePrevious` changes nothing else: the exit
+reads only the scan just run.
+
+**The earlier scan is untrusted input.** `--baseline` (a `scan.json`, or a scan folder holding one) and the previous
+scan are read the same way: at most 50 MB, the limit on `scan.json`; JSON, and nothing else; a `schema` of major
+version 1; valid against `schema/scan-1.json`, checked with the validator in `src/json-schema.ts` before any field
+is read; and no finding id twice. Only the fields this version knows are copied from it into the new record, an
+element's `html` cut to 160 characters again. Its text is printed only through `src/printable.ts`, and a refusal
+names where the file failed the schema, never the value it held. A `--baseline` that fails any of these is a
+refusal (docs/EXIT-CODES.md); a previous scan that fails reads *not comparable*.
 
 ## `rules --json` (`src/rules-command.ts`)
 
@@ -201,10 +251,13 @@ module loads, and `rules` lists what is registered, so a rule not built yet is n
 ## `report.md` (`src/report.ts`)
 
 Made from the record and nothing else. It holds, in order: what was scanned and with what, and where a
-redirect ended (saying so when that is another origin); a summary (the empty-scan sentence when nothing was
+redirect ended (saying so when that is another origin); the comparison with the baseline or the last scan,
+when there is one; a summary (the empty-scan sentence when nothing was
 found, and each page not scanned with its reason); the findings worst first, each with its rule, WCAG
 criteria, page, fix and elements (with how many are not listed, when some were cut; a contrast element also
-has a `Colours:` line naming the pair, such as `#9a9a9a on #ffffff, 2.81, needs 4.5`, from the record's numbers); *Needs review*, when
+has a `Colours:` line naming the pair, such as `#9a9a9a on #ffffff, 2.81, needs 4.5`, from the record's numbers; once
+compared, its `Status:`, and on a `check` the elements fixed under it); on a `check`, *Fixed since the baseline*, each
+fixed finding with its elements and the scan it was first found gone in; *Needs review*, when
 axe-core could not decide something; *What the page tried, and was stopped*, when it opened dialogs or
 pop-ups or started downloads, with the first few quoted; and *What this scan cannot see*, the same fixed
 list in every report, last.
