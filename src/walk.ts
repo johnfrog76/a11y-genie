@@ -86,7 +86,7 @@ export interface Walk {
 export type Focused = Omit<WalkStop, "index"> | null;
 
 /** Runs in the isolated world: the element focus is on, through open shadow roots and same-origin frames. */
-const DEEP_FOCUS = `(() => {
+export const DEEP_FOCUS = `(() => {
   let el = document.activeElement;
   for (;;) {
     if (!el) return null;
@@ -205,7 +205,7 @@ function isPart(value: unknown): value is string {
 }
 
 /** A `target` as the page script gave it, checked: one entry per document, strings or arrays of strings. */
-function targetOf(value: unknown): AxeTarget | undefined {
+export function targetOf(value: unknown): AxeTarget | undefined {
   if (!Array.isArray(value) || value.length === 0) return undefined;
   const target: AxeTarget = [];
   for (const entry of value) {

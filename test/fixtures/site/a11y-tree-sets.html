@@ -1,0 +1,65 @@
+<!doctype html>
+<!--
+  Fixture: what the accessibility tree reader works out for itself (test/browser/a11y-tree.test.ts): an
+  option's place in its list box (a hidden option not counted), a combo box that points at its option with
+  aria-activedescendant, a menu item whose place the page gives, a tree item in a nested group (the nested
+  items not counted in the outer set), a slider's value text, and a name carrying terminal escapes.
+  Must not fire: any rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sets and values</title>
+  </head>
+  <body>
+    <main>
+      <h1>Sets and values</h1>
+      <ul role="listbox" aria-label="Time zone" id="zones">
+        <li role="option" id="utc" tabindex="-1">UTC</li>
+        <li role="option" id="pacific" tabindex="-1" aria-selected="true">Pacific time</li>
+        <li role="option" hidden>Gone</li>
+        <li role="option" id="eastern" tabindex="-1">Eastern time</li>
+      </ul>
+      <p>
+        <input
+          id="zone"
+          role="combobox"
+          aria-label="Zone"
+          aria-expanded="true"
+          aria-controls="zones"
+          aria-activedescendant="pacific"
+        />
+      </p>
+      <div role="menu" aria-label="More">
+        <div role="menuitem" id="fourth" tabindex="-1" aria-posinset="4" aria-setsize="9">Fourth of nine</div>
+      </div>
+      <ul role="tree" aria-label="Files">
+        <li role="treeitem" id="docs" tabindex="-1" aria-expanded="true">
+          Docs
+          <ul role="group">
+            <li role="treeitem" id="guide" tabindex="-1">Guide</li>
+            <li role="treeitem" id="faq" tabindex="-1">FAQ</li>
+          </ul>
+        </li>
+        <li role="treeitem" id="src" tabindex="-1">Source</li>
+      </ul>
+      <p>
+        <span
+          id="volume"
+          role="slider"
+          tabindex="0"
+          aria-label="Volume"
+          aria-valuemin="0"
+          aria-valuemax="10"
+          aria-valuenow="7"
+          aria-valuetext="7 of 10"
+        ></span>
+      </p>
+      <p><button type="button" id="escapes">Escapes</button></p>
+    </main>
+    <script>
+      document.getElementById("escapes").setAttribute("aria-label", "\u001b[31mRed\u001b[0m and \u0007bell‮");
+    </script>
+  </body>
+</html>
