@@ -377,13 +377,18 @@ export function buildPagesRecord(input: PagesInput): ScanRecord {
       if (axeCore === "" || axeCore === input.axeCore) axeCore = axe.axeCore;
       rulesRun = Math.max(rulesRun, axe.rulesRun);
     }
+    const asked = page.states.map((state) => state.name);
     findings.push(
-      ...mergeStates(scanned.map(({ state, axe }) => ({ state, items: axe.findings }))).map((finding) =>
-        toRecordFinding(finding, limits),
-      ),
+      ...mergeStates(
+        scanned.map(({ state, axe }) => ({ state, items: axe.findings })),
+        asked,
+      ).map((finding) => toRecordFinding(finding, limits)),
     );
     needsReview.push(
-      ...mergeStates(scanned.map(({ state, axe }) => ({ state, items: axe.needsReview }))).map((item) => {
+      ...mergeStates(
+        scanned.map(({ state, axe }) => ({ state, items: axe.needsReview })),
+        asked,
+      ).map((item) => {
         const { elements, cut } = keptElements(item.elements, limits);
         return { ...item, elements, ...(cut > 0 ? { elementsCut: cut } : {}) };
       }),

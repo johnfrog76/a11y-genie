@@ -120,10 +120,12 @@ none, and is still valid too. 1.3 added `options`, and the `offline` and `other-
 its `id` is the same whatever the number of states; its elements are the elements any state found, each listed once and
 naming the states it was found in. Two elements are the same element when their axe-core `target` is the same. A merged
 finding keeps the wording (`help`, `fix`, an element's `html` and `failure`) of the first state that had it, and the
-worst `impact` any state gave. An element found only in `dark` lists `["dark"]`; one found in the default state and in
+worst `impact` any state gave; a *needs review* item merges the same way. An element found only in `dark` lists `["dark"]`; one found in the default state and in
 `dark` lists `["default", "dark"]`. So a bug that shows only with a menu open is the finding `axe/button-name@settings`
 with `states: ["menu-open"]`, and the same bug on the page from a state that never opens the menu is not there. A page
 asked for in states of which none was scanned has no findings, and `notScanned` says why for each.
+
+**Order is stable.** Findings are worst first (`order.ts`). Within a finding the elements are ordered by the first state each was found in (the order the states were asked for, `default` first) and then by `target`, in code-point order, so the order does not depend on the order axe-core listed them in. An element's `states` follow the order the states were asked for. The same scan run twice gives the same `scan.json` and `report.md`, apart from the times, the port and the versions. `report.md` adds *Found in the state(s)* under each element that was not found in the default state alone.
 
 **What was cut.** A finding lists at most 500 elements; `elementsCut` counts the rest. If `scan.json` would
 be larger than 50 MB, elements are dropped, least severe first and never the last one of a finding, and

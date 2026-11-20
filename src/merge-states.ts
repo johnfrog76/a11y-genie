@@ -26,13 +26,32 @@ function worse(a: Impact, b: Impact): Impact {
   return IMPACTS.indexOf(a) <= IMPACTS.indexOf(b) ? a : b;
 }
 
+/** Plain code-point order, the same on every machine and locale. */
+function compareText(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/** The whole target as one string, so two targets compare part by part. */
+function targetKey(target: AxeTarget): string {
+  return JSON.stringify(target);
+}
+
 /**
- * Merges `runs`, one per state in the order scanned, by item id and then by element target. Each element of the
- * result has the names of the states it was found in, in the order the states were scanned.
+ * Merges `runs`, one per state, by item id and then by element target. Each element of the result has the names
+ * of the states it was found in, in the order the states were asked for: `stateOrder` when it is given (`default`
+ * first whatever it says; a state it does not name comes after those it does), otherwise the order of `runs`.
+ * Elements are ordered by the first of their states, then by target.
  */
 export function mergeStates<I extends Mergeable>(
-  runs: readonly { state: string; items: readonly I[] }[],
+  input: readonly { state: string; items: readonly I[] }[],
+  stateOrder: readonly string[] = input.map((run) => run.state),
 ): Merged<I>[] {
+  const rank = (state: string): number => {
+    if (state === "default") return -1;
+    const at = stateOrder.indexOf(state);
+    return at === -1 ? stateOrder.length : at;
+  };
+  const runs = [...input].sort((a, b) => rank(a.state) - rank(b.state));
   type E = I["elements"][number];
   const merged = new Map<string, Merged<I>>();
   const byTarget = new Map<string, Map<string, InStates<E>>>();
@@ -60,6 +79,13 @@ export function mergeStates<I extends Mergeable>(
         }
       }
     }
+  }
+  for (const item of merged.values()) {
+    item.elements.sort(
+      (a, b) =>
+        rank(a.states[0] as string) - rank(b.states[0] as string) ||
+        compareText(targetKey(a.target), targetKey(b.target)),
+    );
   }
   return [...merged.values()];
 }

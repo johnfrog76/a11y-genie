@@ -92,6 +92,18 @@ describe("--config", () => {
     );
   });
 
+  it("prints the config path and a page path clean when it refuses a page that is off the origin", () => {
+    const dirty = file(
+      "off\u001b[31m-origin\u001b]0;title\u0007.yaml",
+      'baseUrl: http://127.0.0.1:5173\npages:\n  - path: "//evil.example/\\x1b[31mx"\n',
+    );
+    const error = refusal(() => planScan({ url: undefined, states: [], config: dirty }));
+    expect(error.message).toContain("line 3: the path");
+    expect(error.message).toContain("off-origin.yaml");
+    // eslint-disable-next-line no-control-regex
+    expect(error.message).not.toMatch(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/);
+  });
+
   it("refuses --states beside --config", () => {
     const error = refusal(() =>
       planScan({ url: undefined, states: ["a: Tab"], config: file("d.yaml", yaml) }),
@@ -173,5 +185,69 @@ describe("merging states", () => {
       { state: "x", items: [item("a", "minor", ["button"])] },
     ]);
     expect(merged[0]?.elements.map((e) => e.states)).toEqual([["default"], ["x"]]);
+  });
+
+  it("gives one id per rule per page, whatever the number of states", () => {
+    const merged = mergeStates([
+      { state: "default", items: [item("a", "minor", ["p"]), item("b", "minor", ["p"])] },
+      { state: "x", items: [item("b", "minor", ["p"]), item("a", "minor", ["q"])] },
+      { state: "y", items: [item("a", "minor", ["p"])] },
+    ]);
+    expect(merged.map((m) => m.id)).toEqual(["a", "b"]);
+    expect(new Set(merged.map((m) => m.id)).size).toBe(merged.length);
+  });
+
+  it("lists states in the order they were asked for, default first, whatever order the runs arrive in", () => {
+    const runs = [
+      { state: "dark", items: [item("a", "minor", ["p"])] },
+      { state: "default", items: [item("a", "minor", ["p"])] },
+      { state: "menu", items: [item("a", "minor", ["p"])] },
+    ];
+    const merged = mergeStates(runs, ["default", "menu", "dark"]);
+    expect(merged[0]?.elements[0]?.states).toEqual(["default", "menu", "dark"]);
+  });
+
+  it("orders elements by the first state they were found in, then by target", () => {
+    const merged = mergeStates([
+      { state: "default", items: [item("a", "minor", ["#z"], ["#b"])] },
+      { state: "dark", items: [item("a", "minor", ["#a"], ["#b"])] },
+    ]);
+    expect(merged[0]?.elements.map((e) => [e.target[0], e.states])).toEqual([
+      ["#b", ["default", "dark"]],
+      ["#z", ["default"]],
+      ["#a", ["dark"]],
+    ]);
+  });
+
+  it("takes the worst impact any state gave, and the first state's wording", () => {
+    const withHelp = (impact: "serious" | "minor" | "critical", help: string) => ({
+      ...item("a", impact, ["p"]),
+      help,
+    });
+    const merged = mergeStates([
+      { state: "default", items: [withHelp("serious", "first")] },
+      { state: "dark", items: [withHelp("critical", "second")] },
+      { state: "wide", items: [withHelp("minor", "third")] },
+    ]);
+    expect(merged[0]?.impact).toBe("critical");
+    expect((merged[0] as unknown as { help: string }).help).toBe("first");
+  });
+
+  it("gives the same output for the same input in a different order", () => {
+    const runs = [
+      { state: "default", items: [item("a", "minor", ["#y"], ["#x"]), item("b", "serious", ["#m"])] },
+      { state: "dark", items: [item("b", "serious", ["#m"], ["#c"]), item("a", "minor", ["#x"])] },
+    ];
+    const order = ["default", "dark"];
+    const flipped = [
+      { state: "dark", items: [...(runs[1]?.items ?? [])].reverse() },
+      { state: "default", items: [...(runs[0]?.items ?? [])].reverse() },
+    ].map((run) => ({
+      ...run,
+      items: run.items.map((i) => ({ ...i, elements: [...i.elements].reverse() })),
+    }));
+    const sorted = (items: ReturnType<typeof mergeStates>) =>
+      [...items].sort((a, b) => (a.id < b.id ? -1 : 1));
+    expect(sorted(mergeStates(flipped, order))).toEqual(sorted(mergeStates(runs, order)));
   });
 });
