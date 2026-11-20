@@ -28,6 +28,13 @@ describe("the phrase list (C16)", () => {
   it("matches whole words only", () => {
     expect(neverClaimViolations("bypasses, compassed, inaccessible")).toEqual([]);
   });
+
+  it("allows the four test phrases in the README, the docs and the prompt file only", () => {
+    const text = "Run it until `npm test` passes, the test passes, the tests pass and CI passes.";
+    expect(neverClaimViolations(text, { docs: true })).toEqual([]);
+    expect(neverClaimViolations(text)).toEqual(["passes", "passes", "passes"]);
+    expect(neverClaimViolations("The page passes, and the tests pass.", { docs: true })).toEqual(["passes"]);
+  });
 });
 
 describe("what a report says", () => {
