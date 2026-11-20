@@ -45,7 +45,7 @@ describe("a record with states", () => {
         },
       ],
     });
-    expect(SCHEMA_VERSION).toBe("1.7");
+    expect(SCHEMA_VERSION).toBe("1.8");
     expect(validate(schema, record)).toEqual([]);
     expect(record.pages[0]?.states).toEqual(["default", "dark", "broken"]);
     expect(record.pages[0]?.notScanned).toEqual([

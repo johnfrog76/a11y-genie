@@ -153,7 +153,7 @@ page nobody saw never exits 0. The reasons, in the scan's own words:
 | the page's own frame went to an address a private-network rule stopped | `it went to a loopback, link-local or private address, which a public page may not reach, and the scan stopped it (--allow-private lets it through)` |
 | with `--offline`, the page's own frame went (or was redirected) to an address that is not on this machine | `it went to an address that is not on this machine, and --offline stopped it` |
 | with `--same-origin`, the page's own frame went (or was redirected) to another origin | `it went to another origin, and --same-origin stopped it` |
-| `scan.json` would be over 50 MB even with one element per finding | `its results were larger than the 52428800 byte limit on scan.json, even cut down` |
+| `scan.json` would be over 50 MB even with one element per finding and no walk stops | `its results were larger than the 52428800 byte limit on scan.json, even cut down` |
 
 The 60 seconds are the spec's limit for one state, from its first request to the end of axe-core; `--timeout <seconds>`
 sets it. On the command line the line reads `<address> was not scanned: <reason>.` for the default state, and

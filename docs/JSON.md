@@ -89,7 +89,7 @@ characters JSON allows raw (DEL, the C1 controls, the bidirectional controls and
 separators) are written as `\u` escapes, so the file holds no raw control and parses to the same text.
 `report.md` and the terminal get the same text with every escape sequence and control stripped.
 
-It is versioned: `schema` is `"<major>.<minor>"`, now `"1.7"`. A field may be added in a minor version and is
+It is versioned: `schema` is `"<major>.<minor>"`, now `"1.8"`. A field may be added in a minor version and is
 never removed or renamed in one; a removal or a rename is a new major, and a new schema file. Readers must
 ignore fields they do not know, so the schema allows extra fields. 1.1 added `pages[].requestedUrl`,
 `pages[].redirects`, `pages[].stopped`, `limits` and `elementsCut`; a 1.0 record has none of them, and is
@@ -100,11 +100,11 @@ comparison with an earlier scan (*Compared with an earlier scan*, below): `check
 and `target.commit` from `--commit`; a 1.4 record has none of them, and is still valid too. 1.6 added `fixedCut` on a
 still-open finding; a 1.5 record has none, and is still valid too. 1.7 added
 `pages[].walks`, the keyboard walk of each state (*The keyboard walk*, below); a 1.6 record has none, and is still
-valid too.
+valid too. 1.8 added `stopsCut` on a walk (below); a 1.7 record has none, and is still valid too.
 
 | Field | What it holds |
 | --- | --- |
-| `schema` | The version, `"1.7"` |
+| `schema` | The version, `"1.8"` |
 | `tool` | `{ name, version }` of A11y Genie |
 | `command` | `"scan"`, or `"check"` for `a11y-genie check` |
 | `exit` | The exit code the run ends with: `0` with no violation at or above `options.failOn`, `1` with one, or with a page that was not scanned. Advice and *needs review* items never change it |
@@ -137,7 +137,8 @@ asked for in states of which none was scanned has no findings, and `notScanned` 
 **Order is stable.** Findings are worst first (`order.ts`). Within a finding the elements are ordered by the first state each was found in (the order the states were asked for, `default` first) and then by `target`, in code-point order, so the order does not depend on the order axe-core listed them in. An element's `states` follow the order the states were asked for. The same scan run twice gives the same `scan.json` and `report.md`, apart from the times, the port and the versions. `report.md` adds *Found in the state(s)* under each element that was not found in the default state alone.
 
 **What was cut.** A finding lists at most 500 elements; `elementsCut` counts the rest. If `scan.json` would
-be larger than 50 MB, elements are dropped, least severe first and never the last one of a finding, and
+be larger than 50 MB, walks are cut first: every walk keeps its first N stops, N the most that fits and at least
+one, and `stopsCut` counts the rest. Walks are a record, not findings, so they go before any finding does. Then elements are dropped, least severe first and never the last one of a finding, and
 counted in `elementsCut` too. If even that is not enough, the page reads *not scanned* and says so. A
 limit reached never reads as nothing found.
 
@@ -223,6 +224,7 @@ that differs can be read against another. It is a record, not a finding: it neve
 | `end` | `wrapped`: focus came back to the first stop. `left`: a press put focus on no element (out of the page, to the browser's own controls). `max-tabs`: the walk reached `maxTabs` first, so it is cut, and the page may have more stops |
 | `tabs` | How many times Tab was pressed: one more than the stops for `wrapped` and `left`, as many for `max-tabs` |
 | `maxTabs` | The limit: `--max-tabs`, 200 by default |
+| `stopsCut` | Added in 1.8. How many stops were dropped from the end of `stops` to hold `scan.json` to 50 MB (*What was cut*, above). Absent when none were. `tabs` and `end` still say what the walk did, so `stops` may be shorter than they imply |
 
 ## Compared with an earlier scan (`src/compare.ts`, `src/baseline.ts`)
 
