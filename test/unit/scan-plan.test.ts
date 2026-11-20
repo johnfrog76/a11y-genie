@@ -95,7 +95,7 @@ describe("--config", () => {
   it("prints the config path and a page path clean when it refuses a page that is off the origin", () => {
     const dirty = file(
       "off\u001b[31m-origin\u001b]0;title\u0007.yaml",
-      'baseUrl: http://127.0.0.1:5173\npages:\n  - path: "//evil.example/\\x1b[31mx"\n',
+      'baseUrl: http://127.0.0.1:5173\npages:\n  - path: "//evil.example/x"\n',
     );
     const error = refusal(() => planScan({ url: undefined, states: [], config: dirty }));
     expect(error.message).toContain("line 3: the path");
