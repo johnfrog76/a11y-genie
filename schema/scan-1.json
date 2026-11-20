@@ -201,10 +201,11 @@
       "properties": {
         "state": { "type": "string", "minLength": 1 },
         "stops": { "type": "array", "items": { "$ref": "#/$defs/walkStop" } },
-        "end": { "enum": ["wrapped", "left", "max-tabs"] },
+        "end": { "enum": ["wrapped", "left", "cycled", "max-tabs"] },
         "tabs": { "type": "integer", "minimum": 0 },
         "maxTabs": { "type": "integer", "minimum": 1 },
-        "stopsCut": { "type": "integer", "minimum": 1 }
+        "stopsCut": { "type": "integer", "minimum": 1 },
+        "cycleFrom": { "type": "integer", "minimum": 1 }
       }
     },
     "walkStop": {

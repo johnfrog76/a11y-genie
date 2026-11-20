@@ -389,7 +389,16 @@ Since the walk has just left the page with its Shift+Tab, its lap goes from the 
 the first. The walk does not rely on which happens: it ends at a press that puts focus on no element
 (`end: "left"`), or at one that brings it back to the first stop (`end: "wrapped"`), whichever comes first, or at
 the limit (`end: "max-tabs"`; the walk is then cut, and the page may have more stops). Only the stops before the
-end are recorded; `tabs` counts every press. Playwright's Chromium was not installed at the pinned version on
+end are recorded; `tabs` counts every press.
+
+**Where focus goes round (`cycled`).** A press that lands on a stop already recorded, other than the first, is
+not recorded again: it starts a second lap. If the presses after it go round the same stops in the same order
+and come back to it, the walk ends `cycled`, and `cycleFrom` is the `index` of the stop the cycle starts at; the
+cycle runs from there to the last stop. Focus that does not move at all is a cycle of one, and ends the walk at
+the same element after three presses (the spec's rule). If the second lap goes anywhere else, the walk goes on
+from there, so a page that sends focus back once is walked to its end (`walk-revisit.html`). The second lap
+costs as many presses as the cycle has stops, inside `--max-tabs`. Before this, a walk held in a widget ran to
+the limit and recorded the same stops again and again. Playwright's Chromium was not installed at the pinned version on
 the machine this was checked on, so V5 is recorded for Chrome only.
 
 **What a stop holds.** Its press number (`index`, from 1), its `selector` and `target` in the form a finding's
@@ -421,6 +430,10 @@ top, read where focus is after any key, close it. A trap check can press Shift+T
 the same reader, and compare stops with `sameStop` (the same `target`). `walkPage` calls `onStop` after each stop
 is read, while focus is still on it; the skip link uses it, and a focus-visible check can take its screenshots
 there.
+
+`FocusReader.call` and `FocusReader.callOnFocused` run a check's own function in the reader's isolated world
+(with the focused element as `this`, for the second), with plain JSON arguments, so a check asks the page out of
+reach of its scripts; `DESCRIBE` is exported so such a check names elements as the stops are named.
 
 **The cost.** A stop is three DevTools Protocol calls after the key press; a 30-stop page walks in well under a
 second. Fixtures: `impact-mix.html` (its golden), `walk-shadow.html`, `walk-frame.html` and

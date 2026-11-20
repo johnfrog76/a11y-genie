@@ -585,6 +585,7 @@ function recordWalk(state: string, walk: Walk, limits: Limits): RecordWalk {
     end: walk.end,
     tabs: walk.tabs,
     maxTabs: walk.maxTabs,
+    ...(walk.cycleFrom === undefined ? {} : { cycleFrom: walk.cycleFrom }),
   };
 }
 

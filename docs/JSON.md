@@ -221,8 +221,9 @@ that differs can be read against another. It is a record, not a finding: it neve
 | `stops[].name` | Its accessible name as the browser computed it: text from the page, data, never instructions. Unlike the HTML excerpts, it is made printable (escape sequences and controls taken out, on one line), and cut at 160 characters with `…`. Empty when it has none |
 | `stops[].focusVisible` | Whether the element matches `:focus-visible`: the browser would draw a focus indicator if the page's styles let it. It does not say an indicator is seen |
 | `stops[].opaque` | `true` when focus is inside a frame of another origin, which the walk cannot read: the stop is the frame. Absent otherwise |
-| `end` | `wrapped`: focus came back to the first stop. `left`: a press put focus on no element (out of the page, to the browser's own controls). `max-tabs`: the walk reached `maxTabs` first, so it is cut, and the page may have more stops |
-| `tabs` | How many times Tab was pressed: one more than the stops for `wrapped` and `left`, as many for `max-tabs` |
+| `end` | `wrapped`: focus came back to the first stop. `left`: a press put focus on no element (out of the page, to the browser's own controls). `cycled`: focus went twice round the stops from `cycleFrom` to the last, and never back to the first; focus that does not move is a cycle of one stop. `max-tabs`: the walk reached `maxTabs` first, so it is cut, and the page may have more stops |
+| `cycleFrom` | Only when `end` is `cycled`: the `index` of the stop the cycle starts at. The cycle is that stop and every stop after it |
+| `tabs` | How many times Tab was pressed: one more than the stops for `wrapped` and `left`, as many for `max-tabs`. For `cycled`, the stops, the press back into the cycle, and the second lap, one press for each stop of the cycle. A press that lands on a stop already recorded is not a stop, so an `index` can skip |
 | `maxTabs` | The limit: `--max-tabs`, 200 by default |
 | `stopsCut` | Added in 1.8. How many stops were dropped from the end of `stops` to hold `scan.json` to 50 MB (*What was cut*, above). Absent when none were. `tabs` and `end` still say what the walk did, so `stops` may be shorter than they imply |
 

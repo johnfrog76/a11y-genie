@@ -10,6 +10,12 @@
  * that way, the next lap goes straight from the last element to the first. So the walk ends on whichever it
  * sees: focus on no element (`left`), or the first stop again (`wrapped`).
  *
+ * It also ends when focus goes round a later part of the page (`cycled`): a press lands on a stop already
+ * recorded that is not the first, and the presses after it go round the same stops in the same order back to
+ * it. That second lap is the proof; a page that sends focus back once and then moves on is walked on. Focus
+ * that does not move at all is the shortest cycle: the same element after three presses. The trap check
+ * (src/keyboard-trap.ts) reads a cycle, and a `wrapped` walk, as where focus may be held.
+ *
  * The page is hostile. What reads focus runs in an isolated world of its own (`Page.createIsolatedWorld`),
  * so a page that replaces `document.activeElement` or `Element.prototype.matches` cannot change what it
  * reads, and what comes back is checked field by field. Role and name come from the browser's own
@@ -35,10 +41,11 @@ const NAME_CHARS = 500;
 
 /**
  * Why the walk ended. `wrapped`: focus came back to the first stop. `left`: focus went to no element (out of
- * the document, to the browser's own controls). `max-tabs`: the limit was reached first, so the walk is cut
- * and the page may have more stops.
+ * the document, to the browser's own controls). `cycled`: focus went twice round stops after the first, from
+ * `cycleFrom` to the last stop, and never back to the first. `max-tabs`: the limit was reached first, so the
+ * walk is cut and the page may have more stops.
  */
-export type WalkEnd = "wrapped" | "left" | "max-tabs";
+export type WalkEnd = "wrapped" | "left" | "cycled" | "max-tabs";
 
 /** Where focus was after one Tab press. */
 export interface WalkStop {
@@ -71,6 +78,8 @@ export interface Walk {
   tabs: number;
   /** The limit it was held to. */
   maxTabs: number;
+  /** Only when `end` is `cycled`: the `index` of the stop the cycle starts at. It runs from there to the last stop. */
+  cycleFrom?: number;
 }
 
 /** What `FocusReader.read` found: an element (a stop without its index), or focus on no element. */
@@ -133,9 +142,10 @@ const FROM_THE_TOP = `(() => {
  * Runs in the isolated world with `this` as the focused element: where it is, as a `target`, and what it is.
  * Each part is the element's id when that id is unique in its own root, or a path of `:nth-of-type` steps
  * up to one, as the click check's selectors are. An element at the top of a shadow root is anchored with
- * `:host >`, so the part matches it and nothing deeper.
+ * `:host >`, so the part matches it and nothing deeper. Exported so a check that runs its own function in the
+ * reader's world (`FocusReader.call`) names elements the way the walk's stops are named.
  */
-const DESCRIBE = `function () {
+export const DESCRIBE = `function () {
   const MAX = ${SELECTOR_CHARS};
   const cut = (s) => (s.length <= MAX ? s : s.slice(0, MAX) + "…");
   const partIn = (el, root) => {
@@ -305,6 +315,53 @@ export class FocusReader {
     }
   }
 
+  /**
+   * Runs `functionDeclaration` in the reader's isolated world, with `args` (plain JSON values) as its
+   * arguments, and returns what it returns, by value. What comes back is the page's: check it before use.
+   * A check that needs more than `read` gives (src/keyboard-trap.ts) asks the page this way, out of reach of
+   * the page's own scripts.
+   */
+  async call(functionDeclaration: string, ...args: unknown[]): Promise<unknown> {
+    const answer = await this.session.send("Runtime.callFunctionOn", {
+      functionDeclaration,
+      executionContextId: this.contextId,
+      arguments: args.map((value) => ({ value })),
+      returnByValue: true,
+    });
+    if (answer.exceptionDetails !== undefined) throw new Error("a check could not read the page");
+    return answer.result.value as unknown;
+  }
+
+  /**
+   * As `call`, with the element focus is on (through shadow roots and same-origin frames, as `read` finds it)
+   * as `this`. Undefined when focus is on no element.
+   */
+  async callOnFocused(functionDeclaration: string, ...args: unknown[]): Promise<unknown> {
+    const group = "a11y-genie-walk";
+    try {
+      const found = await this.session.send("Runtime.evaluate", {
+        expression: DEEP_FOCUS,
+        contextId: this.contextId,
+        objectGroup: group,
+        returnByValue: false,
+      });
+      const objectId = found.result.objectId;
+      if (found.exceptionDetails !== undefined) throw new Error("the walk could not read focus");
+      if (found.result.subtype === "null" || objectId === undefined) return undefined;
+      const answer = await this.session.send("Runtime.callFunctionOn", {
+        objectId,
+        functionDeclaration,
+        arguments: args.map((value) => ({ value })),
+        returnByValue: true,
+      });
+      if (answer.exceptionDetails !== undefined)
+        throw new Error("a check could not read the focused element");
+      return answer.result.value as unknown;
+    } finally {
+      await this.session.send("Runtime.releaseObjectGroup", { objectGroup: group }).catch(() => undefined);
+    }
+  }
+
   async close(): Promise<void> {
     await this.session.detach().catch(() => undefined);
   }
@@ -330,6 +387,8 @@ export async function walkPage(page: Page, options: WalkOptions = {}): Promise<W
     const stops: WalkStop[] = [];
     let end: WalkEnd = "max-tabs";
     let tabs = 0;
+    // While focus goes round stops already recorded: where the cycle starts, and the stop the next press must reach.
+    let lap: { from: number; next: number } | undefined;
     while (tabs < maxTabs) {
       await page.keyboard.press("Tab");
       tabs += 1;
@@ -344,11 +403,37 @@ export async function walkPage(page: Page, options: WalkOptions = {}): Promise<W
         end = "wrapped";
         break;
       }
+      if (lap !== undefined) {
+        const expected = stops[lap.next];
+        if (expected !== undefined && sameStop(focused, expected)) {
+          if (lap.next === lap.from) {
+            end = "cycled";
+            break;
+          }
+          lap = { from: lap.from, next: lap.next + 1 < stops.length ? lap.next + 1 : lap.from };
+          continue;
+        }
+        lap = undefined;
+      }
+      // A stop already recorded, other than the first, starts a lap: it is not recorded again.
+      const seen =
+        focused.opaque === true ? -1 : stops.findIndex((s) => s.opaque !== true && sameStop(s, focused));
+      if (seen > 0) {
+        lap = { from: seen, next: seen + 1 < stops.length ? seen + 1 : seen };
+        continue;
+      }
       const stop: WalkStop = { index: tabs, ...focused };
       stops.push(stop);
       await options.onStop?.(stop);
     }
-    return { stops, end, tabs, maxTabs };
+    const cycleStart = end === "cycled" && lap !== undefined ? stops[lap.from] : undefined;
+    return {
+      stops,
+      end,
+      tabs,
+      maxTabs,
+      ...(cycleStart === undefined ? {} : { cycleFrom: cycleStart.index }),
+    };
   } finally {
     await reader.close();
   }
