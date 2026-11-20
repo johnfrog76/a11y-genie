@@ -1,0 +1,38 @@
+<!doctype html>
+<!--
+  Fixture: a date picker that holds the Tab key. Inside #date-picker, Tab moves from the last day back to the
+  first, Shift+Tab from the first back to the last, and Escape does nothing, so a keyboard cannot leave it and
+  never reaches the "Book" button after it.
+  Must fire:     genie/keyboard-trap, critical, on the three day buttons of #date-picker
+  Must not fire: genie/focus-not-returned (there is no dialog)
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Trap</title>
+  </head>
+  <body>
+    <main>
+      <h1>Book a visit</h1>
+      <p><a href="#help">How booking works</a></p>
+      <div id="date-picker" aria-label="Pick a day">
+        <button type="button" id="day-1">Monday</button>
+        <button type="button" id="day-2">Tuesday</button>
+        <button type="button" id="day-3">Wednesday</button>
+      </div>
+      <p><button type="button" id="book">Book</button></p>
+      <p id="help">Pick a day, then book.</p>
+    </main>
+    <script>
+      const days = [...document.querySelectorAll("#date-picker button")];
+      document.getElementById("date-picker").addEventListener("keydown", (event) => {
+        if (event.key !== "Tab") return;
+        const at = days.indexOf(document.activeElement);
+        const next = event.shiftKey ? (at + days.length - 1) % days.length : (at + 1) % days.length;
+        event.preventDefault();
+        days[next].focus();
+      });
+    </script>
+  </body>
+</html>

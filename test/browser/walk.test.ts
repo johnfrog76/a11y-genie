@@ -102,6 +102,24 @@ describe.skipIf(!hasChrome)("the keyboard walk (skipped where Chrome is not inst
     });
   });
 
+  it("ends cycled where focus goes twice round a later part of the page, and records each stop once", async () => {
+    const walk = await walkOf("trap.html");
+    expect(names(walk)).toEqual(["How booking works", "Monday", "Tuesday", "Wednesday"]);
+    expect(walk.end).toBe("cycled");
+    expect(walk.cycleFrom).toBe(2);
+    // Four stops, the press back to Monday, and the second lap of three.
+    expect(walk.tabs).toBe(8);
+  });
+
+  it("walks on past focus sent back once, when the second lap does not go the same way", async () => {
+    const walk = await walkOf("walk-revisit.html");
+    expect(names(walk)).toEqual(["First", "Second", "Third", "Fourth"]);
+    expect(walk.end).not.toBe("cycled");
+    expect(walk.cycleFrom).toBeUndefined();
+    // The third press, sent back to Second, is not a stop; Third is the fourth press, and the indices say so.
+    expect(walk.stops.map((stop) => stop.index)).toEqual([1, 2, 4, 5]);
+  });
+
   it("gives the same walk twice on an unchanged page", async () => {
     expect(await walkOf("walk-shadow.html")).toEqual(await walkOf("walk-shadow.html"));
   });

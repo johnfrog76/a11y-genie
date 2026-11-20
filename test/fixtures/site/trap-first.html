@@ -1,0 +1,38 @@
+<!doctype html>
+<!--
+  Fixture: the same date picker as trap.html, but first on the page, so the walk's first Tab lands in it and
+  its lap comes back to the first stop: the walk reads "wrapped", as on a page with nothing wrong. The link and
+  the button after it are tabbable and never reached, so the cycle is only part of the page.
+  Must fire:     genie/keyboard-trap, critical, on the three day buttons of #date-picker
+  Must not fire: genie/focus-not-returned
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Trap first</title>
+  </head>
+  <body>
+    <main>
+      <h1>Book a visit</h1>
+      <div id="date-picker" aria-label="Pick a day">
+        <button type="button" id="day-1">Monday</button>
+        <button type="button" id="day-2">Tuesday</button>
+        <button type="button" id="day-3">Wednesday</button>
+      </div>
+      <p><a href="#help">How booking works</a></p>
+      <p><button type="button" id="book">Book</button></p>
+      <p id="help">Pick a day, then book.</p>
+    </main>
+    <script>
+      const days = [...document.querySelectorAll("#date-picker button")];
+      document.getElementById("date-picker").addEventListener("keydown", (event) => {
+        if (event.key !== "Tab") return;
+        const at = days.indexOf(document.activeElement);
+        const next = event.shiftKey ? (at + days.length - 1) % days.length : (at + 1) % days.length;
+        event.preventDefault();
+        days[next].focus();
+      });
+    </script>
+  </body>
+</html>

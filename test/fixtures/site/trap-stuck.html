@@ -1,0 +1,33 @@
+<!doctype html>
+<!--
+  Fixture: a search box that swallows the Tab key. Tab and Shift+Tab are cancelled while it has focus, and
+  Escape only clears it, so focus stays on the box and never reaches the "Search" button after it.
+  Must fire:     genie/keyboard-trap, critical, on #search alone
+  Must not fire: genie/focus-not-returned
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stuck</title>
+  </head>
+  <body>
+    <main>
+      <h1>Search</h1>
+      <p><a href="#tips">Search tips</a></p>
+      <p>
+        <label for="search">Search for</label>
+        <input id="search" type="search" />
+      </p>
+      <p><button type="button">Search</button></p>
+      <p id="tips">Type a word, then search.</p>
+    </main>
+    <script>
+      const box = document.getElementById("search");
+      box.addEventListener("keydown", (event) => {
+        if (event.key === "Tab") event.preventDefault();
+        if (event.key === "Escape") box.value = "";
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,32 @@
+<!doctype html>
+<!--
+  Fixture: a page that sends focus back once and then lets it go on. The first time "Third" gets focus, a
+  script moves it back to "Second"; after that, Tab goes on as usual. The walk sees a press land on a stop it
+  has, starts a second lap to check, finds focus going on to "Third" instead, and walks on: "First",
+  "Second", "Third", "Fourth", and no cycle (test/browser/walk.test.ts).
+  Must not fire: genie/keyboard-trap
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Walk revisit</title>
+  </head>
+  <body>
+    <main>
+      <h1>Walk revisit</h1>
+      <p><button type="button">First</button></p>
+      <p><button type="button" id="second">Second</button></p>
+      <p><button type="button" id="third">Third</button></p>
+      <p><button type="button">Fourth</button></p>
+    </main>
+    <script>
+      let sent = false;
+      document.getElementById("third").addEventListener("focus", () => {
+        if (sent) return;
+        sent = true;
+        document.getElementById("second").focus();
+      });
+    </script>
+  </body>
+</html>

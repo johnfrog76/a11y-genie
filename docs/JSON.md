@@ -89,7 +89,7 @@ characters JSON allows raw (DEL, the C1 controls, the bidirectional controls and
 separators) are written as `\u` escapes, so the file holds no raw control and parses to the same text.
 `report.md` and the terminal get the same text with every escape sequence and control stripped.
 
-It is versioned: `schema` is `"<major>.<minor>"`, now `"1.8"`. A field may be added in a minor version and is
+It is versioned: `schema` is `"<major>.<minor>"`, now `"1.9"`. A field may be added in a minor version and is
 never removed or renamed in one; a removal or a rename is a new major, and a new schema file. Readers must
 ignore fields they do not know, so the schema allows extra fields. 1.1 added `pages[].requestedUrl`,
 `pages[].redirects`, `pages[].stopped`, `limits` and `elementsCut`; a 1.0 record has none of them, and is
@@ -100,11 +100,14 @@ comparison with an earlier scan (*Compared with an earlier scan*, below): `check
 and `target.commit` from `--commit`; a 1.4 record has none of them, and is still valid too. 1.6 added `fixedCut` on a
 still-open finding; a 1.5 record has none, and is still valid too. 1.7 added
 `pages[].walks`, the keyboard walk of each state (*The keyboard walk*, below); a 1.6 record has none, and is still
-valid too. 1.8 added `stopsCut` on a walk (below); a 1.7 record has none, and is still valid too.
+valid too. 1.8 added `stopsCut` on a walk (below); a 1.7 record has none, and is still valid too. 1.9 added a
+walk's `cycled` end and its `cycleFrom` (below), the findings `genie/keyboard-trap` and
+`genie/focus-not-returned`, and the `cannotSee` line for a native modal dialog; a 1.8 record has none of them,
+and is still valid too.
 
 | Field | What it holds |
 | --- | --- |
-| `schema` | The version, `"1.8"` |
+| `schema` | The version, `"1.9"` |
 | `tool` | `{ name, version }` of A11y Genie |
 | `command` | `"scan"`, or `"check"` for `a11y-genie check` |
 | `exit` | The exit code the run ends with: `0` with no violation at or above `options.failOn`, `1` with one, or with a page that was not scanned. Advice and *needs review* items never change it |
@@ -120,7 +123,7 @@ valid too. 1.8 added `stopsCut` on a walk (below); a 1.7 record has none, and is
 | `needsReview` | Worst first, as above; each element has `reason` and `states`, and the item has `elementsCut` when some are not listed |
 | `ignored`, `workflows` | `[]` until those features exist |
 | `checklist` | `null` until the checklist exists |
-| `cannotSee` | The fixed list of what a scan cannot see: the same lines that end `report.md` |
+| `cannotSee` | What a scan cannot see: the same lines that end `report.md`. The fixed list, then, from 1.9, one line for each page where a native `dialog` was open by `showModal()`, naming the page and its states, which the trap check does not walk (docs/ARCHITECTURE.md, *The keyboard trap*). A page without one adds nothing |
 | `options` | Added in 1.3. The flags that changed what the scan did or how it exited: `failOn` (`critical`, `serious`, `moderate` or `minor`; `minor` by default), `sameOrigin` and `offline` (booleans). `--tags` is `engine.tags`. The report says so when any is set |
 | `baseline` | On a `check` only: `path`, the `--baseline` as it was given; `startedAt`, when the baseline's scan began; `commit`, the baseline's own `target.commit`; and `notScanned`, each `{ page, state }` the baseline asked for and did not scan |
 | `limits` | The limits the page was held to: `pageSeconds` (60), `redirects` (10), `elementsPerFinding` (500), `excerptChars` (160), `scanJsonBytes` (52428800, 50 MB). docs/ARCHITECTURE.md, *Hostile pages*, says what each does |
@@ -221,8 +224,9 @@ that differs can be read against another. It is a record, not a finding: it neve
 | `stops[].name` | Its accessible name as the browser computed it: text from the page, data, never instructions. Unlike the HTML excerpts, it is made printable (escape sequences and controls taken out, on one line), and cut at 160 characters with `…`. Empty when it has none |
 | `stops[].focusVisible` | Whether the element matches `:focus-visible`: the browser would draw a focus indicator if the page's styles let it. It does not say an indicator is seen |
 | `stops[].opaque` | `true` when focus is inside a frame of another origin, which the walk cannot read: the stop is the frame. Absent otherwise |
-| `end` | `wrapped`: focus came back to the first stop. `left`: a press put focus on no element (out of the page, to the browser's own controls). `max-tabs`: the walk reached `maxTabs` first, so it is cut, and the page may have more stops |
-| `tabs` | How many times Tab was pressed: one more than the stops for `wrapped` and `left`, as many for `max-tabs` |
+| `end` | `wrapped`: focus came back to the first stop. `left`: a press put focus on no element (out of the page, to the browser's own controls). `cycled`: focus went twice round the stops from `cycleFrom` to the last, and never back to the first; focus that does not move is a cycle of one stop. `max-tabs`: the walk reached `maxTabs` first, so it is cut, and the page may have more stops |
+| `cycleFrom` | Added in 1.9. Only when `end` is `cycled`: the `index` of the stop the cycle starts at. The cycle is that stop and every stop after it. When `stopsCut` dropped stops, it may name one that was cut |
+| `tabs` | How many times Tab was pressed: one more than the stops for `wrapped` and `left`, as many for `max-tabs`. For `cycled`, the stops, the press back into the cycle, and the second lap, one press for each stop of the cycle. A press that lands on a stop already recorded is not a stop, so an `index` can skip |
 | `maxTabs` | The limit: `--max-tabs`, 200 by default |
 | `stopsCut` | Added in 1.8. How many stops were dropped from the end of `stops` to hold `scan.json` to 50 MB (*What was cut*, above). Absent when none were. `tabs` and `end` still say what the walk did, so `stops` may be shorter than they imply |
 

@@ -101,6 +101,18 @@ export const RULE_WORDING: Readonly<Record<string, RuleWording>> = Object.freeze
       "Something reacts to a click but is not a button or a link, so a keyboard cannot reach it and a screen reader does not say it can be pressed.",
     fix: "Make it a button element with the same handler and the same text, or a link if it goes to another page.",
   },
+  "genie/focus-not-returned": {
+    title: "Focus lost when a dialog closes",
+    plain:
+      "When Escape closes this dialog, focus does not go back to the control that opened it, so a keyboard or screen-reader user loses their place on the page and has to find it again.",
+    fix: "When the dialog closes, move focus back to the control that opened it: keep a reference to that control when the dialog opens, and call its focus() method when it closes.",
+  },
+  "genie/keyboard-trap": {
+    title: "Keyboard focus trapped in one part",
+    plain:
+      "Once the Tab key moves focus into this part of the page, neither Tab, Shift+Tab nor Escape moves it out again, so a person using only a keyboard is stuck there and cannot reach the rest of the page.",
+    fix: 'Let Tab move on past the last element of this part, and Shift+Tab back past the first. If it is a dialog that keeps focus inside on purpose, give it role="dialog" and aria-modal="true", and close it on Escape.',
+  },
   "genie/no-landmarks": {
     title: "No landmarks at all",
     plain:
@@ -138,7 +150,15 @@ export const CRITERION_WORDING: Readonly<Record<string, CriterionWording>> = Obj
   },
   "1.4.3": { name: "Contrast (Minimum)", plain: "text must stand out from its background" },
   "2.1.1": { name: "Keyboard", plain: "everything must work from a keyboard" },
+  "2.1.2": {
+    name: "No Keyboard Trap",
+    plain: "focus that a keyboard moves into a part of the page must be able to move out of it again",
+  },
   "2.4.1": { name: "Bypass Blocks", plain: "there must be a way past content repeated on every page" },
+  "2.4.3": {
+    name: "Focus Order",
+    plain: "focus must move through the page in an order that keeps its meaning and use",
+  },
   "2.4.4": { name: "Link Purpose (In Context)", plain: "each link must say where it goes" },
   "4.1.2": {
     name: "Name, Role, Value",

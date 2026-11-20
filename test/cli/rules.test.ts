@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { IMPACTS } from "../../src/finding.js";
 import { genieRules } from "../../src/genie-rules.js";
 import "../../src/click-on-non-control.js";
+import "../../src/keyboard-trap.js";
 import "../../src/landmarks.js";
 import "../../src/skip-link.js";
 
@@ -43,6 +44,8 @@ describe("a11y-genie rules", () => {
     expect(stdout).toContain("genie/no-landmarks");
     expect(stdout).toContain("genie/click-on-non-control");
     expect(stdout).toContain("genie/skip-link");
+    expect(stdout).toContain("genie/keyboard-trap");
+    expect(stdout).toContain("genie/focus-not-returned");
     expect(stdout).toContain(`axe-core ${axe.version}`);
   });
 
@@ -72,6 +75,8 @@ describe("a11y-genie rules", () => {
     const levelA = JSON.parse(run("--tags", "wcag2a", "--json").stdout) as Doc;
     expect(levelA.rules.filter((r) => r.source === "genie").map((r) => r.id)).toEqual([
       "click-on-non-control",
+      "focus-not-returned",
+      "keyboard-trap",
     ]);
   });
 
@@ -98,6 +103,18 @@ describe("a11y-genie rules", () => {
     const click = doc.rules.find((r) => r.source === "genie" && r.id === "click-on-non-control");
     expect(click).toMatchObject({ impact: "serious", wcag: ["2.1.1", "4.1.2"] });
     expect(click?.tags).toEqual(["cat.keyboard", "wcag2a", "wcag211", "wcag412"]);
+    const trap = doc.rules.find((r) => r.source === "genie" && r.id === "keyboard-trap");
+    expect(trap).toMatchObject({
+      impact: "critical",
+      wcag: ["2.1.2"],
+      tags: ["cat.keyboard", "wcag2a", "wcag212"],
+    });
+    const notReturned = doc.rules.find((r) => r.source === "genie" && r.id === "focus-not-returned");
+    expect(notReturned).toMatchObject({
+      impact: "moderate",
+      wcag: ["2.4.3"],
+      tags: ["cat.keyboard", "wcag2a", "wcag243"],
+    });
   });
 
   it("refuses a bad flag with one Error line and one Hint line, and exit 2", () => {

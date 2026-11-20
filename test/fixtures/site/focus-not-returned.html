@@ -1,0 +1,60 @@
+<!doctype html>
+<!--
+  Fixture: a modal dialog that drops focus when it closes. "Delete account" (#open) opens a role="dialog" with
+  aria-modal="true"; while it is open, Tab and Shift+Tab go round its two buttons on purpose, and Escape closes
+  it, but nothing puts focus back on "Delete account": focus falls to the page itself. Keeping focus inside is
+  not a trap; losing it on close is.
+  Must fire:     genie/focus-not-returned, moderate, on #confirm (in the state with the dialog open)
+  Must not fire: genie/keyboard-trap
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Focus lost</title>
+    <style>
+      [role="dialog"][hidden] {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Your account</h1>
+      <p><a href="#about">About accounts</a></p>
+      <p>
+        <button type="button" id="open" aria-haspopup="dialog" aria-controls="confirm">Delete account</button>
+      </p>
+      <p id="about">Deleting an account cannot be undone.</p>
+      <div id="confirm" role="dialog" aria-modal="true" aria-labelledby="confirm-title" hidden>
+        <h2 id="confirm-title">Delete your account?</h2>
+        <button type="button" id="cancel">Cancel</button>
+        <button type="button" id="delete">Delete</button>
+      </div>
+    </main>
+    <script>
+      const opener = document.getElementById("open");
+      const dialog = document.getElementById("confirm");
+      const buttons = [...dialog.querySelectorAll("button")];
+      function close() {
+        dialog.hidden = true;
+      }
+      opener.addEventListener("click", () => {
+        dialog.hidden = false;
+        buttons[0].focus();
+      });
+      buttons.forEach((button) => button.addEventListener("click", close));
+      dialog.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          close();
+          return;
+        }
+        if (event.key !== "Tab") return;
+        const at = buttons.indexOf(document.activeElement);
+        const next = event.shiftKey ? (at + buttons.length - 1) % buttons.length : (at + 1) % buttons.length;
+        event.preventDefault();
+        buttons[next].focus();
+      });
+    </script>
+  </body>
+</html>

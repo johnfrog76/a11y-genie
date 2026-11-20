@@ -1,0 +1,34 @@
+<!doctype html>
+<!--
+  Fixture: a native dialog opened with showModal(). "Change email" (#open) opens it. Chrome lets Tab out of
+  a native modal dialog to the browser's own controls, so the walk ends "left" and the trap check cannot walk
+  inside it. With the dialog open, the scan's "What this scan cannot see" gets one line for the page; closed,
+  the list is the fixed one (test/browser/keyboard-trap.test.ts).
+  Must not fire: genie/keyboard-trap, genie/focus-not-returned
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Native modal</title>
+  </head>
+  <body>
+    <main>
+      <h1>Your email</h1>
+      <p><button type="button" id="open">Change email</button></p>
+      <dialog id="change" aria-labelledby="change-title">
+        <h2 id="change-title">Change your email</h2>
+        <p>
+          <label for="email">New email</label>
+          <input id="email" type="email" />
+        </p>
+        <button type="button" id="save">Save</button>
+      </dialog>
+    </main>
+    <script>
+      const dialog = document.getElementById("change");
+      document.getElementById("open").addEventListener("click", () => dialog.showModal());
+      document.getElementById("save").addEventListener("click", () => dialog.close());
+    </script>
+  </body>
+</html>

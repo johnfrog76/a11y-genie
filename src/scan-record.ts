@@ -4,6 +4,7 @@
  * `schema/scan-1.json` is its JSON Schema.
  */
 
+import { nativeModalLine } from "./keyboard-trap.js";
 import type { AxeScan, Finding, FindingElement, Impact, NeedsReview, Rule } from "./finding.js";
 import { IMPACTS } from "./finding.js";
 import { LIMITS, type Limits, type Stopped } from "./context.js";
@@ -28,13 +29,17 @@ import type { Walk } from "./walk.js";
  * record has none.
  * 1.7 added `pages[].walks`, the keyboard walk of each state that was scanned. A 1.6 record has none.
  * 1.8 added `stopsCut` on a walk: stops dropped from its end to hold `scan.json` to its size. A 1.7 record has none.
+ * 1.9 added a walk's `cycled` end and its `cycleFrom`, where focus went twice round a later part of the page, and
+ * the findings `genie/keyboard-trap` and `genie/focus-not-returned`, and a `cannotSee` line after the fixed list
+ * for each page with a native modal dialog open. A 1.8 record has none of them.
  */
-export const SCHEMA_VERSION = "1.8";
+export const SCHEMA_VERSION = "1.9";
 
 /**
  * What a scan cannot see: the questions a person has to answer, because automated rules cannot. Fixed
  * text, the same in every report, with any number of findings or none. It is the guided checklist's seed
- * list (spec 6.7), in the checklist's order.
+ * list (spec 6.7), in the checklist's order. A record's `cannotSee` is this list, then a line for each page
+ * where a native modal dialog was open (`nativeModalLine`, src/keyboard-trap.ts).
  */
 export const CANNOT_SEE: readonly string[] = [
   "Whether focus follows the reading order when you press Tab (WCAG 2.4.3).",
@@ -484,6 +489,8 @@ export function buildPagesRecord(input: PagesInput): ScanRecord {
   const pages: RecordPage[] = [];
   let axeCore = input.axeCore ?? "";
   let rulesRun = 0;
+  // Page-specific lines after the fixed list: a native modal dialog the trap check could not walk.
+  const cannotSee = [...CANNOT_SEE];
   for (const page of input.pages) {
     const scanned = page.states.flatMap((state) =>
       state.axe === null ? [] : [{ state: state.name, axe: state.axe }],
@@ -493,6 +500,8 @@ export function buildPagesRecord(input: PagesInput): ScanRecord {
       rulesRun = Math.max(rulesRun, axe.rulesRun);
     }
     const asked = page.states.map((state) => state.name);
+    const modalStates = scanned.filter(({ axe }) => axe.nativeModal === true).map(({ state }) => state);
+    if (modalStates.length > 0) cannotSee.push(nativeModalLine(page.key, modalStates));
     findings.push(
       ...mergeStates(
         scanned.map(({ state, axe }) => ({ state, items: axe.findings })),
@@ -564,7 +573,7 @@ export function buildPagesRecord(input: PagesInput): ScanRecord {
     ignored: [],
     workflows: [],
     checklist: null,
-    cannotSee: [...CANNOT_SEE],
+    cannotSee,
     limits: {
       pageSeconds: limits.pageMs / 1000,
       redirects: limits.redirects,
@@ -585,6 +594,7 @@ function recordWalk(state: string, walk: Walk, limits: Limits): RecordWalk {
     end: walk.end,
     tabs: walk.tabs,
     maxTabs: walk.maxTabs,
+    ...(walk.cycleFrom === undefined ? {} : { cycleFrom: walk.cycleFrom }),
   };
 }
 

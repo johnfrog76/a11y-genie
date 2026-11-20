@@ -1,0 +1,43 @@
+<!doctype html>
+<!--
+  Fixture: a code editor that keeps Tab for indenting, as editors do, and gives it back after Escape: Escape,
+  then Tab, moves on to the "Run" button. Shift+Tab stays inside too. Escape lets a person leave, so it is not
+  a trap.
+  Must fire:     nothing from genie/keyboard-trap or genie/focus-not-returned
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Editor</title>
+  </head>
+  <body>
+    <main>
+      <h1>Code</h1>
+      <p><a href="#keys">Keys in the editor</a></p>
+      <p>
+        <label for="code">Code</label>
+        <textarea id="code" rows="4" cols="40"></textarea>
+      </p>
+      <p><button type="button">Run</button></p>
+      <p id="keys">Tab indents. Press Escape, then Tab, to move on.</p>
+    </main>
+    <script>
+      const code = document.getElementById("code");
+      let released = false;
+      code.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          released = true;
+          return;
+        }
+        if (event.key === "Tab" && !released) {
+          event.preventDefault();
+          code.value += "  ";
+        }
+      });
+      code.addEventListener("blur", () => {
+        released = false;
+      });
+    </script>
+  </body>
+</html>

@@ -195,16 +195,17 @@
       }
     },
     "walk": {
-      "description": "One state's keyboard walk (src/walk.ts), added in 1.7; `stopsCut` in 1.8.",
+      "description": "One state's keyboard walk (src/walk.ts), added in 1.7; `stopsCut` in 1.8; the `cycled` end and `cycleFrom` in 1.9.",
       "type": "object",
       "required": ["state", "stops", "end", "tabs", "maxTabs"],
       "properties": {
         "state": { "type": "string", "minLength": 1 },
         "stops": { "type": "array", "items": { "$ref": "#/$defs/walkStop" } },
-        "end": { "enum": ["wrapped", "left", "max-tabs"] },
+        "end": { "enum": ["wrapped", "left", "cycled", "max-tabs"] },
         "tabs": { "type": "integer", "minimum": 0 },
         "maxTabs": { "type": "integer", "minimum": 1 },
-        "stopsCut": { "type": "integer", "minimum": 1 }
+        "stopsCut": { "type": "integer", "minimum": 1 },
+        "cycleFrom": { "type": "integer", "minimum": 1 }
       }
     },
     "walkStop": {

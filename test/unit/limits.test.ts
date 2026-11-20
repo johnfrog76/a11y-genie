@@ -278,5 +278,21 @@ describe("which loads read not scanned rather than refused", () => {
       writeFileSync(join(folder, "scan.json"), JSON.stringify(old));
       expect(readScanFile(folder, "--baseline").schema).toBe("1.7");
     });
+
+    it("still reads a 1.8 record, which has no cycled walk, and reads a 1.9 one that has", () => {
+      const old = structuredClone(withWalks([4])) as unknown as Record<string, unknown>;
+      old.schema = "1.8";
+      expect(validate(schema, old)).toEqual([]);
+      const folder = mkdtempSync(join(tmpdir(), "a11y-genie-fit-"));
+      folders.push(folder);
+      writeFileSync(join(folder, "scan.json"), JSON.stringify(old));
+      expect(readScanFile(folder, "--baseline").schema).toBe("1.8");
+      const cycled = withWalks([4]);
+      cycled.pages[0]!.walks![0]!.end = "cycled";
+      cycled.pages[0]!.walks![0]!.cycleFrom = 2;
+      expect(validate(schema, cycled)).toEqual([]);
+      writeFileSync(join(folder, "scan.json"), JSON.stringify(cycled));
+      expect(readScanFile(folder, "--baseline").pages[0]?.walks?.[0]?.end).toBe("cycled");
+    });
   });
 });
