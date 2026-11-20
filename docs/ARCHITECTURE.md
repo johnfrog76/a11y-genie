@@ -358,8 +358,8 @@ Advice never changes the exit code. Fixtures: `no-skip-link.html`, `no-skip-no-s
 
 The walk (spec 6.5) presses Tab from the top of the page, up to `--max-tabs` times (default 200, at most 1000),
 and records where focus lands after each press: a *stop*. It is not a rule and makes no finding: it is a record,
-kept in `scan.json` as `pages[].walks` (docs/JSON.md), that the skip link reads now and the trap and
-focus-visible checks will read. It runs in every state that is scanned, last in `scanPage`, because it moves
+kept in `scan.json` as `pages[].walks` (docs/JSON.md), that the skip link and the trap check read, and the
+focus-visible check will read. It runs in every state that is scanned, last in `scanPage`, because it moves
 focus, and whatever `--tags` says. Each state's walk is kept apart; walks are not merged across states, since
 a trap may exist in one state only.
 
@@ -440,6 +440,52 @@ second. Fixtures: `impact-mix.html` (its golden), `walk-shadow.html`, `walk-fram
 `walk-frame-inner.html`, `walk-order.html`, `walk-long.html`, `walk-tampered.html`, `walk-other-origin.html`,
 `walk-names.html`, `walk-nothing.html`; test: `test/browser/walk.test.ts`.
 
+### The keyboard trap (`src/keyboard-trap.ts`)
+
+`genie/keyboard-trap` (spec 6.5, critical, WCAG 2.1.2) and `genie/focus-not-returned` (moderate, WCAG 2.4.3)
+read the keyboard walk and press a few more keys with the walk's own `FocusReader`; there is no second walker.
+They run last in `scanPage`, after the skip link, because Escape may close a dialog. Each is tagged
+`cat.keyboard` and `wcag2a`, with `wcag212` or `wcag243`, and runs when a `--tags` list has one of its tags.
+
+**Where focus may be held.** Only where the walk went round:
+
+- `end: "cycled"`: the stops from `cycleFrom` to the last. The stops before the cycle are outside it, so it is
+  always a strict part of the page. A cycle of one is focus that does not move.
+- `end: "wrapped"`: all the stops. That is the whole Tab order on most pages, and it is read as a trap only
+  when the page's own document has a tabbable element the walk never reached. That element must plainly take
+  Tab: shown, enabled, not inert, `tabIndex` 0 or more, and not a frame, a shadow host or a radio button,
+  whose focus lands elsewhere or is one of a group. Leaving the doubtful ones out can only make a trap read as
+  none, never the other way round (`trap-first.html`).
+- `left` and `max-tabs`: nothing went round, and nothing more is pressed. Nor when the cycle holds a frame of
+  another origin, inside which focus cannot be read.
+
+**Trying to leave.** From the cycle's first element, where the walk leaves focus: Shift+Tab, once for each element
+of the cycle, then Escape, then Tab once more (an editor that keeps Tab for indenting gives it back after Escape).
+Any press that puts focus on an element outside the cycle, or on no element, means a keyboard can leave:
+nothing is flagged (`trap-shift-leaves.html`, `trap-escape-leaves.html`). If none does, every element of the
+cycle is an element of `genie/keyboard-trap` (`trap.html`, `trap-stuck.html`). After Escape, a focused element
+that is no longer shown counts as focus on no element: Chrome can leave focus on a button of a dialog Escape has
+just hidden until it moves focus to the page itself.
+
+**The modal dialog.** A dialog keeps focus inside on purpose. When every element of the cycle is inside one shown
+modal dialog (`role="dialog"` or `"alertdialog"`, or a `dialog` element, with `aria-modal="true"` or opened by
+`showModal()`), and Escape takes focus out of the cycle and the dialog is no longer shown, it is not a trap
+(`modal-ok.html`). Then focus must be back on the control that opened it. The check cannot see which control
+that was, so it asks the page: when exactly one element outside the dialog names the dialog's `id` in
+`aria-controls`, that element is the opener, and focus anywhere else is `genie/focus-not-returned`. Without one,
+focus on no element is the finding, and focus on any element outside the dialog is taken as returned
+(`focus-not-returned.html`). A dialog is open only in the state that opens it, so these are found in a state
+such as `delete-dialog: click css '#open'`.
+
+**What it does not see.** A trap inside a frame of another origin. A `dialog` opened with `showModal()` lets
+Tab out to the browser's own controls in Chrome, so its walk ends `left`, and where focus goes when it closes
+is not checked. Focus not returned after a dialog closed by anything but Escape.
+
+**The cost.** Nothing on a walk that ends `left` or `max-tabs`. Otherwise, the walk's second lap of the cycle
+(as many presses as the cycle has stops, inside `--max-tabs`), then at most that many Shift+Tab presses, one
+Escape and one Tab, and two or three DevTools Protocol calls after each press. Test:
+`test/browser/keyboard-trap.test.ts`.
+
 ### Plain words (`src/plain.ts`)
 
 A finding's `plain` (what is wrong, and who it hurts) and `fix` (what to change), and the short `title` that
@@ -475,7 +521,9 @@ from `axe._audit.rules`, the one place axe-core keeps it, and shown as `null` if
 fails when it is, at the pinned version). The own rules come from one registry, `src/genie-rules.ts`: a check
 calls `registerGenieRule` in its module (`src/landmarks.ts` does, for `genie/no-landmarks`, `moderate`, tagged
 `best-practice`; `src/click-on-non-control.ts` does, for `genie/click-on-non-control`, `serious`, tagged
-`cat.keyboard`, `wcag2a`, `wcag211` and `wcag412`), and `src/rules-command.ts` imports that module. A check added later registers itself and
+`cat.keyboard`, `wcag2a`, `wcag211` and `wcag412`; `src/keyboard-trap.ts` does, for `genie/keyboard-trap`,
+`critical`, and `genie/focus-not-returned`, `moderate`, both tagged `cat.keyboard` and `wcag2a`), and
+`src/rules-command.ts` imports that module. A check added later registers itself and
 imports it there, and a rule not built yet is not listed. `--tags` keeps the rules that carry any of the tags,
 as axe-core's own `--tags` runs them, so a list without `best-practice` leaves the landmark rules out, and one
 without `wcag2a` (or another of its tags) leaves out `genie/click-on-non-control`.

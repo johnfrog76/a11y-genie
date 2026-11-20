@@ -36,9 +36,11 @@ Run all five before you ask for a review. CI runs the same five in that order, o
   written into `report.md`; every printed line and the whole report pass through it.
 - `src/axe.ts` runs axe-core on a loaded page; `src/map-axe.ts` maps its results to findings (`src/finding.ts`), and
   `src/order.ts` orders them worst first. `src/landmarks.ts` is the product's own `genie/no-landmarks` check,
-  `src/click-on-non-control.ts` its `genie/click-on-non-control`, and `src/skip-link.ts` its `genie/skip-link`.
+  `src/click-on-non-control.ts` its `genie/click-on-non-control`, `src/skip-link.ts` its `genie/skip-link`, and
+  `src/keyboard-trap.ts` its `genie/keyboard-trap` and `genie/focus-not-returned`.
   `src/walk.ts` is the keyboard walk: Tab from the top of the page, each stop recorded in `scan.json`
-  (`pages[].walks`); the skip link reads its first stops, and the later keyboard checks read the same walk.
+  (`pages[].walks`); the skip link reads its first stops, the trap check where it went round, and the later
+  keyboard checks read the same walk.
 - `src/scan-command.ts` is `a11y-genie scan`: its flags, its run, its files and its lines, which `src/check-command.ts`
   (`a11y-genie check --baseline`) shares. `src/compare.ts` compares two scans (new, still, fixed);
   `src/baseline.ts` reads an earlier `scan.json` as untrusted input, checked with `src/json-schema.ts`.

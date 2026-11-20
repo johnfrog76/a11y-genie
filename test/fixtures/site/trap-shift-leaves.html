@@ -1,0 +1,36 @@
+<!doctype html>
+<!--
+  Fixture: a toolbar whose Tab key goes round its own buttons, from the last back to the first, but whose
+  Shift+Tab is the browser's own: from the first button it goes back to the link before the toolbar. A person
+  can leave it, so it is not a trap.
+  Must fire:     nothing from genie/keyboard-trap or genie/focus-not-returned
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Toolbar</title>
+  </head>
+  <body>
+    <main>
+      <h1>Edit</h1>
+      <p><a href="#about">About the editor</a></p>
+      <div id="toolbar" role="toolbar" aria-label="Text">
+        <button type="button">Bold</button>
+        <button type="button">Italic</button>
+        <button type="button">Underline</button>
+      </div>
+      <p><button type="button">Save</button></p>
+      <p id="about">Write, then save.</p>
+    </main>
+    <script>
+      const tools = [...document.querySelectorAll("#toolbar button")];
+      document.getElementById("toolbar").addEventListener("keydown", (event) => {
+        if (event.key !== "Tab" || event.shiftKey) return;
+        const at = tools.indexOf(document.activeElement);
+        event.preventDefault();
+        tools[(at + 1) % tools.length].focus();
+      });
+    </script>
+  </body>
+</html>

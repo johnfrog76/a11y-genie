@@ -2,6 +2,7 @@ import { AxeBuilder } from "@axe-core/playwright";
 import type { Page } from "playwright-core";
 import type { AxeScan } from "./finding.js";
 import { CLICK_ON_NON_CONTROL_TAGS, checkClickOnNonControl } from "./click-on-non-control.js";
+import { checkKeyboardTrap, FOCUS_NOT_RETURNED_TAGS, KEYBOARD_TRAP_TAGS } from "./keyboard-trap.js";
 import { checkLandmarks } from "./landmarks.js";
 import { mapAxeResults, pageKeyOf } from "./map-axe.js";
 import { orderFindings } from "./order.js";
@@ -26,6 +27,10 @@ import { walkPage } from "./walk.js";
  * Last comes the keyboard walk (src/walk.ts), because it presses Tab. It runs whatever the tags, since it is
  * a record of where focus goes and not a rule, and it is kept on the result as `walk`. The skip link's check
  * reads the walk's first stops rather than pressing Tab itself (spec 6.5: one walk feeds 6.3 and 6.4).
+ *
+ * After the walk, where it went round, `genie/keyboard-trap` and `genie/focus-not-returned` (src/keyboard-trap.ts)
+ * press Shift+Tab and Escape from where the walk left focus. They come last of all, because Escape may close a
+ * dialog. Each runs when a `--tags` list has one of its tags (`wcag2a` among them).
  *
  * `pageKey` names the page in finding ids; without it, the key comes from the page's URL (D6). `maxTabs` is
  * `--max-tabs`, the walk's limit.
@@ -61,7 +66,19 @@ export async function scanPage(
   });
   // No skip link (src/skip-link.ts).
   const noSkipLink = bestPractice ? await checkSkipLink(page, pageKey, skipLinkSeen) : undefined;
-  const findings = [noLandmarks, click?.finding, noSkipLink].filter((f) => f !== undefined);
+  // Where the walk went round: a keyboard trap, or a modal dialog that does not give focus back (src/keyboard-trap.ts).
+  const wants = (ruleTags: readonly string[]): boolean =>
+    tags === null || ruleTags.some((t) => tags.includes(t));
+  const trapTags = wants(KEYBOARD_TRAP_TAGS);
+  const returnTags = wants(FOCUS_NOT_RETURNED_TAGS);
+  const trap = trapTags || returnTags ? await checkKeyboardTrap(page, pageKey, walk) : {};
+  const findings = [
+    noLandmarks,
+    click?.finding,
+    noSkipLink,
+    trapTags ? trap.trap : undefined,
+    returnTags ? trap.notReturned : undefined,
+  ].filter((f) => f !== undefined);
   const needsReview = [click?.needsReview].filter((n) => n !== undefined);
   return {
     ...scan,
