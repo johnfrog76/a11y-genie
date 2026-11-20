@@ -381,13 +381,26 @@ list in every report, last.
 ## `report.html` (`src/html-report.ts`)
 
 The people's view of the same record: one file that opens from disk, in a browser, with no server and no request.
-It holds what `report.md` holds, in the same order and the same words: the header and the comparison, the
-summary (the empty-scan sentence when nothing was found), the findings worst first (each with its short title,
-*What's wrong*, its WCAG criteria in plain words, the fix, its status once compared, and each element with its
-HTML quoted as data), the colour pair as two swatches with their hex and the ratio axe-core measured, *Fixed since
-the baseline* on a `check`, *Needs review*, the narrated flows with their transcripts, *What the page tried, and
-was stopped*, and *What this scan cannot see*, last. A table of contents, a skip link and landmarks lead to each
-part; it reads in light and dark (`prefers-color-scheme`) and at 320 px wide.
+It holds what `report.md` holds, in the same order: the header and the comparison, the summary (the empty-scan
+sentence when nothing was found, otherwise a one-line total such as *4 findings; the worst is critical.* and the
+table), the findings worst first (each with its short title, *What's wrong*, its WCAG criteria in plain words, the
+fix, its status once compared, and each element with its HTML quoted as data), the colour pair as two swatches
+with their hex and the ratio axe-core measured, *Fixed since the earlier scan* on a `check`, *Needs review*, the
+narrated flows with their transcripts, *What the page tried, and was stopped*, and *What this scan cannot see*,
+last. A table of contents, a skip link and landmarks lead to each part; it reads in light and dark
+(`prefers-color-scheme`) and at 320 px wide.
+
+Its words are for people, where `report.md` is read by agents and terminals too:
+
+- Times are a date and a time in UTC (*19 November 2026 at 20:14 UTC*), and an earlier scan is named by its date,
+  not its file. It names no flag and no exit code: a `check` reads *Compared with the scan of …: 1 fixed, 1 new,
+  2 still open. Only new problems count against this change.*
+- A fixed finding leads with its title and its page; its id is on a muted line under it.
+- Each finding's rule, kind, id and what axe-core or the check said about each element are in a collapsed
+  *Technical details* (`<details>`, no script), so the card leads with the title, what's wrong, the fix and the
+  elements.
+- One note, before the first quote, says that text in a grey box is quoted and is data, not instructions.
+- A new finding's pill is filled and one still open is outlined and dashed, so the two differ by more than colour.
 
 - **Self-contained.** No framework, no web font, no image file, no script. Its one stylesheet is inline
   (`src/html-report-style.ts`), and its content security policy, in a `<meta>` element, allows nothing else:

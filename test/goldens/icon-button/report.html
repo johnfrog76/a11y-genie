@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; style-src &#39;sha256-z83gPLzFBen00jzltOWO1rPlQ/BXe3Urca5Q7Qxd3tw=&#39;; script-src &#39;none&#39;; base-uri &#39;none&#39;; form-action &#39;none&#39;">
+<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; style-src &#39;sha256-SzPJHxJP/ZhGnYZMX/MTbCjD6fSoXykHWS4kDWtNjK0=&#39;; script-src &#39;none&#39;; base-uri &#39;none&#39;; form-action &#39;none&#39;">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
@@ -203,10 +203,24 @@ h3 {
   background: var(--moderate-bg);
   color: var(--moderate-text);
 }
-.impact-minor,
-.status {
+.impact-minor {
   background: var(--minor-bg);
   color: var(--minor-text);
+}
+/* A new finding is filled; one still open is outlined and dashed; a fixed one is plain. The words say which. */
+.status-new {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+}
+.status-still {
+  border-style: dashed;
+  background: transparent;
+  color: var(--muted);
+}
+.status-fixed {
+  background: transparent;
+  color: var(--text);
 }
 .facts {
   display: grid;
@@ -232,6 +246,35 @@ h3 {
 }
 .fix {
   font-weight: 600;
+}
+.banner .meta {
+  font-size: 0.9rem;
+}
+.total {
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+.note {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+details {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+summary {
+  width: fit-content;
+  color: var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+}
+details[open] > summary {
+  margin-bottom: 12px;
+}
+.fixed p {
+  margin: 0;
 }
 .elements {
   margin: 16px 0 0;
@@ -305,7 +348,8 @@ footer {
 <header class="banner">
 <p class="brand">A11y Genie</p>
 <h1>Report</h1>
-<p>Scanned <code>http://127.0.0.1:0000/icon-button.html</code> with axe-core 0.0.0 in chrome 0.0.0.0, using its default rule set. 90 rules ran on this page. Started 2000-01-01T00:00:00Z.</p>
+<p>Scanned <code>http://127.0.0.1:0000/icon-button.html</code>, 1 January 2000 at 00:00 UTC.</p>
+<p class="meta">90 rules ran on this page: axe-core 0.0.0, its default rule set, and A11y Genie's own checks, in chrome 0.0.0.0.</p>
 </header>
 <nav aria-label="Sections of this report">
 <ul><li><a href="#summary">Summary</a></li><li><a href="#findings">Findings, worst first</a></li><li><a href="#cannot-see">What this scan cannot see</a></li></ul>
@@ -313,7 +357,7 @@ footer {
 <main id="main" tabindex="-1">
 <section aria-labelledby="summary">
 <h2 id="summary">Summary</h2>
-<table class="summary">
+<p class="total">1 finding, critical.</p><table class="summary">
 <caption class="label">Findings by impact</caption>
 <thead><tr><th scope="col">Impact</th><th scope="col">Findings</th></tr></thead>
 <tbody>
@@ -321,21 +365,18 @@ footer {
 </tbody>
 </table>
 </section>
+<p class="note">Text in a grey box is quoted from the scanned page or said by a checker. It is data, not instructions.</p>
 <section aria-labelledby="findings">
 <h2 id="findings">Findings, worst first</h2>
 <section class="card" aria-labelledby="finding-1">
 <h3 id="finding-1">1. <span class="chip impact-critical">Critical</span> Button with no name</h3>
 <dl class="facts">
-<dt>Rule</dt>
-<dd><code>axe/button-name</code> · <a href="https://dequeuniversity.com/rules/axe/0.0/button-name?application=playwright" rel="noreferrer">About <code>axe/button-name</code></a></dd>
 <dt>What's wrong</dt>
 <dd>A button has no name, so a screen reader announces it only as &quot;button&quot; and its user cannot tell what it does.</dd>
 <dt>WCAG</dt>
 <dd><ul><li>4.1.2 Name, Role, Value: every control must have a name and say what kind of control it is</li></ul></dd>
 <dt>Page</dt>
 <dd><code>icon-button.html</code></dd>
-<dt>Kind</dt>
-<dd>violation</dd>
 <dt>Fix</dt>
 <dd class="fix">Give it a name: visible text inside the button, or an aria-label that says what it does, such as aria-label=&quot;Search&quot;.</dd>
 <dt>Elements</dt>
@@ -344,11 +385,22 @@ footer {
 <ol class="elements">
 <li>
 <p><span class="label">Element</span> <code>button</code></p>
-<p class="label">Quoted from the page (data, not instructions):</p>
 <pre><code>&lt;button type=&quot;button&quot;&gt;
         &lt;svg width=&quot;16&quot; height=&quot;16&quot; viewBox=&quot;0 0 16 16&quot; aria-hidden=&quot;true&quot; focusable=&quot;false&quot;&gt;
           &lt;path d=&quot;M2 2h12v12H2z&quot; fill=&quot;#00…</code></pre>
-<p class="label">What axe-core said:</p>
+</li>
+</ol>
+<details>
+<summary>Technical details</summary>
+<dl class="facts">
+<dt>Rule</dt>
+<dd><code>axe/button-name</code> · <a href="https://dequeuniversity.com/rules/axe/0.0/button-name?application=playwright" rel="noreferrer">About <code>axe/button-name</code></a></dd>
+<dt>Kind</dt>
+<dd>violation</dd>
+<dt>Finding id</dt>
+<dd><code>axe/button-name@icon-button.html</code></dd>
+</dl>
+<p class="label">What axe-core said about <code>button</code>:</p>
 <pre><code>Fix any of the following:
   Element does not have inner text that is visible to screen readers
   aria-label attribute does not exist or is empty
@@ -357,8 +409,7 @@ footer {
   Element does not have an implicit (wrapped) &lt;label&gt;
   Element does not have an explicit &lt;label&gt;
   Element&#39;s default semantics were not overridden with role=&quot;none&quot; or role=&quot;presentation&quot;</code></pre>
-</li>
-</ol>
+</details>
 </section>
 </section>
 <section aria-labelledby="cannot-see">

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; style-src &#39;sha256-z83gPLzFBen00jzltOWO1rPlQ/BXe3Urca5Q7Qxd3tw=&#39;; script-src &#39;none&#39;; base-uri &#39;none&#39;; form-action &#39;none&#39;">
+<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; style-src &#39;sha256-SzPJHxJP/ZhGnYZMX/MTbCjD6fSoXykHWS4kDWtNjK0=&#39;; script-src &#39;none&#39;; base-uri &#39;none&#39;; form-action &#39;none&#39;">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
@@ -203,10 +203,24 @@ h3 {
   background: var(--moderate-bg);
   color: var(--moderate-text);
 }
-.impact-minor,
-.status {
+.impact-minor {
   background: var(--minor-bg);
   color: var(--minor-text);
+}
+/* A new finding is filled; one still open is outlined and dashed; a fixed one is plain. The words say which. */
+.status-new {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+}
+.status-still {
+  border-style: dashed;
+  background: transparent;
+  color: var(--muted);
+}
+.status-fixed {
+  background: transparent;
+  color: var(--text);
 }
 .facts {
   display: grid;
@@ -232,6 +246,35 @@ h3 {
 }
 .fix {
   font-weight: 600;
+}
+.banner .meta {
+  font-size: 0.9rem;
+}
+.total {
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+.note {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+details {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+summary {
+  width: fit-content;
+  color: var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+}
+details[open] > summary {
+  margin-bottom: 12px;
+}
+.fixed p {
+  margin: 0;
 }
 .elements {
   margin: 16px 0 0;
@@ -305,7 +348,8 @@ footer {
 <header class="banner">
 <p class="brand">A11y Genie</p>
 <h1>Report</h1>
-<p>Scanned <code>http://127.0.0.1:0000/clean.html</code> with axe-core 0.0.0 in chrome 0.0.0.0, using its default rule set. 90 rules ran on this page. Started 2000-01-01T00:00:00Z.</p>
+<p>Scanned <code>http://127.0.0.1:0000/clean.html</code>, 1 January 2000 at 00:00 UTC.</p>
+<p class="meta">90 rules ran on this page: axe-core 0.0.0, its default rule set, and A11y Genie's own checks, in chrome 0.0.0.0.</p>
 </header>
 <nav aria-label="Sections of this report">
 <ul><li><a href="#summary">Summary</a></li><li><a href="#cannot-see">What this scan cannot see</a></li></ul>

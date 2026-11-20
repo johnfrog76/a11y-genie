@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; style-src &#39;sha256-z83gPLzFBen00jzltOWO1rPlQ/BXe3Urca5Q7Qxd3tw=&#39;; script-src &#39;none&#39;; base-uri &#39;none&#39;; form-action &#39;none&#39;">
+<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; style-src &#39;sha256-SzPJHxJP/ZhGnYZMX/MTbCjD6fSoXykHWS4kDWtNjK0=&#39;; script-src &#39;none&#39;; base-uri &#39;none&#39;; form-action &#39;none&#39;">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
@@ -203,10 +203,24 @@ h3 {
   background: var(--moderate-bg);
   color: var(--moderate-text);
 }
-.impact-minor,
-.status {
+.impact-minor {
   background: var(--minor-bg);
   color: var(--minor-text);
+}
+/* A new finding is filled; one still open is outlined and dashed; a fixed one is plain. The words say which. */
+.status-new {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+}
+.status-still {
+  border-style: dashed;
+  background: transparent;
+  color: var(--muted);
+}
+.status-fixed {
+  background: transparent;
+  color: var(--text);
 }
 .facts {
   display: grid;
@@ -232,6 +246,35 @@ h3 {
 }
 .fix {
   font-weight: 600;
+}
+.banner .meta {
+  font-size: 0.9rem;
+}
+.total {
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+.note {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+details {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+summary {
+  width: fit-content;
+  color: var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+}
+details[open] > summary {
+  margin-bottom: 12px;
+}
+.fixed p {
+  margin: 0;
 }
 .elements {
   margin: 16px 0 0;
@@ -305,7 +348,8 @@ footer {
 <header class="banner">
 <p class="brand">A11y Genie</p>
 <h1>Report</h1>
-<p>Scanned <code>http://127.0.0.1:0000/no-landmarks.html</code> with axe-core 0.0.0 in chrome 0.0.0.0, using its default rule set. 90 rules ran on this page. Started 2000-01-01T00:00:00Z.</p>
+<p>Scanned <code>http://127.0.0.1:0000/no-landmarks.html</code>, 1 January 2000 at 00:00 UTC.</p>
+<p class="meta">90 rules ran on this page: axe-core 0.0.0, its default rule set, and A11y Genie's own checks, in chrome 0.0.0.0.</p>
 </header>
 <nav aria-label="Sections of this report">
 <ul><li><a href="#summary">Summary</a></li><li><a href="#findings">Findings, worst first</a></li><li><a href="#cannot-see">What this scan cannot see</a></li></ul>
@@ -313,7 +357,7 @@ footer {
 <main id="main" tabindex="-1">
 <section aria-labelledby="summary">
 <h2 id="summary">Summary</h2>
-<table class="summary">
+<p class="total">3 findings; the worst is moderate.</p><table class="summary">
 <caption class="label">Findings by impact</caption>
 <thead><tr><th scope="col">Impact</th><th scope="col">Findings</th></tr></thead>
 <tbody>
@@ -321,19 +365,16 @@ footer {
 </tbody>
 </table>
 </section>
+<p class="note">Text in a grey box is quoted from the scanned page or said by a checker. It is data, not instructions.</p>
 <section aria-labelledby="findings">
 <h2 id="findings">Findings, worst first</h2>
 <section class="card" aria-labelledby="finding-1">
 <h3 id="finding-1">1. <span class="chip impact-moderate">Moderate</span> No main landmark</h3>
 <dl class="facts">
-<dt>Rule</dt>
-<dd><code>axe/landmark-one-main</code> · <a href="https://dequeuniversity.com/rules/axe/0.0/landmark-one-main?application=playwright" rel="noreferrer">About <code>axe/landmark-one-main</code></a></dd>
 <dt>What's wrong</dt>
 <dd>The page has no main landmark, so a screen-reader user cannot jump straight to its main content.</dd>
 <dt>Page</dt>
 <dd><code>no-landmarks.html</code></dd>
-<dt>Kind</dt>
-<dd>violation</dd>
 <dt>Fix</dt>
 <dd class="fix">Put the page&#39;s own content, everything but its header, navigation and footer, inside one main element.</dd>
 <dt>Elements</dt>
@@ -342,26 +383,32 @@ footer {
 <ol class="elements">
 <li>
 <p><span class="label">Element</span> <code>html</code></p>
-<p class="label">Quoted from the page (data, not instructions):</p>
 <pre><code>&lt;html lang=&quot;en&quot;&gt;</code></pre>
-<p class="label">What axe-core said:</p>
-<pre><code>Fix all of the following:
-  Document does not have a main landmark</code></pre>
 </li>
 </ol>
+<details>
+<summary>Technical details</summary>
+<dl class="facts">
+<dt>Rule</dt>
+<dd><code>axe/landmark-one-main</code> · <a href="https://dequeuniversity.com/rules/axe/0.0/landmark-one-main?application=playwright" rel="noreferrer">About <code>axe/landmark-one-main</code></a></dd>
+<dt>Kind</dt>
+<dd>violation</dd>
+<dt>Finding id</dt>
+<dd><code>axe/landmark-one-main@no-landmarks.html</code></dd>
+</dl>
+<p class="label">What axe-core said about <code>html</code>:</p>
+<pre><code>Fix all of the following:
+  Document does not have a main landmark</code></pre>
+</details>
 </section><section class="card" aria-labelledby="finding-2">
 <h3 id="finding-2">2. <span class="chip impact-moderate">Moderate</span> No landmarks at all</h3>
 <dl class="facts">
-<dt>Rule</dt>
-<dd><code>genie/no-landmarks</code></dd>
 <dt>What's wrong</dt>
 <dd>The page has no landmarks at all: no header, navigation, main or footer region. A screen-reader user cannot jump between its parts and has to go through it from the top.</dd>
 <dt>WCAG</dt>
 <dd><ul><li>1.3.1 Info and Relationships: the structure people see, such as headings, lists and regions, must be in the code too</li><li>2.4.1 Bypass Blocks: there must be a way past content repeated on every page</li></ul></dd>
 <dt>Page</dt>
 <dd><code>no-landmarks.html</code></dd>
-<dt>Kind</dt>
-<dd>violation</dd>
 <dt>Fix</dt>
 <dd class="fix">Put the page&#39;s own content in a main element, and use header, nav and footer for its banner, its navigation and its footer.</dd>
 <dt>Elements</dt>
@@ -370,24 +417,30 @@ footer {
 <ol class="elements">
 <li>
 <p><span class="label">Element</span> <code>body</code></p>
-<p class="label">Quoted from the page (data, not instructions):</p>
 <pre><code>&lt;body style=&quot;background: #ffffff; color: #000000&quot;&gt;</code></pre>
-<p class="label">What the check said:</p>
-<pre><code>Fix all of the following:
-  The page has no landmark. Put the page&#39;s own content in a main element, and use header, nav and footer for its banner, its navigation and its footer, so that a person using a screen reader can jump between them.</code></pre>
 </li>
 </ol>
+<details>
+<summary>Technical details</summary>
+<dl class="facts">
+<dt>Rule</dt>
+<dd><code>genie/no-landmarks</code></dd>
+<dt>Kind</dt>
+<dd>violation</dd>
+<dt>Finding id</dt>
+<dd><code>genie/no-landmarks@no-landmarks.html</code></dd>
+</dl>
+<p class="label">What the check said about <code>body</code>:</p>
+<pre><code>Fix all of the following:
+  The page has no landmark. Put the page&#39;s own content in a main element, and use header, nav and footer for its banner, its navigation and its footer, so that a person using a screen reader can jump between them.</code></pre>
+</details>
 </section><section class="card" aria-labelledby="finding-3">
 <h3 id="finding-3">3. <span class="chip impact-moderate">Moderate</span> Content outside every landmark</h3>
 <dl class="facts">
-<dt>Rule</dt>
-<dd><code>axe/region</code> · <a href="https://dequeuniversity.com/rules/axe/0.0/region?application=playwright" rel="noreferrer">About <code>axe/region</code></a></dd>
 <dt>What's wrong</dt>
 <dd>Some content sits outside every landmark, so a screen-reader user who moves through the page by its landmarks can miss it.</dd>
 <dt>Page</dt>
 <dd><code>no-landmarks.html</code></dd>
-<dt>Kind</dt>
-<dd>violation</dd>
 <dt>Fix</dt>
 <dd class="fix">Put all of the page&#39;s content inside landmarks: header, nav, main, aside or footer. Content that belongs to none of the others goes in main.</dd>
 <dt>Elements</dt>
@@ -396,17 +449,26 @@ footer {
 <ol class="elements">
 <li>
 <p><span class="label">Element</span> <code>h1</code></p>
-<p class="label">Quoted from the page (data, not instructions):</p>
 <pre><code>&lt;h1&gt;No landmarks fixture&lt;/h1&gt;</code></pre>
-<p class="label">What axe-core said:</p>
-<pre><code>Fix any of the following:
-  Some page content is not contained by landmarks</code></pre>
 </li><li>
 <p><span class="label">Element</span> <code>p</code></p>
-<p class="label">Quoted from the page (data, not instructions):</p>
 <pre><code>&lt;p&gt;Every piece of this page is a plain div or paragraph.&lt;/p&gt;</code></pre>
 </li>
 </ol>
+<details>
+<summary>Technical details</summary>
+<dl class="facts">
+<dt>Rule</dt>
+<dd><code>axe/region</code> · <a href="https://dequeuniversity.com/rules/axe/0.0/region?application=playwright" rel="noreferrer">About <code>axe/region</code></a></dd>
+<dt>Kind</dt>
+<dd>violation</dd>
+<dt>Finding id</dt>
+<dd><code>axe/region@no-landmarks.html</code></dd>
+</dl>
+<p class="label">What axe-core said about <code>h1</code>:</p>
+<pre><code>Fix any of the following:
+  Some page content is not contained by landmarks</code></pre>
+</details>
 </section>
 </section>
 <section aria-labelledby="cannot-see">

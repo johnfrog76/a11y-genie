@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { escapeHtml, linkable, markup } from "../../src/html-escape.js";
 import { REPORT_CSS } from "../../src/html-report-style.js";
-import { contentSecurityPolicy, cspHash, renderHtmlReport } from "../../src/html-report.js";
+import { contentSecurityPolicy, cspHash, humanTime, renderHtmlReport } from "../../src/html-report.js";
 import { emptyScanSentence, renderReport } from "../../src/report.js";
 import { expectTextGolden, GOLDEN_PAGES, readGolden, readGoldenRecord } from "../helpers/goldens.js";
 import { neverClaimViolations } from "../helpers/never-claim.js";
@@ -12,7 +12,7 @@ import { ALL_HOSTILE, goldenCheckRecord, HOSTILE, hostileRecord } from "../helpe
 const OUR_TAGS = new Set(
   (
     "html head meta title style body a div header p h1 h2 h3 nav ul ol li main section table caption thead " +
-    "tbody tr th td dl dt dd pre code span svg rect footer"
+    "tbody tr th td dl dt dd pre code span strong svg rect details summary footer"
   ).split(" "),
 );
 
@@ -171,7 +171,46 @@ describe("the content security policy", () => {
   );
 });
 
+/** The words a reader sees: the body without its tags, the `<details>` included. */
+function textOf(page: string): string {
+  return page
+    .slice(page.indexOf("<body>"))
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
+}
+
 describe("what report.html says", () => {
+  it("gives times as a date and a time in UTC, and an unreadable time as written", () => {
+    expect(humanTime("2026-11-19T20:14:03Z")).toBe("19 November 2026 at 20:14 UTC");
+    expect(humanTime("2026-01-05T07:09:59.900Z")).toBe("5 January 2026 at 07:09 UTC");
+    expect(humanTime("not a time")).toBe("not a time");
+    const page = readGolden("impact-mix", "report.html");
+    expect(page).toContain(
+      "<p>Scanned <code>http://127.0.0.1:0000/impact-mix.html</code>, 1 January 2000 at 00:00 UTC.</p>",
+    );
+  });
+
+  it("leads with the total, and puts the rule, kind, id and axe-core's words in collapsed technical details", () => {
+    const page = readGolden("impact-mix", "report.html");
+    expect(page).toContain('<p class="total">4 findings; the worst is critical.</p>');
+    const record = readGoldenRecord("impact-mix");
+    expect(page.match(/<details>\n<summary>Technical details<\/summary>/g)).toHaveLength(
+      record.findings.length,
+    );
+    expect(page).not.toContain("<details open");
+    const card = page.slice(page.indexOf('<section class="card"'), page.indexOf("<details>"));
+    for (const technical of ["<dt>Rule</dt>", "<dt>Kind</dt>", "What axe-core said"]) {
+      expect(card).not.toContain(technical);
+    }
+    // The note that says what the grey boxes are is said once.
+    expect(page.match(/It is data, not instructions\./g)).toHaveLength(1);
+    expect(readGolden("clean", "report.html")).not.toContain("It is data, not instructions.");
+  });
+
   it.each(GOLDEN_PAGES)("%s: its sections and findings come in report.md's order", (name) => {
     const page = readGolden(name, "report.html");
     const markdown = readGolden(name, "report.md");
@@ -228,13 +267,23 @@ describe("what report.html says", () => {
     expect(headings(page, 2)).toEqual([
       "Summary",
       "Findings, worst first",
-      "Fixed since the baseline",
+      "Fixed since the earlier scan",
       "What this scan cannot see",
     ]);
     expect(page).toContain("<dt>Status</dt>\n<dd>new</dd>");
     expect(page).toContain("<dt>Status</dt>\n<dd>still open</dd>");
-    expect(page).toContain("1 fixed, 1 new, 2 still open.");
-    expect(page).toContain("<li><code>axe/image-alt@impact-mix.html</code>: Image with no text alternative;");
+    expect(page).toContain('<span class="chip status-new">new</span>');
+    expect(page).toContain('<span class="chip status-still">still open</span>');
+    expect(page).toContain(
+      "Compared with the scan of 31 December 1999 at 00:00 UTC: 1 fixed, 1 new, 2 still open. Only new problems count against this change.",
+    );
+    expect(page).toContain(
+      "<li><p><strong>Image with no text alternative</strong> on <code>impact-mix.html</code>: 1 element (<code>img</code>). Gone since the scan of 1 January 2000 at 00:00 UTC.</p>",
+    );
+    // The words of report.md that are for agents and terminals are not on the page.
+    for (const words of ["exit", "baseline", "--", "unverified", "2000-01-01T", "1999-12-31T"]) {
+      expect(textOf(page), words).not.toContain(words);
+    }
     expect(neverClaimViolations(page)).toEqual([]);
     expect(renderReport(record)).toContain("## Fixed since the baseline");
   });

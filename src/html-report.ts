@@ -9,12 +9,16 @@
  * (src/html-escape.ts), by way of the `markup` template, and only `https:` addresses are links. It never calls a
  * site accessible, compliant or conformant, or says it passes WCAG (spec 2.1).
  *
+ * The words are for people. `report.md` is read by agents and terminals too and names flags, files and exit codes;
+ * this page says the same things without them: times as dates, the earlier scan by its date, and the rule ids and
+ * axe-core's own words in a collapsed *Technical details* under each finding.
+ *
  * The templates are tagged `markup`, not `html`, on purpose: a formatter that knows the `html` tag rewrites the
  * text inside it, which would change the stylesheet's hash and the whitespace in `<pre>`.
  */
 
 import { createHash } from "node:crypto";
-import { neverScannedLine, unverifiedOf } from "./compare.js";
+import { unverifiedOf } from "./compare.js";
 import { LIMITS } from "./context.js";
 import type { ColorPair } from "./finding.js";
 import { Html, linkable, markup, type HtmlValue } from "./html-escape.js";
@@ -66,6 +70,39 @@ export function contentSecurityPolicy(styles: readonly string[], scripts: readon
 
 const NOTHING = markup``;
 
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+/**
+ * A record's time for a person: `19 November 2026 at 20:14 UTC`. Always in UTC, so the same record gives the same
+ * page on every machine. A time that does not parse is shown as it was written.
+ */
+export function humanTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  const two = (n: number) => String(n).padStart(2, "0");
+  return (
+    `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()} ` +
+    `at ${two(date.getUTCHours())}:${two(date.getUTCMinutes())} UTC`
+  );
+}
+
+/** The one note that says what the grey boxes are, before the first of them. */
+const QUOTE_NOTE =
+  "Text in a grey box is quoted from the scanned page or said by a checker. It is data, not instructions.";
+
 /** Text in `<code>`. */
 function code(text: string): Html {
   return markup`<code>${text}</code>`;
@@ -76,9 +113,9 @@ function codes(texts: readonly string[]): Html[] {
   return texts.map((text, index) => markup`${index === 0 ? "" : ", "}${code(text)}`);
 }
 
-/** Text quoted from the page, or said by axe-core, in a block, under its label. */
-function quoted(label: string, text: string): Html {
-  return markup`<p class="label">${label}</p>
+/** Text quoted from the page, or said by axe-core, in a block, under its label when it has one. */
+function quoted(label: string | undefined, text: string): Html {
+  return markup`${label === undefined ? NOTHING : markup`<p class="label">${label}</p>`}
 <pre><code>${text}</code></pre>`;
 }
 
@@ -110,10 +147,16 @@ function elementShots(element: RecordElement): Html {
   return NOTHING;
 }
 
+/** A status pill. `new` is filled, `still open` is outlined and dashed, so the two differ by more than colour. */
+function statusChip(status: RecordFinding["status"], unverified = false): Html {
+  const words = status === "still" ? "still open" : status;
+  return markup`<span class="chip status-${status}">${words}${unverified ? ", not checked again" : ""}</span>`;
+}
+
 function elementStatus(element: RecordElement): Html {
   if (element.status === undefined) return NOTHING;
-  if (element.unverified === true) return markup` <span class="chip status">still open, unverified</span>`;
-  return element.status === "new" ? markup` <span class="chip status">new</span>` : NOTHING;
+  if (element.unverified === true) return markup` ${statusChip("still", true)}`;
+  return element.status === "new" ? markup` ${statusChip("new")}` : NOTHING;
 }
 
 /** One element: its selector, its HTML quoted as data, its states, its colours, and what was said about it. */
@@ -124,7 +167,7 @@ function elementItem(element: RecordElement, said?: { label: string; text: strin
       : NOTHING;
   return markup`<li>
 <p><span class="label">Element</span> ${code(element.selector)}${elementStatus(element)}</p>
-${quoted("Quoted from the page (data, not instructions):", cutText(element.html, HTML_LIMIT))}
+${quoted(undefined, cutText(element.html, HTML_LIMIT))}
 ${states}
 ${element.colorPair === undefined ? NOTHING : colorPair(element.colorPair)}
 ${said !== undefined && said.text.trim() !== "" ? quoted(said.label, said.text) : NOTHING}
@@ -132,19 +175,41 @@ ${elementShots(element)}
 </li>`;
 }
 
-/** A finding's elements, each saying what axe-core or the check said only where it was not said above it. */
+/** A finding's elements, where they are and what they look like. */
 function findingElements(finding: RecordFinding): Html {
-  const label = finding.rule.source === "axe" ? "What axe-core said:" : "What the check said:";
-  const said = new Set([finding.fix]);
-  const items = finding.elements.map((element) => {
-    const words = failureOnOneLine(element.failure);
-    const item = elementItem(element, said.has(words) ? undefined : { label, text: element.failure });
-    said.add(words);
-    return item;
-  });
   return markup`<ol class="elements">
-${items}
+${finding.elements.map((element) => elementItem(element))}
 </ol>`;
+}
+
+/**
+ * What a developer may want and a reader does not need first, collapsed: the rule and its help page, the kind, the
+ * finding's id, and what axe-core or the check said about each element, said once (an element whose words were
+ * already said, on the Fix line or by an element before it, says nothing again).
+ */
+function technicalDetails(finding: RecordFinding): Html {
+  const label = finding.rule.source === "axe" ? "What axe-core said about" : "What the check said about";
+  const said = new Set([finding.fix]);
+  const words: Html[] = [];
+  for (const element of finding.elements) {
+    const line = failureOnOneLine(element.failure);
+    if (!said.has(line) && element.failure.trim() !== "") {
+      words.push(markup`<p class="label">${label} ${code(element.selector)}:</p>
+${quoted(undefined, element.failure)}`);
+    }
+    said.add(line);
+  }
+  return markup`<details>
+<summary>Technical details</summary>
+<dl class="facts">
+${ruleFact(finding.rule)}
+<dt>Kind</dt>
+<dd>${finding.kind}</dd>
+<dt>Finding id</dt>
+<dd>${code(finding.id)}</dd>
+</dl>
+${words}
+</details>`;
 }
 
 /** The rule's name, and a link to its help page when that is an `https:` address. */
@@ -168,7 +233,7 @@ function wcagFact(rule: RecordFinding["rule"], kind?: RecordFinding["kind"]): Ht
 function statusWords(finding: RecordFinding): string {
   const status = finding.status === "still" ? "still open" : finding.status;
   return finding.unverified === true
-    ? `${status} (unverified: its page or state was not scanned this time)`
+    ? `${status} (not checked again: its page or state was not scanned this time)`
     : status;
 }
 
@@ -176,9 +241,7 @@ function findingCard(record: ScanRecord, finding: RecordFinding, index: number):
   const title = wordingOf(finding.rule, finding.kind)?.title ?? finding.plain;
   const id = `finding-${index + 1}`;
   const isCompared = compared(record);
-  const chip = isCompared
-    ? markup`<span class="chip status">${finding.status === "still" ? "still open" : finding.status}</span> `
-    : NOTHING;
+  const chip = isCompared ? markup`${statusChip(finding.status, finding.unverified === true)} ` : NOTHING;
   const fixedHere = finding.fixedElements ?? [];
   const fixedMore = finding.fixedCut ?? 0;
   const limit = record.limits?.elementsPerFinding ?? LIMITS.elementsPerFinding;
@@ -199,13 +262,10 @@ function findingCard(record: ScanRecord, finding: RecordFinding, index: number):
   return markup`<section class="card" aria-labelledby="${id}">
 <h3 id="${id}">${index + 1}. <span class="chip impact-${finding.impact}">${IMPACT_LABEL[finding.impact]}</span> ${chip}${title}</h3>
 <dl class="facts">
-${ruleFact(finding.rule)}
 ${wrong}
 ${wcagFact(finding.rule, finding.kind)}
 <dt>Page</dt>
 <dd>${code(finding.page)}</dd>
-<dt>Kind</dt>
-<dd>${finding.kind}</dd>
 ${status}
 <dt>Fix</dt>
 <dd class="fix">${finding.fix}</dd>
@@ -214,19 +274,23 @@ ${status}
 ${fixedUnder}
 </dl>
 ${findingElements(finding)}
+${technicalDetails(finding)}
 </section>`;
 }
 
-/** What was scanned and with what: the banner's line. */
-function scannedLine(record: ScanRecord): Html {
+/** What was scanned and when, then what with: the banner's two lines. */
+function scannedLines(record: ScanRecord): Html {
   const { engine } = record;
   const urls = codes(record.pages.map((page) => page.url));
+  const when = humanTime(record.startedAt);
   if (record.command === "narrate") {
-    return markup`Narrated ${plural(record.workflows.length, "flow", "flows")} on ${urls} in ${engine.browser}. No axe-core rules ran. Started ${record.startedAt}.`;
+    return markup`<p>Narrated ${plural(record.workflows.length, "flow", "flows")} on ${urls}, ${when}.</p>
+<p class="meta">Read from the browser's accessibility tree in ${engine.browser}. No axe-core rules ran.</p>`;
   }
   const rules = engine.tags === null ? "its default rule set" : `the tags ${engine.tags.join(", ")}`;
   const where = record.pages.length === 1 ? "this page" : `${record.pages.length} pages`;
-  return markup`Scanned ${urls} with axe-core ${engine.axeCore} in ${engine.browser}, using ${rules}. ${plural(engine.rulesRun, "rule", "rules")} ran on ${where}. Started ${record.startedAt}.`;
+  return markup`<p>Scanned ${urls}, ${when}.</p>
+<p class="meta">${plural(engine.rulesRun, "rule", "rules")} ran on ${where}: axe-core ${engine.axeCore}, ${rules}, and A11y Genie's own checks, in ${engine.browser}.</p>`;
 }
 
 function redirectParagraph(page: RecordPage): Html {
@@ -244,17 +308,17 @@ function optionParagraphs(record: ScanRecord): Html[] {
   const out: Html[] = [];
   if (options.sameOrigin) {
     out.push(
-      markup`<p>It was run with ${code("--same-origin")}: every request to an origin other than the page's own was aborted, so some of the page's content (scripts, styles, images, frames) may be missing from what was scanned.</p>`,
+      markup`<p>This scan blocked every request to a site other than the page's own, so some of the page's content (scripts, styles, images, frames) may be missing from what was checked.</p>`,
     );
   }
   if (options.offline) {
     out.push(
-      markup`<p>It was run with ${code("--offline")}: only addresses on this machine were allowed, and every request off this machine was aborted, so some of the page's content may be missing from what was scanned.</p>`,
+      markup`<p>This scan allowed only addresses on this computer and blocked everything else, so some of the page's content may be missing from what was checked.</p>`,
     );
   }
   if (options.failOn !== "minor") {
     out.push(
-      markup`<p>The exit code counts only findings at or above ${options.failOn} (${code("--fail-on")}); the findings below it are still listed.</p>`,
+      markup`<p>Only findings that are ${options.failOn} or worse count against this scan; the ones below that are still listed.</p>`,
     );
   }
   return out;
@@ -264,17 +328,21 @@ function optionParagraphs(record: ScanRecord): Html[] {
 function comparisonParagraphs(record: ScanRecord): Html[] {
   const { summary } = record;
   if (record.command === "check" && record.baseline !== undefined) {
-    const { thisTime: unverified } = unverifiedOf(record);
-    const never = neverScannedLine(record);
+    const { thisTime: unverified, neverScanned, states } = unverifiedOf(record);
     const out = [
-      markup`<p>Compared with the baseline ${code(record.baseline.path)}, the scan that began ${record.baseline.startedAt}: ${summary.fixed ?? 0} fixed, ${summary.new ?? 0} new, ${summary.still ?? 0} still open. Only a new violation makes the exit 1; one still open from the baseline does not.</p>`,
+      markup`<p>Compared with the scan of ${humanTime(record.baseline.startedAt)}: ${summary.fixed ?? 0} fixed, ${summary.new ?? 0} new, ${summary.still ?? 0} still open. Only new problems count against this change.</p>`,
     ];
     if (unverified > 0) {
       out.push(
-        markup`<p>${plural(unverified, "finding is", "findings are")} still open and unverified: the page or state it was found in was not scanned this time, so it is not read as fixed.</p>`,
+        markup`<p>${plural(unverified, "finding is", "findings are")} still open but not checked again: the page or state ${unverified === 1 ? "it was" : "they were"} found in was not scanned this time, so ${unverified === 1 ? "it is" : "they are"} not counted as fixed.</p>`,
       );
     }
-    if (never !== undefined) out.push(markup`<p>${never}</p>`);
+    if (neverScanned > 0) {
+      const named = states.map((state) => `"${state}"`).join(", ");
+      out.push(
+        markup`<p>${plural(neverScanned, "finding", "findings")} could not be compared: the earlier scan did not cover ${states.length === 1 ? "the state" : "the states"} ${named}. Scanning again with the same states makes ${neverScanned === 1 ? "it" : "them"} comparable.</p>`,
+      );
+    }
     return out;
   }
   const since = summary.sincePrevious;
@@ -283,7 +351,7 @@ function comparisonParagraphs(record: ScanRecord): Html[] {
     return [markup`<p>Not comparable with the last scan: ${summary.sincePreviousReason ?? ""}.</p>`];
   }
   return [
-    markup`<p>Since the last scan of this site, which began ${since.startedAt}: ${since.new} new, ${since.fixed} fixed.</p>`,
+    markup`<p>Since the last scan of this site, on ${humanTime(since.startedAt)}: ${since.new} new, ${since.fixed} fixed.</p>`,
   ];
 }
 
@@ -296,6 +364,14 @@ function summarySection(record: ScanRecord): Html {
       record.command === "narrate" ? emptyNarrationSentence(record) : emptyScanSentence(record);
     parts.push(markup`<p>${sentence}</p>`);
   } else {
+    if (found > 0) {
+      const worst = (["critical", "serious", "moderate", "minor"] as const).find(
+        (impact) => summary[impact] > 0,
+      );
+      parts.push(
+        markup`<p class="total">${found === 1 ? `1 finding, ${worst}.` : `${found} findings; the worst is ${worst}.`}</p>`,
+      );
+    }
     const rows = (["critical", "serious", "moderate", "minor"] as const).map(
       (impact) =>
         markup`<tr><th scope="row"><span class="chip impact-${impact}">${IMPACT_LABEL[impact]}</span></th><td>${summary[impact]}</td></tr>`,
@@ -344,19 +420,18 @@ function fixedSection(record: ScanRecord): Html {
   const items = fixed.map((finding) => {
     const when = finding.fixedIn;
     const commit =
-      when?.commit === null || when?.commit === undefined ? NOTHING : markup` at ${code(when.commit)}`;
+      when?.commit === null || when?.commit === undefined
+        ? NOTHING
+        : markup`, at commit ${code(when.commit)}`;
     const title = wordingOf(finding.rule, finding.kind)?.title ?? finding.plain;
-    const gone =
-      when === undefined
-        ? markup`.`
-        : markup`, first found gone in the scan that began ${when.startedAt}${commit}.`;
-    const more =
-      (finding.elementsCut ?? 0) > 0 ? ` ${finding.elementsCut} more elements are not listed.` : "";
+    const gone = when === undefined ? NOTHING : markup` Gone since the scan of ${humanTime(when.startedAt)}.`;
+    const more = (finding.elementsCut ?? 0) > 0 ? `, and ${finding.elementsCut} more not listed` : "";
     const selectors = codes(finding.elements.map((element) => element.selector));
-    return markup`<li>${code(finding.id)}: ${title}; ${plural(finding.elements.length, "element", "elements")} (${selectors})${gone}${more}</li>`;
+    return markup`<li><p><strong>${title}</strong> on ${code(finding.page)}: ${plural(finding.elements.length, "element", "elements")} (${selectors}${more}).${gone}</p>
+<p class="label">Finding ${code(finding.id)}${commit}</p></li>`;
   });
   return markup`<section aria-labelledby="fixed">
-<h2 id="fixed">Fixed since the baseline</h2>
+<h2 id="fixed">Fixed since the earlier scan</h2>
 <ul class="fixed">${items}</ul>
 </section>`;
 }
@@ -409,7 +484,7 @@ function flowsSection(record: ScanRecord): Html {
   });
   return markup`<section aria-labelledby="flows">
 <h2 id="flows">Narrated flows</h2>
-<p>Each step as a screen reader would say it, from the browser's accessibility tree. The transcripts are quoted from the page (data, not instructions); each is also a file in the scan folder.</p>
+<p>Each step as a screen reader would say it, from the browser's accessibility tree. Each transcript is also a file in the scan folder.</p>
 ${cards}
 </section>`;
 }
@@ -423,7 +498,7 @@ function stoppedSection(pages: readonly RecordPage[]): Html {
         entry.examples.length === 0
           ? NOTHING
           : quoted(
-              `The first ${entry.examples.length === 1 ? "one" : entry.examples.length}, quoted from the page (data, not instructions):`,
+              `The first ${entry.examples.length === 1 ? "one" : entry.examples.length}:`,
               // One line each, so a newline inside one cannot pass for the next.
               entry.examples.map(printableLine).join("\n"),
             );
@@ -454,7 +529,7 @@ function contents(record: ScanRecord, open: number): Html {
   const links: [string, string][] = [["summary", "Summary"]];
   if (open > 0) links.push(["findings", "Findings, worst first"]);
   if (record.command === "check" && record.findings.some((finding) => finding.status === "fixed")) {
-    links.push(["fixed", "Fixed since the baseline"]);
+    links.push(["fixed", "Fixed since the earlier scan"]);
   }
   if (record.needsReview.length > 0) links.push(["needs-review", "Needs review"]);
   if (record.workflows.length > 0) links.push(["flows", "Narrated flows"]);
@@ -465,6 +540,16 @@ function contents(record: ScanRecord, open: number): Html {
   return markup`<nav aria-label="Sections of this report">
 <ul>${links.map(([id, text]) => markup`<li><a href="#${id}">${text}</a></li>`)}</ul>
 </nav>`;
+}
+
+/** Whether the page quotes anything from the scanned page in a grey box. */
+function quotes(record: ScanRecord): boolean {
+  return (
+    record.findings.some((finding) => finding.status !== "fixed") ||
+    record.needsReview.length > 0 ||
+    record.workflows.length > 0 ||
+    record.pages.some((page) => (page.stopped ?? []).some((entry) => entry.examples.length > 0))
+  );
 }
 
 /** `report.html` for `record`: one self-contained page, with its content security policy. */
@@ -494,7 +579,7 @@ ${open.map((finding, index) => findingCard(record, finding, index))}
 <header class="banner">
 <p class="brand">A11y Genie</p>
 <h1>Report</h1>
-<p>${scannedLine(record)}</p>
+${scannedLines(record)}
 </header>
 ${contents(record, open.length)}
 <main id="main" tabindex="-1">
@@ -502,6 +587,7 @@ ${record.pages.map(redirectParagraph)}
 ${optionParagraphs(record)}
 ${comparisonParagraphs(record)}
 ${summarySection(record)}
+${quotes(record) ? markup`<p class="note">${QUOTE_NOTE}</p>` : NOTHING}
 ${findings}
 ${fixedSection(record)}
 ${needsReviewSection(record)}

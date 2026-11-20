@@ -200,10 +200,24 @@ h3 {
   background: var(--moderate-bg);
   color: var(--moderate-text);
 }
-.impact-minor,
-.status {
+.impact-minor {
   background: var(--minor-bg);
   color: var(--minor-text);
+}
+/* A new finding is filled; one still open is outlined and dashed; a fixed one is plain. The words say which. */
+.status-new {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+}
+.status-still {
+  border-style: dashed;
+  background: transparent;
+  color: var(--muted);
+}
+.status-fixed {
+  background: transparent;
+  color: var(--text);
 }
 .facts {
   display: grid;
@@ -229,6 +243,35 @@ h3 {
 }
 .fix {
   font-weight: 600;
+}
+.banner .meta {
+  font-size: 0.9rem;
+}
+.total {
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+.note {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+details {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+summary {
+  width: fit-content;
+  color: var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+}
+details[open] > summary {
+  margin-bottom: 12px;
+}
+.fixed p {
+  margin: 0;
 }
 .elements {
   margin: 16px 0 0;
