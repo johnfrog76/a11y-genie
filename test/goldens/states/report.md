@@ -15,7 +15,8 @@ Scanned `http://127.0.0.1:0000/states.html` with axe-core 0.0.0 in chrome 0.0.0.
 
 ### 1. Critical: A button has no name, so a screen reader announces it only as "button" and its user cannot tell what it does.
 
-- Rule: `axe/button-name` · WCAG 4.1.2 · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/button-name?application=playwright>)
+- Rule: `axe/button-name` · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/button-name?application=playwright>)
+- WCAG: 4.1.2 Name, Role, Value: every control must have a name and say what kind of control it is
 - Page: `states.html`
 - Kind: violation
 - Fix: Give it a name: visible text inside the button, or an aria-label that says what it does, such as aria-label="Search".
@@ -46,7 +47,8 @@ Scanned `http://127.0.0.1:0000/states.html` with axe-core 0.0.0 in chrome 0.0.0.
 
 ### 2. Serious: Text is too faint against its background for many people to read, people with low vision among them, and anyone looking at a screen in bright light.
 
-- Rule: `axe/color-contrast` · WCAG 1.4.3 · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/color-contrast?application=playwright>)
+- Rule: `axe/color-contrast` · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/color-contrast?application=playwright>)
+- WCAG: 1.4.3 Contrast (Minimum): text must stand out from its background
 - Page: `states.html`
 - Kind: violation
 - Fix: Darken the text or lighten its background, or the other way round, until the contrast ratio is at least 4.5 to 1, or 3 to 1 for large text.

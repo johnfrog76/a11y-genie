@@ -359,7 +359,8 @@ A finding's `plain` (what is wrong, and who it hurts) and `fix` (what to change)
 `RULE_WORDING`, keyed by `<source>/<id>`, such as `axe/image-alt` or `genie/skip-link`. They are written for a
 reader who knows no WCAG, in plain facts and never in the genie's voice (D7), and never call a site accessible,
 compliant or conformant (C16). A second table, `CRITERION_WORDING`, names each WCAG criterion the rules carry,
-with what it asks in a few words. A rule with no entry keeps axe-core's `help` and `failureSummary`, and a criterion with no entry
+with what it asks in a few words; the report prints `1.4.3 Contrast (Minimum): text must stand out from its
+background`. A rule with no entry keeps axe-core's `help` and `failureSummary`, and a criterion with no entry
 reads as its number. The tables are data: no page text and nothing axe-core said goes into them, and the
 finding's element keeps axe-core's (or the check's) own words beside them.
 

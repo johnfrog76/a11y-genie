@@ -15,7 +15,8 @@ Scanned `http://127.0.0.1:0000/impact-mix.html` with axe-core 0.0.0 in chrome 0.
 
 ### 1. Critical: An image has no text alternative, so a person who cannot see it hears nothing about it from a screen reader, or only its file name.
 
-- Rule: `axe/image-alt` · WCAG 1.1.1 · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/image-alt?application=playwright>)
+- Rule: `axe/image-alt` · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/image-alt?application=playwright>)
+- WCAG: 1.1.1 Non-text Content: images and other non-text content need a text alternative
 - Page: `impact-mix.html`
 - Kind: violation
 - Fix: Add an alt attribute that says what the image shows or what it is for. If it is only decoration, use alt="" so that screen readers skip it.
@@ -42,7 +43,8 @@ Scanned `http://127.0.0.1:0000/impact-mix.html` with axe-core 0.0.0 in chrome 0.
 
 ### 2. Serious: Text is too faint against its background for many people to read, people with low vision among them, and anyone looking at a screen in bright light.
 
-- Rule: `axe/color-contrast` · WCAG 1.4.3 · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/color-contrast?application=playwright>)
+- Rule: `axe/color-contrast` · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/color-contrast?application=playwright>)
+- WCAG: 1.4.3 Contrast (Minimum): text must stand out from its background
 - Page: `impact-mix.html`
 - Kind: violation
 - Fix: Darken the text or lighten its background, or the other way round, until the contrast ratio is at least 4.5 to 1, or 3 to 1 for large text.

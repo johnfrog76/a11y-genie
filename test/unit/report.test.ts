@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { mapAxeResults } from "../../src/map-axe.js";
 import { RULE_WORDING } from "../../src/plain.js";
-import { emptyScanSentence, HTML_LIMIT, renderReport } from "../../src/report.js";
+import { emptyScanSentence, HTML_LIMIT, renderReport, wcagLines } from "../../src/report.js";
 import { buildScanRecord, failureOnOneLine, fixOf, type ScanRecord } from "../../src/scan-record.js";
 import { GOLDEN_PAGES, readGolden, readGoldenRecord } from "../helpers/goldens.js";
 
@@ -147,6 +147,26 @@ describe("a finding's words", () => {
     const report = renderReport(recordOf({ ...results, violations }, "impact-mix"));
     expect(report.match(/What axe-core said:/g)).toHaveLength(2);
     expect(report).toContain("Something else");
+  });
+
+  it("name each WCAG criterion in plain words, and give advice's criteria as context only", () => {
+    const rule = {
+      source: "genie" as const,
+      id: "skip-link",
+      help: "",
+      helpUrl: "",
+      wcag: ["2.4.1", "9.9.9"],
+    };
+    expect(wcagLines(rule, "violation")).toEqual([
+      "- WCAG: 2.4.1 Bypass Blocks: there must be a way past content repeated on every page; 9.9.9",
+    ]);
+    expect(wcagLines(rule, "advice")[0]).toMatch(
+      /^- WCAG, as context only \(advice, not a failure\): 2\.4\.1 /,
+    );
+    expect(wcagLines({ ...rule, wcag: [] }, "violation")).toEqual([]);
+    expect(renderReport(recordFrom("impact-mix"))).toContain(
+      "- WCAG: 1.4.3 Contrast (Minimum): text must stand out from its background",
+    );
   });
 });
 

@@ -1,13 +1,14 @@
 /**
  * `report.md`: the Markdown report, made from a scan record and nothing else. It never says a site is
  * accessible, compliant or conformant, or that it passes WCAG (spec 2.1); a scan with no findings says how
- * much it checked. Each finding's words come from src/plain.ts. Text from the page is quoted in a fence, cut at 160 characters, and labelled as quoted,
+ * much it checked. Each finding's words, and each WCAG criterion's, come from src/plain.ts. Text from the page is quoted in a fence, cut at 160 characters, and labelled as quoted,
  * and every piece of text in it, the page's and axe-core's, has its terminal escapes and control characters
  * stripped first (src/printable.ts).
  */
 
 import { LIMITS, type Stopped } from "./context.js";
 import type { ColorPair, Impact } from "./finding.js";
+import { criterionInWords } from "./plain.js";
 import { printable, printableLine } from "./printable.js";
 import {
   failureOnOneLine,
@@ -180,10 +181,21 @@ function stoppedLines(pages: RecordPage[]): string[] {
 
 function ruleLine(rule: RecordFinding["rule"]): string {
   const parts = [`Rule: ${inlineCode(`${rule.source}/${rule.id}`)}`];
-  if (rule.wcag.length > 0) parts.push(`WCAG ${rule.wcag.join(", ")}`);
   if (rule.helpUrl !== "")
     parts.push(`[about this rule](<${printableLine(rule.helpUrl).replace(/[<>\s]/g, encodeURIComponent)}>)`);
   return `- ${parts.join(" · ")}`;
+}
+
+/**
+ * The WCAG criteria a rule bears on, each named in plain words (src/plain.ts); none for a best-practice rule.
+ * Advice is never a WCAG failure (spec 6.4), so its criteria are given as context and said to be so.
+ */
+export function wcagLines(rule: RecordFinding["rule"], kind?: RecordFinding["kind"]): string[] {
+  if (rule.wcag.length === 0) return [];
+  const words = rule.wcag.map((criterion) => plainText(criterionInWords(criterion))).join("; ");
+  return [
+    kind === "advice" ? `- WCAG, as context only (advice, not a failure): ${words}` : `- WCAG: ${words}`,
+  ];
 }
 
 const IMPACT_LABEL: Record<Impact, string> = {
@@ -265,6 +277,7 @@ export function renderReport(record: ScanRecord): string {
         `### ${index + 1}. ${IMPACT_LABEL[finding.impact]}: ${plainText(finding.plain)}`,
         "",
         ruleLine(finding.rule),
+        ...wcagLines(finding.rule, finding.kind),
         `- Page: ${inlineCode(finding.page)}`,
         `- Kind: ${finding.kind}`,
         `- Fix: ${plainText(finding.fix)}`,
@@ -284,7 +297,13 @@ export function renderReport(record: ScanRecord): string {
     );
     for (const item of record.needsReview) {
       const title = item.rule.help === "" ? item.rule.id : item.rule.help;
-      out.push(`### ${plainText(title)}`, "", ruleLine(item.rule), `- Page: ${inlineCode(item.page)}`);
+      out.push(
+        `### ${plainText(title)}`,
+        "",
+        ruleLine(item.rule),
+        ...wcagLines(item.rule),
+        `- Page: ${inlineCode(item.page)}`,
+      );
       if (item.elementsCut !== undefined) {
         out.push(
           `- Elements: ${elementCount(item.elements.length, item.elementsCut, record.limits?.elementsPerFinding ?? LIMITS.elementsPerFinding)}`,

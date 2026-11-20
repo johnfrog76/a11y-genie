@@ -15,7 +15,8 @@ Scanned `http://127.0.0.1:0000/icon-button.html` with axe-core 0.0.0 in chrome 0
 
 ### 1. Critical: A button has no name, so a screen reader announces it only as "button" and its user cannot tell what it does.
 
-- Rule: `axe/button-name` · WCAG 4.1.2 · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/button-name?application=playwright>)
+- Rule: `axe/button-name` · [about this rule](<https://dequeuniversity.com/rules/axe/0.0/button-name?application=playwright>)
+- WCAG: 4.1.2 Name, Role, Value: every control must have a name and say what kind of control it is
 - Page: `icon-button.html`
 - Kind: violation
 - Fix: Give it a name: visible text inside the button, or an aria-label that says what it does, such as aria-label="Search".

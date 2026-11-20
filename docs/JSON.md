@@ -210,7 +210,9 @@ module loads, and `rules` lists what is registered, so a rule not built yet is n
 Made from the record and nothing else. It holds, in order: what was scanned and with what, and where a
 redirect ended (saying so when that is another origin); a summary (the empty-scan sentence when nothing was
 found, and each page not scanned with its reason); the findings worst first, each headed by its `plain`, with
-its rule, WCAG criteria, page, fix and elements (with how many are
+its rule, its WCAG criteria each named in plain words (such as `1.4.3 Contrast (Minimum): text must stand out
+from its background`, from `src/plain.ts`, or the number alone for a criterion it has no words for; an advice
+finding gives them as context, since advice is never a WCAG failure), page, fix and elements (with how many are
 not listed, when some were cut; a contrast element also has a `Colours:` line naming the pair, such as
 `#9a9a9a on #ffffff, 2.81, needs 4.5`, from the record's numbers; and each element says what axe-core or the
 check said about it, where that was not already said above it); *Needs review*, when
