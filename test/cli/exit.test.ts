@@ -243,7 +243,13 @@ describe.skipIf(!hasChrome)("exit codes with a browser (skipped where Chrome is 
     });
     // The page never answers, so the scan is certain to be waiting on it once the browser's profile exists.
     const deadline = Date.now() + 20_000;
-    while (!readdirSync(privateTmp).some((name) => name.startsWith("playwright_chromiumdev_profile-"))) {
+    // The command makes its own folder in it (src/private-temp.ts), and the profile is in that one.
+    const profiles = () =>
+      readdirSync(privateTmp)
+        .filter((name) => name.startsWith("a11y-genie-"))
+        .flatMap((name) => readdirSync(join(privateTmp, name)))
+        .filter((name) => name.startsWith("playwright_chromiumdev_profile-"));
+    while (profiles().length === 0) {
       if (Date.now() > deadline) throw new Error("the browser never started");
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
@@ -256,6 +262,6 @@ describe.skipIf(!hasChrome)("exit codes with a browser (skipped where Chrome is 
     expect(result.status).toBe(130);
     expect(result.stdout).toBe("");
     expect(readdirSync(scans)).toEqual([]);
-    expect(readdirSync(privateTmp).filter((name) => name.startsWith("playwright"))).toEqual([]);
+    expect(readdirSync(privateTmp)).toEqual([]);
   });
 });
