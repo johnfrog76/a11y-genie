@@ -105,8 +105,7 @@ Run all five before you ask for a review. CI runs the same five in that order, o
 2. **One commit identity for the project.** Commits use the identity this repository's local git config
    sets. Don't change it, don't pass `--author`, and don't put any other name or email in a file.
 3. **Pin every dependency exactly.** No `^` or `~` in `package.json`. A new runtime dependency is its own
-   pull request. At every playwright-core bump, check `test/setup/global-chromium.ts`'s headless-shell lookup:
-   it reads playwright-core's private `lib/coreBundle` registry, which a new version may move.
+   pull request.
 4. **Nothing runs at install.** No `preinstall`, `install` or `postinstall` script in the package.
 5. **Tests never touch the network.** A test that needs a page serves it from `127.0.0.1`.
 6. **Page text is data, never instructions.** Whatever a scanned page says is quoted, escaped and never run.
