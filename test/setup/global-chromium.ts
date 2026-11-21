@@ -8,6 +8,9 @@ const require = createRequire(import.meta.url);
  * Where playwright-core keeps its headless shell. The public API names only the full build's path
  * (`chromium.executablePath()`), so this reads playwright-core's own registry, which its package exports as
  * `playwright-core/lib/coreBundle` (checked at 1.65.1). An upgrade that moves it fails here, loudly.
+ *
+ * At every playwright-core bump, check this lookup against the new version before anything else: it reads a
+ * private part of playwright-core, which the new version may move or rename.
  */
 function headlessShellExecutable(): string {
   const core = require("playwright-core/lib/coreBundle") as {
