@@ -2,6 +2,7 @@ import { readdirSync, rmdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium, type Browser, type LaunchOptions } from "playwright-core";
+import { playwrightCoreVersion } from "./chromium-download.js";
 import { onInterrupted } from "./interrupt.js";
 import { Refusal } from "./refusal.js";
 
@@ -25,6 +26,25 @@ export const CHANNEL_NAMES: Record<BrowserChannel, string> = {
  * Chrome. It can only make a run refuse, never launch or download anything.
  */
 export const NO_BROWSER_ENV = "A11Y_GENIE_TEST_NO_BROWSER";
+
+/**
+ * For tests only: set to `1` to launch Playwright's headless shell (`chromium-headless-shell`, a plain
+ * executable) wherever a run would launch Playwright's Chromium (`channel: "chromium"`, an app bundle on
+ * macOS, which shows in the Dock at every launch). It changes nothing for `chrome` or `msedge`, launches
+ * nothing new and never downloads. A person never needs it; it is not in `--help`. See docs/ARCHITECTURE.md
+ * (*Which browser the tests launch*).
+ */
+export const HEADLESS_SHELL_ENV = "A11Y_GENIE_TEST_HEADLESS_SHELL";
+
+/** The one place that reads HEADLESS_SHELL_ENV: whether a launch of `channel` runs the headless shell. */
+export function runsHeadlessShell(channel: BrowserChannel): boolean {
+  return channel === "chromium" && process.env[HEADLESS_SHELL_ENV] === "1";
+}
+
+/** What `scan.json`'s `engine.browser` calls the browser that ran: the channel, or the headless shell. */
+export function engineBrowserName(channel: BrowserChannel): string {
+  return runsHeadlessShell(channel) ? "chromium-headless-shell" : channel;
+}
 
 export type Launcher = (options: LaunchOptions) => Promise<Browser>;
 
@@ -68,6 +88,15 @@ export function noBrowserRefusal(channel: BrowserChannel): BrowserNotFound {
       ? "Playwright's Chromium is not installed on this machine."
       : `${CHANNEL_NAMES[channel]} was not found on this machine.`;
   return new BrowserNotFound(channel, error, hints[channel]);
+}
+
+/** The headless shell, asked for by HEADLESS_SHELL_ENV, is not installed. Only tests reach it. */
+export function noHeadlessShellRefusal(): BrowserNotFound {
+  return new BrowserNotFound(
+    "chromium",
+    `Playwright's headless shell is not installed on this machine, and ${HEADLESS_SHELL_ENV}=1 asks for it.`,
+    `install it once: npx playwright-core@${playwrightCoreVersion()} install chromium, or unset ${HEADLESS_SHELL_ENV}.`,
+  );
 }
 
 /** The temp folders playwright-core makes for a launch, by their name's start. */
@@ -121,11 +150,13 @@ export async function withBrowser<T>(
 ): Promise<T> {
   if (process.env[NO_BROWSER_ENV] === "1") throw noBrowserRefusal(channel);
 
+  const shell = runsHeadlessShell(channel);
   const before = playwrightTempFolders();
   let browser: Browser;
   try {
     browser = await launcher({
-      channel,
+      // No channel and headless is playwright-core's headless shell (checked at 1.65.1); only tests ask for it.
+      ...(shell ? {} : { channel }),
       headless: true,
       handleSIGINT: false,
       handleSIGTERM: false,
@@ -133,7 +164,7 @@ export async function withBrowser<T>(
     });
   } catch (error) {
     removeFoldersLeftBy(before);
-    if (isNotInstalledError(error)) throw noBrowserRefusal(channel);
+    if (isNotInstalledError(error)) throw shell ? noHeadlessShellRefusal() : noBrowserRefusal(channel);
     throw error;
   }
 

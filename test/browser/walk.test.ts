@@ -1,4 +1,4 @@
-import { TEST_CHANNEL } from "../helpers/test-browser.js";
+import { TEST_CHANNEL, TEST_LAP_END } from "../helpers/test-browser.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Page } from "playwright-core";
 import { withBrowser } from "../../src/browser.js";
@@ -9,7 +9,7 @@ import type { ScanRecord } from "../../src/scan-record.js";
 import { walkPage, type Walk, type WalkOptions } from "../../src/walk.js";
 import { testBrowserIsInstalled, guardContext } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
-import { readGoldenRecord } from "../helpers/goldens.js";
+import { lapEndAsTested, readGoldenRecord } from "../helpers/goldens.js";
 
 // The keyboard walk (spec 6.5, src/walk.ts) over its fixture pages: the order Tab takes, through open shadow
 // roots and same-origin frames, a positive tabindex first, hidden controls skipped, --max-tabs, a page that
@@ -87,7 +87,8 @@ describe.skipIf(!hasBrowser)("the keyboard walk (skipped where the test browser 
     const walk = await walkOf("impact-mix.html");
     const golden = readGoldenRecord("impact-mix").pages[0]?.walks?.[0];
     expect(golden?.state).toBe("default");
-    expect({ ...walk, state: "default" }).toEqual(golden);
+    // The golden is the full build's walk; its lap end is read as the browser under test gives it (TEST_LAP_END).
+    expect({ ...walk, state: "default" }).toEqual(golden && { ...golden, end: lapEndAsTested(golden.end) });
     expect(names(walk)).toEqual(["Read more", "Email", "Send"]);
     expect(walk.stops.map((stop) => stop.index)).toEqual([1, 2, 3]);
     expect(walk.stops.map((stop) => stop.role)).toEqual(["link", "textbox", "button"]);
@@ -96,8 +97,9 @@ describe.skipIf(!hasBrowser)("the keyboard walk (skipped where the test browser 
 
   it("ends where focus comes back to the first stop, and every selector finds its element again", async () => {
     await walkOf("impact-mix.html", {}, async (tab, walk) => {
-      // After a Shift+Tab out of the page, a lap goes from the last element straight back to the first (V5).
-      expect(walk.end).toBe("wrapped");
+      // After a Shift+Tab out of the page, a lap on the full build goes from the last element straight back to the
+      // first; on the headless shell it leaves the page again (V5, TEST_LAP_END).
+      expect(walk.end).toBe(TEST_LAP_END);
       expect(walk.tabs).toBe(walk.stops.length + 1);
       for (const stop of walk.stops) expect(await resolve(tab, stop.target)).toBe(stop.name);
     });
@@ -154,7 +156,7 @@ describe.skipIf(!hasBrowser)("the keyboard walk (skipped where the test browser 
       "Custom control",
     ]);
     expect(walk.stops[4]).toMatchObject({ selector: "#custom", tag: "div", role: "button" });
-    expect(walk.end).toBe("wrapped");
+    expect(walk.end).toBe(TEST_LAP_END);
   });
 
   it("starts from the top after something lower on the page was clicked", async () => {
@@ -175,7 +177,7 @@ describe.skipIf(!hasBrowser)("the keyboard walk (skipped where the test browser 
     expect(walk).toMatchObject({ end: "max-tabs", tabs: 10, maxTabs: 10 });
     expect(names(walk)).toEqual(Array.from({ length: 10 }, (_, i) => `Button ${i + 1}`));
     const whole = await walkOf("walk-long.html");
-    expect(whole).toMatchObject({ end: "wrapped", tabs: 31, maxTabs: 200 });
+    expect(whole).toMatchObject({ end: TEST_LAP_END, tabs: 31, maxTabs: 200 });
     expect(whole.stops).toHaveLength(30);
   });
 
@@ -196,7 +198,7 @@ describe.skipIf(!hasBrowser)("the keyboard walk (skipped where the test browser 
     expect(inside.length).toBeGreaterThan(0);
     for (const stop of inside)
       expect(stop).toMatchObject({ selector: "#other", tag: "iframe", opaque: true });
-    expect(walk.end).toBe("wrapped");
+    expect(walk.end).toBe(TEST_LAP_END);
   });
 
   it("ends at once, with no stop, on a page where nothing takes focus", async () => {

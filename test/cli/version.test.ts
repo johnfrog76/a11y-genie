@@ -1,9 +1,10 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { builtCli } from "../helpers/built-cli.js";
 
 // Runs the built command (npm test builds first), as a person would.
-const cli = new URL("../../dist/cli.js", import.meta.url).pathname;
+const cli = builtCli();
 const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as {
   version: string;
 };

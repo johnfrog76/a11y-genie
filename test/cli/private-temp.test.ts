@@ -8,10 +8,11 @@ import { processesIn } from "../helpers/processes-in.js";
 import { channelArgs } from "../helpers/test-browser.js";
 import { testBrowserIsInstalled } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
+import { builtCli } from "../helpers/built-cli.js";
 
 // Each a11y-genie process makes a temp folder of its own and removes it when it ends (src/private-temp.ts).
 // These run the built command with a "shared" temp folder of the test's own, and look in it afterwards.
-const cli = new URL("../../dist/cli.js", import.meta.url).pathname;
+const cli = builtCli();
 const diskFull = new URL("../fixtures/preload/disk-full.mjs", import.meta.url).pathname;
 const hasBrowser = await testBrowserIsInstalled();
 

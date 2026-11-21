@@ -10,11 +10,12 @@ import { buildSite } from "../../scripts/build-site.js";
 import { testBrowserIsInstalled, guardContext } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 import { neverClaimViolations } from "../helpers/never-claim.js";
+import { builtCli } from "../helpers/built-cli.js";
 
 // The project's page scans itself: the page as built (scripts/build-site.ts) is served from 127.0.0.1 and
 // the built command scans it, at the desktop size it defaults to. It must have no critical or serious
 // finding. Skipped, and says so, where Chrome is not installed.
-const cli = new URL("../../dist/cli.js", import.meta.url).pathname;
+const cli = builtCli();
 const hasBrowser = await testBrowserIsInstalled();
 
 describe.skipIf(!hasBrowser)("the project's page (skipped where the test browser is not installed)", () => {

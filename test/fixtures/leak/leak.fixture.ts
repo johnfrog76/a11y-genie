@@ -7,7 +7,7 @@ import type { Socket } from "node:net";
 import { afterAll, beforeAll, describe, it } from "vitest";
 import { runScan } from "../../../src/run-scan.js";
 import { processesIn } from "../../helpers/processes-in.js";
-import { TEST_CHANNEL } from "../../helpers/test-browser.js";
+import { TEST_CHANNEL, TEST_LAUNCH_OPTIONS } from "../../helpers/test-browser.js";
 
 describe("tests that fail and leave a browser running", () => {
   let hang: Server;
@@ -27,7 +27,7 @@ describe("tests that fail and leave a browser running", () => {
     // fails. It stops when its browser goes, and by itself after a minute, so it cannot run on for good.
     const script = `
       import { chromium } from "playwright-core";
-      const browser = await chromium.launch({ channel: ${JSON.stringify(TEST_CHANNEL)}, headless: true });
+      const browser = await chromium.launch(${JSON.stringify(TEST_LAUNCH_OPTIONS)});
       browser.on("disconnected", () => process.exit(0));
       setTimeout(() => process.exit(0), 60_000);
     `;

@@ -12,12 +12,13 @@ import { controlsIn } from "../helpers/controls.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 import { readGolden } from "../helpers/goldens.js";
 import { neverClaimViolations } from "../helpers/never-claim.js";
+import { builtCli } from "../helpers/built-cli.js";
 
 // `check --baseline` and plain `scan`'s line about the last scan, through the built command (npm test builds
 // first). The refusals come before a browser opens, so they need none. The command runs in its own process, so
 // the browser-side guard cannot be installed on it: its pages only ever load from the fixture server.
 // test/browser/check.test.ts runs the same comparison guarded.
-const cli = new URL("../../dist/cli.js", import.meta.url).pathname;
+const cli = builtCli();
 const hasBrowser = await testBrowserIsInstalled();
 const schema = scanSchema();
 

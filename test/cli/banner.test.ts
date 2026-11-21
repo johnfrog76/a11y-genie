@@ -7,10 +7,11 @@ import { SCANS_DIR_ENV } from "../../src/scans-folder.js";
 import { testBrowserIsInstalled } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 import { channelArgs } from "../helpers/test-browser.js";
+import { builtCli } from "../helpers/built-cli.js";
 
 // The genie's drawing is for a terminal. These runs pipe stdout and stderr, so neither is one, and nothing
 // is drawn. (The drawing itself, and when it is shown, are held in test/unit/banner.test.ts.)
-const cli = new URL("../../dist/cli.js", import.meta.url).pathname;
+const cli = builtCli();
 const hasBrowser = await testBrowserIsInstalled();
 const DRAWING_LINE = "'._______.'";
 
