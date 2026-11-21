@@ -52,7 +52,9 @@ before its last step (a step that fails on the page, a page a network rule stopp
 the `workflows` of a `scan --config`: a flow not narrated to its end makes the scan exit 1.
 
 `rules` exits 0 on success and 2 on a refusal; it scans nothing. So does `prompt`, which prints the prompt file
-and takes no argument.
+and takes no argument, and so does `cards`, which writes the cards of a stored scan: 0 when it wrote them, or when
+the scan has no open finding and there is no card to write; 2 on a refusal, with no card written. A failure to write
+after the first card was written is not a refusal: it is exit 3.
 
 Not built yet, with a place waiting in `src/exit-codes.ts`:
 
@@ -119,6 +121,12 @@ browser opens, too.
 | A `--baseline` that is not JSON (or not UTF-8), or has no `schema` | `--baseline is not a scan.json: <path> is not JSON.` (or `... has no schema version.`) | the same hint |
 | A `--baseline` of another `schema` major | `--baseline is a scan.json of schema 2, and this version of A11y Genie reads schema 1 (1.x).` | `scan again with this version to make a baseline it can read, or run the version that wrote it.` |
 | A `--baseline` the schema does not hold, or that lists a finding id twice | `--baseline is not a scan.json A11y Genie wrote: <path> does not match schema/scan-1.json at .findings[0].impact.` (and `, and 2 more` when there are more); `... lists the finding <id> twice.` It names where, never the value the file held | the same hint |
+| An argument after `cards`'s first | `cards takes one scan folder, and got more: "b"` | `run a11y-genie --help to see what exists so far.` |
+| An unknown flag after `cards` (`--toolkit` too, until the ToolKit hand-off is built) | the words of Node's argument parser, such as `Unknown option '--toolkit'. ...` | the same hint |
+| `cards` with no `<scan>`, and no scan in the scans folder | `there is no scan in the scans folder for cards to read: <scans>` | `scan first: a11y-genie scan <url>. A scan written under --out is read by giving its folder: a11y-genie cards <scan>` |
+| `cards` with no `<scan>`, and scans of more than one site in the scans folder | `the scans folder holds scans of 2 sites, so cards cannot tell which one to read.` | `give the scan folder to read, such as a11y-genie cards "<scans>/127.0.0.1-4173/2026-11-19T20-14-03Z". The sites: 127.0.0.1-4173, localhost-5173.` (ten at most, then `and 3 more`) |
+| A `cards` `<scan>` that is missing, unreadable, not JSON, over 50 MB, of another `schema` major, or not held by the schema | as for `--baseline`, naming `the scan`: `the scan cannot be read: <path> (ENOENT)`, `the scan is not a scan.json: <path> is not JSON.`, `the scan is not a scan.json A11y Genie wrote: ...` | as for `--baseline` |
+| A scan folder `cards` cannot write in | `cannot write the cards in <folder>/cards: EACCES` | `give a scan folder you may write to.` |
 | A `--baseline` of another site | `--baseline is a scan of http://127.0.0.1:9, and this check is of http://127.0.0.1:8.` | `comparing two sites' findings means nothing: give a baseline of the same site, or scan this one first for one.` |
 | A `--baseline` of other pages, states or tags than the check | `--baseline is not comparable with this check: it scanned the pages home, and this check scans settings.` (or `it scanned the page home in the states default, and this check scans it in dark, default.`, or `it ran axe-core's default rule set, and this check runs the tags wcag2a.`) | `run check with the arguments the baseline was scanned with: the same pages, the same states and the same --tags.` |
 

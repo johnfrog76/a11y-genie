@@ -6,11 +6,13 @@
  * stripped first (src/printable.ts).
  */
 
+import { CARDS_DIR, cardsOf } from "./cards.js";
 import { neverScannedLine, unverifiedOf } from "./compare.js";
 import { LIMITS, type Stopped } from "./context.js";
 import type { ColorPair, Impact } from "./finding.js";
 import { renderTranscript } from "./narrate.js";
 import { criterionInWords, wordingOf } from "./plain.js";
+import { cut, fenced, indent, inlineCode, plainText, plural } from "./markdown.js";
 import { printable, printableLine } from "./printable.js";
 import {
   failureOnOneLine,
@@ -23,39 +25,6 @@ import {
 
 /** The longest a quoted piece of the page's HTML may be in a report (src/context.ts). */
 export const HTML_LIMIT = LIMITS.excerptChars;
-
-function cut(text: string, limit: number): string {
-  const chars = [...text];
-  return chars.length <= limit ? text : `${chars.slice(0, limit).join("")}…`;
-}
-
-function longestBacktickRun(text: string): number {
-  return Math.max(0, ...(text.match(/`+/g) ?? []).map((run) => run.length));
-}
-
-/** A fenced block whose fence is longer than any run of backticks inside it. */
-function fenced(text: string): string {
-  const clean = printable(text);
-  const fence = "`".repeat(Math.max(3, longestBacktickRun(clean) + 1));
-  return `${fence}text\n${clean}\n${fence}`;
-}
-
-/** Inline code that survives backticks inside it. */
-function inlineCode(text: string): string {
-  const clean = printableLine(text);
-  const tick = "`".repeat(longestBacktickRun(clean) + 1);
-  const pad = clean.startsWith("`") || clean.endsWith("`") ? " " : "";
-  return `${tick}${pad}${clean}${pad}${tick}`;
-}
-
-/** Text from axe-core or this tool, on one line, without Markdown's own marks. */
-function plainText(text: string): string {
-  return printableLine(text).replace(/([\\`*_[\]<>|])/g, "\\$1");
-}
-
-function plural(n: number, one: string, many: string): string {
-  return `${n} ${n === 1 ? one : many}`;
-}
 
 /** The sentence a scan with no findings reads, with both counts taken from the record. */
 export function emptyScanSentence(record: ScanRecord): string {
@@ -81,10 +50,6 @@ export function emptyNarrationSentence(record: ScanRecord): string {
 function elementCount(listed: number, cut: number | undefined, limit: number): string {
   if (cut === undefined || cut === 0) return `${listed}`;
   return `${listed} listed, and ${cut} more not listed (at most ${limit} are kept per finding, and scan.json is held to its size limit)`;
-}
-
-function indent(block: string): string[] {
-  return block.split("\n").map((line) => `  ${line}`);
 }
 
 /** "`#9a9a9a on #ffffff, 2.81, needs 4.5` (font 12.0pt (16px), normal)": axe-core's own measured numbers. */
@@ -313,6 +278,26 @@ function fixedLines(record: ScanRecord): string[] {
   return out;
 }
 
+/**
+ * The cards of the scan as a list, worst first, each with its type, title and file (spec 7.2). The cards are a
+ * pure function of the record, so the list is the same before and after `a11y-genie cards` writes them.
+ */
+function cardLines(record: ScanRecord): string[] {
+  const cards = cardsOf(record);
+  if (cards.length === 0) return [];
+  return [
+    "## Cards",
+    "",
+    `One card per finding, worst first. \`a11y-genie cards\` writes them into the \`${CARDS_DIR}\` folder beside this report.`,
+    "",
+    ...cards.map(
+      (card, index) =>
+        `${index + 1}. ${card.type}: ${plainText(cut(card.title, 200))} (${inlineCode(`${CARDS_DIR}/${card.file}`)})`,
+    ),
+    "",
+  ];
+}
+
 export function renderReport(record: ScanRecord): string {
   const out: string[] = [];
   const { summary, engine } = record;
@@ -407,6 +392,7 @@ export function renderReport(record: ScanRecord): string {
     });
   }
   out.push(...fixedLines(record));
+  out.push(...cardLines(record));
 
   if (record.needsReview.length > 0) {
     out.push(

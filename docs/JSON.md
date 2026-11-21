@@ -365,7 +365,8 @@ not listed, when some were cut; a contrast element also has a `Colours:` line na
 check said about it, where that was not already said above it; once compared, its `Status:`, each element marked
 `(new)` or `(still open, unverified)` where it is, and on a `check` the elements fixed under it, as *Fixed under
 it*); on a `check`, *Fixed since the baseline*, each fixed finding with its elements and the scan it was first
-found gone in; *Needs review*, when
+found gone in; *Cards*, when there is a finding still open, listing the card `a11y-genie cards` writes for each,
+worst first, with its type, title and file (`cards/<name>.md`); *Needs review*, when
 axe-core could not decide something; *What the page tried, and was stopped*, when it opened dialogs or
 pop-ups or started downloads, with the first few quoted; and *What this scan cannot see*, the same fixed
 list in every report, last.
@@ -387,6 +388,10 @@ variable (tests set it to a temporary folder); then the per-user folder, `~/Libr
 on macOS, `$XDG_DATA_HOME/a11y-genie` or `~/.local/share/a11y-genie` on Linux, and
 `%LOCALAPPDATA%\a11y-genie` on Windows. `--format md,json` (the default) picks the reports; `scan.json` is
 always written, because every other file is made from it.
+
+`a11y-genie cards` adds `cards/<name>.md` to a scan folder: one card per finding still open, a Markdown file whose
+name is made from the finding's id (docs/ARCHITECTURE.md, *Cards*, has the card's shape and the name). A scan
+folder holds them only after `cards` has run on it; `scan` and `check` never write them.
 
 ## axe-core's results (V1)
 

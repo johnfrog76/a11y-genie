@@ -113,13 +113,8 @@ export function readScanFile(path: string, flag: string, limit: number = LIMITS.
 /** A scan folder's name: its start time, with `-2`, `-3` when two began the same second (src/scans-folder.ts). */
 const SCAN_FOLDER = /^([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}-[0-9]{2}-[0-9]{2}Z)(?:-([0-9]{1,6}))?$/;
 
-/** The newest scan folder of the site `origin` under `root`, leaving out those in `skip`; undefined when there is none. */
-export function latestScanFolder(
-  root: string,
-  origin: string,
-  skip: ReadonlySet<string> = new Set(),
-): string | undefined {
-  const site = join(root, originKey(origin));
+/** The newest scan folder in the site folder `site`, leaving out those in `skip`; undefined when there is none. */
+function latestScanIn(site: string, skip: ReadonlySet<string> = new Set()): string | undefined {
   let names: string[];
   try {
     names = readdirSync(site);
@@ -136,6 +131,56 @@ export function latestScanFolder(
       best = { name, time, n };
   }
   return best === undefined ? undefined : join(site, best.name);
+}
+
+/** The newest scan folder of the site `origin` under `root`, leaving out those in `skip`; undefined when there is none. */
+export function latestScanFolder(
+  root: string,
+  origin: string,
+  skip: ReadonlySet<string> = new Set(),
+): string | undefined {
+  return latestScanIn(join(root, originKey(origin)), skip);
+}
+
+/** Each site folder under `root` that holds at least one scan folder, by name, with its newest scan. */
+export function sitesIn(root: string): { site: string; latest: string }[] {
+  let names: string[];
+  try {
+    names = readdirSync(root);
+  } catch {
+    return [];
+  }
+  const sites: { site: string; latest: string }[] = [];
+  for (const name of names.sort()) {
+    const latest = latestScanIn(join(root, name));
+    if (latest !== undefined) sites.push({ site: name, latest });
+  }
+  return sites;
+}
+
+/**
+ * The latest scan of the only site in the scans folder `root`, for a command given no `<scan>` (spec 4.1); a
+ * refusal when it holds no scan, or scans of more than one site, whose hint lists them.
+ */
+export function latestScanOfOnlySite(root: string, command: string): string {
+  const sites = sitesIn(root);
+  const [only] = sites;
+  if (only === undefined) {
+    throw new Refusal(
+      `there is no scan in the scans folder for ${command} to read: ${shown(root)}`,
+      `scan first: a11y-genie scan <url>. A scan written under --out is read by giving its folder: a11y-genie ${command} <scan>`,
+    );
+  }
+  if (sites.length > 1) {
+    const named = sites.slice(0, 10).map((s) => shown(s.site));
+    const more = sites.length - named.length;
+    throw new Refusal(
+      `the scans folder holds scans of ${sites.length} sites, so ${command} cannot tell which one to read.`,
+      `give the scan folder to read, such as a11y-genie ${command} "${shown(only.latest)}". ` +
+        `The sites: ${named.join(", ")}${more > 0 ? `, and ${more} more` : ""}.`,
+    );
+  }
+  return only.latest;
 }
 
 /**

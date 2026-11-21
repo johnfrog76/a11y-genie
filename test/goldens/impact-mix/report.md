@@ -120,6 +120,15 @@ Scanned `http://127.0.0.1:0000/impact-mix.html` with axe-core 0.0.0 in chrome 0.
     Element has no title attribute
   ```
 
+## Cards
+
+One card per finding, worst first. `a11y-genie cards` writes them into the `cards` folder beside this report.
+
+1. Bug: Images must have alternative text on impact-mix.html (`cards/axe-image-alt-impact-mix.html-6f5fac57.md`)
+2. Bug: Elements must meet minimum color contrast ratio thresholds on impact-mix.html (`cards/axe-color-contrast-impact-mix.html-6aa9b7cc.md`)
+3. Bug: Heading levels should only increase by one on impact-mix.html (`cards/axe-heading-order-impact-mix.html-f510472c.md`)
+4. Bug: Headings should not be empty on impact-mix.html (`cards/axe-empty-heading-impact-mix.html-946316d3.md`)
+
 ## What this scan cannot see
 
 Automated rules find only some problems. A person has to check what they cannot. The guided checklist (`a11y-genie checklist`) is planned and does not exist yet; until it does, ask these questions by hand:
