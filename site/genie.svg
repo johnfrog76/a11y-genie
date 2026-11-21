@@ -1,105 +1,209 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 562" width="320" height="562">
-  <!-- The genie and his bottle, drawn for the project's page: the same character as the terminal's ASCII
-       drawing (src/banner.ts). A rounded genie with big sleepy eyes and a lopsided smirk, a curl of smoke
-       for a crown, floating on puffs of mist above a tall bottle with a pointed stopper. Original art. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-290 -330 580 702">
+  <!-- The genie from the A11y Genie deck, at rest: his gold body with the words he is made of written on it,
+       his face, the smoke-curl crown and the mist he floats on. A still export of the deck's drawing, no animation. -->
   <defs>
-    <linearGradient id="skin" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#8fdbe3" />
-      <stop offset="1" stop-color="#4fa9c2" />
+    <filter id="genie-soft" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" />
+    </filter>
+    <filter id="genie-softer" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="16" />
+    </filter>
+    <filter id="genie-hair" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.2" />
+    </filter>
+    <linearGradient id="genie-smoke" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#fff1c4" stop-opacity="0.85" />
+      <stop offset="100%" stop-color="#ffdf86" stop-opacity="0" />
     </linearGradient>
-    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#9a7ee6" />
-      <stop offset="0.55" stop-color="#6a4bc0" />
-      <stop offset="1" stop-color="#4a3194" />
+    <radialGradient id="genie-mist" cx="45%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#fff8e2" stop-opacity="0.85" />
+      <stop offset="45%" stop-color="#f6dc9c" stop-opacity="0.55" />
+      <stop offset="100%" stop-color="#e9bf6a" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="genie-mistlit" cx="50%" cy="25%" r="70%">
+      <stop offset="0%" stop-color="#fff3cf" stop-opacity="0.9" />
+      <stop offset="50%" stop-color="#ffdf86" stop-opacity="0.45" />
+      <stop offset="100%" stop-color="#f2bd45" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="genie-body" cx="36%" cy="26%" r="78%">
+      <stop offset="0%" stop-color="#fff1c4" />
+      <stop offset="30%" stop-color="#ffdf86" />
+      <stop offset="62%" stop-color="#f2bd45" />
+      <stop offset="100%" stop-color="#c27f17" />
+    </radialGradient>
+    <linearGradient id="genie-bodyrim" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#3a2b5e" stop-opacity="0" />
+      <stop offset="78%" stop-color="#3a2b5e" stop-opacity="0" />
+      <stop offset="100%" stop-color="#8a6fb8" stop-opacity="0.45" />
     </linearGradient>
-    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffe08a" />
-      <stop offset="1" stop-color="#e0a92e" />
+    <linearGradient id="genie-bodyfoot" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7a4709" stop-opacity="0" />
+      <stop offset="70%" stop-color="#7a4709" stop-opacity="0" />
+      <stop offset="100%" stop-color="#7a4709" stop-opacity="0.35" />
     </linearGradient>
-    <clipPath id="eye-left"><ellipse cx="116" cy="134" rx="31" ry="26" /></clipPath>
-    <clipPath id="eye-right"><ellipse cx="204" cy="134" rx="31" ry="26" /></clipPath>
+    <linearGradient id="genie-arm" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffdf86" />
+      <stop offset="100%" stop-color="#c27f17" />
+    </linearGradient>
+    <radialGradient id="genie-mitt" cx="38%" cy="32%" r="70%">
+      <stop offset="0%" stop-color="#fff1c4" />
+      <stop offset="60%" stop-color="#f2bd45" />
+      <stop offset="100%" stop-color="#c27f17" />
+    </radialGradient>
+    <radialGradient id="genie-eye" cx="42%" cy="36%" r="70%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#efe4cf" />
+    </radialGradient>
+    <radialGradient id="genie-aura" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffdf86" stop-opacity="0.38" />
+      <stop offset="60%" stop-color="#f2bd45" stop-opacity="0.1" />
+      <stop offset="100%" stop-color="#f2bd45" stop-opacity="0" />
+    </radialGradient>
   </defs>
-
-  <g stroke="#1a1233" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-    <!-- The bottle: a pointed stopper, a tall neck, round shoulders. -->
-    <g transform="translate(0 22)">
-    <path d="M160 300 L184 342 H136 Z" fill="url(#gold)" />
-    <circle cx="160" cy="298" r="6" fill="url(#gold)" />
-    <rect x="132" y="340" width="56" height="10" rx="4" fill="url(#gold)" />
-    <path
-      d="M142 350 V392 C142 404 84 410 84 446 V494 C84 514 108 524 160 524 C212 524 236 514 236 494 V446 C236 410 178 404 178 392 V350 Z"
-      fill="url(#glass)"
-    />
-    <path d="M100 450 V492" stroke="#e8defc" stroke-width="5" opacity="0.55" fill="none" />
-    <path d="M110 430 q8 -6 16 0 q8 6 16 0 M178 430 q8 -6 16 0 q8 6 16 0" fill="none" stroke="#d9cff5" stroke-width="3" />
-    <rect x="118" y="456" width="84" height="38" rx="8" fill="#f6eed6" />
-    <text
-      x="160"
-      y="482"
-      text-anchor="middle"
-      font-family="ui-monospace, Menlo, Consolas, monospace"
-      font-size="21"
-      font-weight="700"
-      fill="#1a1233"
-      stroke="none"
-    >
-      a11y
-    </text>
+  <g>
+    <ellipse cx="0" cy="10" rx="290" ry="300" fill="url(#genie-aura)" />
+    <g>
+      <ellipse cx="0" cy="214" rx="150" ry="56" fill="#ffdf86" opacity="0.28" filter="url(#genie-softer)" />
+      <g>
+        <g transform="translate(-150 236)">
+          <ellipse rx="120" ry="34" fill="url(#genie-mistlit)" filter="url(#genie-softer)" opacity="0.33" />
+        </g>
+        <g transform="translate(60 246)">
+          <ellipse rx="150" ry="38" fill="url(#genie-mistlit)" filter="url(#genie-softer)" opacity="0.29" />
+        </g>
+        <g transform="translate(170 226)">
+          <ellipse rx="96" ry="30" fill="url(#genie-mistlit)" filter="url(#genie-softer)" opacity="0.26" />
+        </g>
+      </g>
+      <g>
+        <g transform="translate(-96 200)">
+          <g>
+            <circle r="50" fill="url(#genie-mist)" opacity="0.92" filter="url(#genie-soft)" />
+            <circle cx="-10" cy="-15" r="25" fill="#fff1c4" opacity="0.35" filter="url(#genie-soft)" />
+          </g>
+        </g>
+        <g transform="translate(-42 218)">
+          <g>
+            <circle r="58" fill="url(#genie-mist)" opacity="0.92" filter="url(#genie-soft)" />
+            <circle cx="-11.600000000000001" cy="-17.4" r="29" fill="#fff1c4" opacity="0.35" filter="url(#genie-soft)" />
+          </g>
+        </g>
+        <g transform="translate(14 224)">
+          <g>
+            <circle r="62" fill="url(#genie-mist)" opacity="0.92" filter="url(#genie-soft)" />
+            <circle cx="-12.4" cy="-18.599999999999998" r="31" fill="#fff1c4" opacity="0.35" filter="url(#genie-soft)" />
+          </g>
+        </g>
+        <g transform="translate(68 212)">
+          <g>
+            <circle r="54" fill="url(#genie-mist)" opacity="0.92" filter="url(#genie-soft)" />
+            <circle cx="-10.8" cy="-16.2" r="27" fill="#fff1c4" opacity="0.35" filter="url(#genie-soft)" />
+          </g>
+        </g>
+        <g transform="translate(112 196)">
+          <g>
+            <circle r="44" fill="url(#genie-mist)" opacity="0.92" filter="url(#genie-soft)" />
+            <circle cx="-8.8" cy="-13.2" r="22" fill="#fff1c4" opacity="0.35" filter="url(#genie-soft)" />
+          </g>
+        </g>
+        <g transform="translate(-18 258)">
+          <g>
+            <circle r="44" fill="url(#genie-mist)" opacity="0.92" filter="url(#genie-soft)" />
+            <circle cx="-8.8" cy="-13.2" r="22" fill="#fff1c4" opacity="0.35" filter="url(#genie-soft)" />
+          </g>
+        </g>
+        <g transform="translate(44 262)">
+          <g>
+            <circle r="40" fill="url(#genie-mist)" opacity="0.92" filter="url(#genie-soft)" />
+            <circle cx="-8" cy="-12" r="20" fill="#fff1c4" opacity="0.35" filter="url(#genie-soft)" />
+          </g>
+        </g>
+      </g>
+      <g fill="none" stroke="url(#genie-smoke)" stroke-linecap="round" filter="url(#genie-hair)">
+        <path d="M -130 222 C -164 226 -176 250 -200 252 C -214 253 -222 244 -218 236" stroke-width="7" opacity="0.38" />
+        <path d="M 134 214 C 166 220 178 244 204 246 C 218 247 226 238 222 230" stroke-width="6" opacity="0.38" />
+        <path d="M -10 284 C -22 304 4 318 -8 342 C -14 352 -6 360 2 358" stroke-width="5" opacity="0.38" />
+        <path d="M 70 270 C 88 290 76 304 96 318" stroke-width="4" opacity="0.38" />
+      </g>
     </g>
-
-    <!-- The wisp from the bottle up to the mist. -->
-    <path d="M160 322 C150 314 170 306 160 296" fill="none" stroke="#e9e3fb" stroke-width="7" />
-
-    <!-- His body, tapering into the mist. -->
-    <path d="M98 196 C92 246 124 276 160 296 C196 276 228 246 222 196 Z" fill="url(#skin)" />
-    <path d="M118 236 C136 250 184 250 202 236" fill="none" stroke-width="3" opacity="0.6" />
-
-    <!-- The mist he floats on. -->
-    <g fill="#e9e3fb" stroke="#1a1233" stroke-width="3">
-      <circle cx="58" cy="282" r="20" />
-      <circle cx="86" cy="270" r="24" />
-      <circle cx="116" cy="284" r="20" />
-      <circle cx="262" cy="282" r="20" />
-      <circle cx="234" cy="270" r="24" />
-      <circle cx="204" cy="284" r="20" />
-      <path d="M118 290 C134 280 146 298 160 288 C174 278 186 298 202 290 C192 306 176 298 160 304 C144 298 128 306 116 290 Z" />
+    <g>
+      <path d="M -132 0 C -200 14 -236 58 -226 96 C -216 124 -184 132 -152 126" fill="none" stroke="#7a4709" stroke-width="62" stroke-linecap="round" opacity="0.5" transform="translate(0 6)" />
+      <path d="M -132 0 C -200 14 -236 58 -226 96 C -216 124 -184 132 -152 126" fill="none" stroke="url(#genie-arm)" stroke-width="56" stroke-linecap="round" />
+      <path d="M -140 -10 C -196 0 -228 34 -232 76" fill="none" stroke="#fff1c4" stroke-width="8" stroke-linecap="round" opacity="0.45" />
     </g>
-
-    <!-- The curl of smoke he wears for a crown. -->
-    <path
-      d="M156 52 C144 30 158 8 182 14 C204 20 202 46 184 48 C172 49 168 36 178 32"
-      fill="none"
-      stroke="#e9e3fb"
-      stroke-width="13"
-    />
-    <path
-      d="M156 52 C144 30 158 8 182 14 C204 20 202 46 184 48 C172 49 168 36 178 32"
-      fill="none"
-      stroke-width="3"
-      opacity="0.85"
-    />
-
-    <!-- His head: wide and round. -->
-    <ellipse cx="160" cy="136" rx="112" ry="88" fill="url(#skin)" />
-
-    <!-- Big sleepy eyes: heavy lids over the top half, the pupils low. -->
-    <ellipse cx="116" cy="134" rx="31" ry="26" fill="#ffffff" />
-    <ellipse cx="204" cy="134" rx="31" ry="26" fill="#ffffff" />
-    <circle cx="120" cy="146" r="10" fill="#1a1233" stroke="none" />
-    <circle cx="208" cy="146" r="10" fill="#1a1233" stroke="none" />
-    <circle cx="124" cy="142" r="3" fill="#ffffff" stroke="none" />
-    <circle cx="212" cy="142" r="3" fill="#ffffff" stroke="none" />
-    <rect x="80" y="100" width="72" height="34" fill="#5fb6cb" stroke="none" clip-path="url(#eye-left)" />
-    <rect x="168" y="100" width="72" height="34" fill="#5fb6cb" stroke="none" clip-path="url(#eye-right)" />
-    <path d="M86 134 H146 M174 134 H234" fill="none" />
-    <ellipse cx="116" cy="134" rx="31" ry="26" fill="none" />
-    <ellipse cx="204" cy="134" rx="31" ry="26" fill="none" />
-    <path d="M90 100 C102 92 124 92 138 98 M182 96 C198 90 220 92 232 102" fill="none" stroke-width="5" />
-
-    <!-- Cheeks, and the lopsided smirk, higher on his left. -->
-    <ellipse cx="84" cy="176" rx="14" ry="8" fill="#f2a7c3" stroke="none" opacity="0.7" />
-    <ellipse cx="238" cy="172" rx="14" ry="8" fill="#f2a7c3" stroke="none" opacity="0.7" />
-    <path d="M122 182 C142 198 176 198 198 182 C206 176 212 170 216 162" fill="none" stroke-width="5" />
-    <path d="M212 158 C220 160 224 166 222 174" fill="none" stroke-width="3" />
+    <g>
+      <path d="M 132 0 C 200 14 236 58 226 96 C 216 124 184 132 152 126" fill="none" stroke="#7a4709" stroke-width="62" stroke-linecap="round" opacity="0.5" transform="translate(0 6)" />
+      <path d="M 132 0 C 200 14 236 58 226 96 C 216 124 184 132 152 126" fill="none" stroke="url(#genie-arm)" stroke-width="56" stroke-linecap="round" />
+      <path d="M 140 -10 C 196 0 228 34 232 76" fill="none" stroke="#fff1c4" stroke-width="8" stroke-linecap="round" opacity="0.45" />
+    </g>
+    <path d="M 0 -200 C 104 -200 168 -112 166 8 C 164 108 128 172 0 178 C -128 172 -164 108 -166 8 C -168 -112 -104 -200 0 -200 Z" fill="url(#genie-body)" />
+    <path d="M 0 -200 C 104 -200 168 -112 166 8 C 164 108 128 172 0 178 C -128 172 -164 108 -166 8 C -168 -112 -104 -200 0 -200 Z" fill="url(#genie-bodyrim)" />
+    <path d="M 0 -200 C 104 -200 168 -112 166 8 C 164 108 128 172 0 178 C -128 172 -164 108 -166 8 C -168 -112 -104 -200 0 -200 Z" fill="url(#genie-bodyfoot)" />
+    <path d="M 0 -200 C 104 -200 168 -112 166 8 C 164 108 128 172 0 178 C -128 172 -164 108 -166 8 C -168 -112 -104 -200 0 -200 Z" fill="none" stroke="#7a4709" stroke-width="3" opacity="0.55" />
+    <g transform="translate(0 -192)">
+      <g>
+        <path d="M -30 8 C -44 -18 -14 -30 -18 -54 C 4 -40 26 -30 20 -4 C 30 -14 30 -30 24 -40 C 44 -20 38 4 22 12 Z" fill="url(#genie-mist)" />
+        <path d="M -14 6 C -20 -12 -4 -22 -8 -40 C 6 -28 14 -18 8 4 Z" fill="#fff1c4" opacity="0.45" />
+      </g>
+      <g transform="translate(-4 -48)">
+        <g>
+          <path d="M -6 6 C -14 -10 2 -18 -2 -36 C 12 -22 14 -6 6 6 Z" fill="url(#genie-mist)" opacity="0.8" />
+          <path d="M 2 -36 C 8 -46 4 -56 10 -64" fill="none" stroke="url(#genie-smoke)" stroke-width="4" stroke-linecap="round" opacity="0.6" />
+        </g>
+      </g>
+    </g>
+    <path d="M -82 -138 C -64 -160 -30 -162 -12 -146" fill="none" stroke="#7a4709" stroke-width="11" stroke-linecap="round" />
+    <path d="M 16 -134 C 34 -146 66 -146 84 -130" fill="none" stroke="#7a4709" stroke-width="11" stroke-linecap="round" />
+    <clipPath id="genie-eyeclip">
+      <ellipse rx="36" ry="44" />
+    </clipPath>
+    <g transform="translate(-44 -78)">
+      <ellipse rx="36" ry="44" fill="url(#genie-eye)" />
+      <g transform="translate(0 0)">
+        <g>
+          <ellipse cx="4" cy="10" rx="17" ry="21" fill="#120c22" />
+          <ellipse cx="4" cy="10" rx="10" ry="12" fill="#3a2b5e" opacity="0.6" />
+          <circle cx="12" cy="-1" r="6.5" fill="#fff" />
+          <circle cx="-3" cy="20" r="2.6" fill="#fff" opacity="0.8" />
+        </g>
+      </g>
+      <path d="M -40 -50 L 40 -50 L 40 -10 C 22 -2 -22 -2 -40 -10 Z" fill="url(#genie-arm)" clip-path="url(#genie-eyeclip)" />
+      <path d="M -36 -10 C -18 -2 18 -2 36 -10" fill="none" stroke="#7a4709" stroke-width="4" stroke-linecap="round" />
+      <ellipse rx="36" ry="44" fill="none" stroke="#7a4709" stroke-width="3" opacity="0.6" />
+    </g>
+    <g transform="translate(46 -78)">
+      <ellipse rx="36" ry="44" fill="url(#genie-eye)" />
+      <g transform="translate(0 0)">
+        <g>
+          <ellipse cx="4" cy="10" rx="17" ry="21" fill="#120c22" />
+          <ellipse cx="4" cy="10" rx="10" ry="12" fill="#3a2b5e" opacity="0.6" />
+          <circle cx="12" cy="-1" r="6.5" fill="#fff" />
+          <circle cx="-3" cy="20" r="2.6" fill="#fff" opacity="0.8" />
+        </g>
+      </g>
+      <path d="M -40 -50 L 40 -50 L 40 -10 C 22 -2 -22 -2 -40 -10 Z" fill="url(#genie-arm)" clip-path="url(#genie-eyeclip)" />
+      <path d="M -36 -10 C -18 -2 18 -2 36 -10" fill="none" stroke="#7a4709" stroke-width="4" stroke-linecap="round" />
+      <ellipse rx="36" ry="44" fill="none" stroke="#7a4709" stroke-width="3" opacity="0.6" />
+    </g>
+    <ellipse cx="-98" cy="-6" rx="22" ry="13" fill="#cf4257" opacity="0.22" />
+    <ellipse cx="100" cy="-6" rx="22" ry="13" fill="#cf4257" opacity="0.16" />
+    <path d="M -54 -8 C -30 8 28 4 60 -26 C 50 14 6 30 -24 22 C -40 18 -50 8 -54 -8 Z" fill="#2a1400" />
+    <path d="M -26 14 C -10 24 18 22 34 8 C 22 22 -8 28 -26 14 Z" fill="#a3203a" />
+    <path d="M -54 -8 C -30 8 28 4 60 -26" fill="none" stroke="#2a1400" stroke-width="5" stroke-linecap="round" />
+    <path d="M 80 -30 C 84 -24 84 -16 80 -10" fill="none" stroke="#7a4709" stroke-width="4" stroke-linecap="round" opacity="0.75" />
+    <g font-family="'Cascadia Code', 'Fira Code', Menlo, Consolas, ui-monospace, monospace" font-weight="700" fill="#2a1400">
+      <text x="-104" y="66" font-size="23" transform="rotate(-6 -104 66)">aria-label</text>
+      <text x="52" y="58" font-size="25" transform="rotate(7 52 58)">alt</text>
+      <text x="-88" y="112" font-size="24" transform="rotate(-2 -88 112)">role</text>
+      <text x="-6" y="120" font-size="21" transform="rotate(4 -6 120)">tabindex</text>
+    </g>
+    <g transform="translate(-150 124)">
+      <ellipse rx="38" ry="34" fill="url(#genie-mitt)" />
+      <path d="M 6 -20 C 22 -12 26 8 18 22" fill="none" stroke="#7a4709" stroke-width="3" opacity="0.45" />
+    </g>
+    <g transform="translate(150 124)">
+      <ellipse rx="38" ry="34" fill="url(#genie-mitt)" />
+      <path d="M -6 -20 C -22 -12 -26 8 -18 22" fill="none" stroke="#7a4709" stroke-width="3" opacity="0.45" />
+    </g>
   </g>
 </svg>

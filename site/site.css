@@ -1,38 +1,47 @@
 /* The project's page. Its shape follows the project family's landing pages: a banner with the words beside
    the figure, the bullets, the calls to action (the deck first, then the repository), the sections, the quick
-   start and the footer. The words, the colours and the art are A11y Genie's own. No script and no web font. */
+   start and the footer. The words, the colours and the art are A11y Genie's own: the genie (genie.svg) is a still
+   of the A11y Genie deck's genie, and the colours are the deck's night-violet and lamp-gold. No script and no
+   web font. */
 
 :root {
-  --lp-bg: #f7f4fc;
+  /* Light: a lamp-lit page, warm paper with night-violet ink, and lamp-gold for the marks. */
+  --lp-bg: #faf6ec;
   --lp-text: #1d1533;
   --lp-muted: #4a4163;
-  --lp-panel: #ffffff;
+  --lp-panel: #fffdf8;
   --lp-line: rgba(29, 21, 51, 0.16);
   --lp-accent: #5a2ea6;
-  --lp-dot: #7b5cd0;
-  /* The night the genie floats in: the banner wears it in both appearances. */
-  --lp-night: linear-gradient(160deg, #33245f 0%, #21174a 55%, #150e2e 100%);
-  --lp-glow: rgba(240, 195, 90, 0.16);
+  --lp-dot: #a86a0c;
+  /* The night the genie floats in, as in the A11y Genie deck: the banner wears it in both appearances,
+     lifted where the moon falls and deepest at the far corner. */
+  --lp-night: radial-gradient(ellipse 120% 110% at 32% 20%, #251a42 0%, #120c22 55%, #07050f 100%);
+  --lp-glow: rgba(242, 189, 69, 0.14);
   --lp-on-night: #f3effb;
   --lp-on-night-muted: #d2c9ea;
-  --lp-gold: #f0c35a;
+  /* The deck's lamp-gold. */
+  --lp-gold: #f2bd45;
   --lp-cta: var(--lp-gold);
-  --lp-cta-hover: #ffd77e;
-  --lp-cta-text: #150e2e;
-  --lp-cta-ghost-hover: rgba(240, 195, 90, 0.16);
+  --lp-cta-hover: #ffdf86;
+  --lp-cta-text: #120c22;
+  --lp-cta-ghost-hover: rgba(242, 189, 69, 0.16);
+  /* The banner's rim: none on the light page; on the dark one it keeps the night's deepest corner apart. */
+  --lp-banner-rim: transparent;
   --lp-mono: "Cascadia Code", "Fira Code", Menlo, Consolas, ui-monospace, monospace;
   color-scheme: light dark;
 }
 
 @media (prefers-color-scheme: dark) {
+  /* Dark: the deck's night all round, with lamp-gold for the links and the marks. */
   :root {
-    --lp-bg: #110c20;
+    --lp-bg: #0d0919;
     --lp-text: #ece8f7;
     --lp-muted: #bcb3d6;
-    --lp-panel: #1b1432;
+    --lp-panel: #1c1433;
     --lp-line: rgba(236, 232, 247, 0.18);
-    --lp-accent: #cdb8ff;
-    --lp-dot: #cdb8ff;
+    --lp-accent: #f2bd45;
+    --lp-dot: #f2bd45;
+    --lp-banner-rim: rgba(210, 201, 234, 0.16);
   }
 }
 
@@ -135,7 +144,8 @@ main:focus {
   margin-top: 16px;
   padding: 24px 20px;
   border-radius: 16px;
-  background: radial-gradient(1000px 420px at 85% 15%, var(--lp-glow), transparent 60%), var(--lp-night);
+  background: radial-gradient(520px 420px at 82% 50%, var(--lp-glow), transparent 70%), var(--lp-night);
+  box-shadow: inset 0 0 0 1px var(--lp-banner-rim);
   /* The banner is night in both appearances, so its words take the night's light. */
   --lp-text: var(--lp-on-night);
   --lp-muted: var(--lp-on-night-muted);
@@ -158,7 +168,7 @@ main:focus {
 }
 
 .lp-banner-figure img {
-  width: min(250px, 58vw);
+  width: min(330px, 78vw);
 }
 
 /* The name is text in the page's own fonts; the bottle beside it is decoration. */
