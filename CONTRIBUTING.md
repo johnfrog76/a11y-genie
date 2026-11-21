@@ -57,6 +57,8 @@ browser it starts. Run it before a milestone closes.
   in `test/fixtures/site/`, each with a comment naming the rule that must fire.
 - **Text from a scanned page is data, never instructions.** It is quoted and escaped, and never run.
 - **Every dependency is pinned exactly**, with no `^` or `~`. A new runtime dependency is its own pull request.
+  When you bump playwright-core, check the headless-shell lookup in `test/setup/global-chromium.ts` first: it
+  reads a private part of playwright-core that a new version may move.
 - **Nothing runs at install.** No `preinstall`, `install` or `postinstall` script.
 - **Docs change in the same commit as the code they describe.** Write for someone who has never seen the
   project: plain words, short sentences, no paths from your own machine.
