@@ -3,9 +3,10 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
+import { builtCli } from "../helpers/built-cli.js";
 
 // Runs the built command (npm test builds first), as a person would. `prompt` needs no browser or network.
-const cli = new URL("../../dist/cli.js", import.meta.url).pathname;
+const cli = builtCli();
 const promptBytes = readFileSync(new URL("../../agentic/fix-loop.prompt.md", import.meta.url));
 const prompt = promptBytes.toString("utf8");
 const schema = JSON.parse(

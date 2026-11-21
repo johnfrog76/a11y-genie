@@ -42,21 +42,47 @@ profile are inside it), until the system clears the temp folder.
 **Tests** get the same isolation: `test/setup/private-temp.ts` (a vitest setup file) gives each test file its own
 temp folder and removes it after the file, so test files that launch browsers side by side, or one that tests a
 missing browser, never share one. The shared one is in `A11Y_GENIE_TEST_SHARED_TMP`.
-The same setup file stops every browser a file left running: when the file ends, and again when the worker exits,
-it sends SIGKILL to each process whose command line names the file's own temp folder (`test/helpers/processes-in.ts`,
-read with `ps`, so not on Windows). A browser a test launches, or a command it spawns launches, always has that
-folder in its command line, so a test that fails or times out cannot leave one behind. It is not done after each
-failed test, because many files share one browser across their tests.
+The same setup file stops every browser a file left running: when the file ends, when the worker exits, and when the
+worker is stopped by SIGTERM or SIGINT (it stops them, removes the folder, and raises the signal again, so vitest
+sees it). It sends SIGKILL to each process whose command line names the file's own temp folder
+(`test/helpers/processes-in.ts`, read with `ps`, so not on Windows). A browser a test launches, or a command it
+spawns launches, always has that folder in its command line, so a test that fails or times out cannot leave one
+behind. It is not done after each failed test, because many files share one browser across their tests.
+A run that is itself stopped (SIGTERM or SIGINT to vitest) is different: vitest's watchdog ends the workers with
+SIGKILL as soon as vitest's own process exits, so no handler in a worker is sure to run. So each file's folder is
+made inside one folder for the run (`test/setup/run-folder.ts`, a global setup, `A11Y_GENIE_TEST_RUN_TMP`), and
+vitest's own process, which does run its `exit` handlers when it is stopped, stops every process that names the
+run's folder, synchronously, before the workers go. Only that run's folder is named, so another run on the same
+machine is never touched.
 `test/cli/browser-leak.test.ts` holds this: it runs `test/fixtures/leak/leak.fixture.ts`, tests built to fail and
-to time out with a browser open (the main run never includes that file), and looks for any process left.
-**Which browser the tests launch.** Playwright's own Chromium, headless, never the Google Chrome app: the browser
-tests take their channel from `test/helpers/test-browser.ts` (`A11Y_GENIE_TEST_CHANNEL`, `chromium` by default), and
-the commands they spawn get `--browser-channel` from it. The product is unchanged: a person still gets their
-installed Chrome by default. Chromium is installed once per machine with
-`npx playwright-core@1.65.1 install --no-shell chromium` (about 200 MB); `test/setup/global-chromium.ts` stops the
-run once, with that command, if it is missing, and never falls back to Chrome. The tests about the Chrome channel
-itself (`test/browser/launch.test.ts`: the branded Chrome, its profile folder) run only with
-`A11Y_GENIE_TEST_CHROME=1`, and say so in their names.
+to time out with a browser open (the main run never includes that file), and looks for any process left; and it
+runs `test/fixtures/leak/signal.fixture.ts`, stops that run with SIGTERM while a process the test started has a
+browser open, and looks again. Without the run's folder, that browser was left running.
+**Which browser the tests launch.** Playwright's headless shell (`chromium-headless-shell`), never the Google Chrome
+app, and never an app bundle: on macOS every launch of an app (the full Chromium is "Google Chrome for Testing.app")
+shows an icon in the Dock, even headless, and a suite run launches many. `test/helpers/test-browser.ts` is the one
+place that chooses: by default it hands the product `chromium` and sets `A11Y_GENIE_TEST_HEADLESS_SHELL=1` in the
+test process, so the in-process launches and every command a test spawns (with the test's environment) get it.
+`src/browser.ts` reads that variable in one place (`runsHeadlessShell()`): a `chromium` launch then omits `channel`
+and stays headless, which playwright-core 1.65.1 resolves to the headless shell (`getExecutableName()`: no channel
+and headless is `chromium-headless-shell`). `chrome` and `msedge` are not changed by it. Under it, `engine.browser`
+says `chromium-headless-shell <version>`, a missing shell is refused by that name, and nothing is downloaded. It is a
+test setting only, not in `--help` or the product's docs. The product is unchanged: a person still gets their
+installed Chrome by default, or the full Chromium. `test/browser/headless-shell.test.ts` holds it: the launched
+browser's main process, read from `ps` (the one with `--user-data-dir=` and no `--type=`; its helpers carry `--type=`
+and never `--headless`), must carry `--headless` and must not be inside an `.app/`, in a launch in the test process
+and in a spawned `scan --json`, whose `engine.browser` names the shell.
+The shell runs Chromium's older headless mode, so it is not the browser a person runs. `A11Y_GENIE_TEST_CHANNEL=chromium`
+runs the same tests on the full Chromium; run it at a milestone, or by hand when a change touches the browser.
+One difference is known: past the last tabbable element, the shell's Tab leaves the page on every lap, where the
+full build alternates (*Where it ends (V5)*, below), so a keyboard walk that ends `wrapped` on the full build ends
+`left` on the shell.
+Both are installed once per machine with `npx playwright-core@1.65.1 install chromium` (playwright-core's installer
+adds the headless shell to `chromium` unless `--no-shell` is given; about 300 MB in all); `test/setup/global-chromium.ts`
+stops the run once, with that command, if the browser the tests use is missing, and never falls back to Chrome. The
+tests about the Chrome channel itself (`test/browser/launch.test.ts`: the branded Chrome, its profile folder) run only
+with `A11Y_GENIE_TEST_CHROME=1`, and say so in their names. The tests that spawn the built command name it through
+`test/helpers/built-cli.ts`, which stops the file with "run `npm run build` first" when `dist/cli.js` is missing.
 `test/cli/private-temp.test.ts` runs the built command with a temp folder of its own on every exit path, and runs
 a Chrome scan for 20 rounds beside loops of missing-browser launches.
 

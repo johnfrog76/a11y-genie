@@ -3,7 +3,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     include: ["test/**/*.test.ts"],
-    globalSetup: ["test/setup/global-chromium.ts"],
+    globalSetup: ["test/setup/global-chromium.ts", "test/setup/run-folder.ts"],
     setupFiles: ["test/setup/no-network.ts", "test/setup/private-temp.ts"],
     // Browser and command tests launch a real browser, which takes more than the default 5 s on a busy machine.
     testTimeout: 30_000,

@@ -1,4 +1,4 @@
-import { TEST_CHANNEL } from "../helpers/test-browser.js";
+import { TEST_CHANNEL, TEST_ENGINE_BROWSER } from "../helpers/test-browser.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { renderReport } from "../../src/report.js";
 import { parseStateFlags } from "../../src/scan-plan.js";
@@ -43,9 +43,10 @@ describe.skipIf(!hasBrowser)(
       expect(attempted.flat()).toEqual([]);
       expect(validate(schema, record)).toEqual([]);
       expect(record.exit).toBe(record.findings.length > 0 ? 1 : 0);
-      // The goldens read every browser as Chrome; the record itself names the one that ran ("chromium" by default).
+      // The goldens read every browser as Chrome; the record itself names the one that ran ("chromium-headless-shell"
+      // by default).
       expect(record.engine.fallback).toBe(false);
-      expect(record.engine.browser).toMatch(new RegExp(`^${TEST_CHANNEL} \\d+(\\.\\d+)*$`));
+      expect(record.engine.browser).toMatch(new RegExp(`^${TEST_ENGINE_BROWSER} \\d+(\\.\\d+)*$`));
 
       const normal = normalise(record);
       expectGolden(name, "scan.json", `${JSON.stringify(normal, null, 2)}\n`);
