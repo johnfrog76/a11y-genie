@@ -76,7 +76,12 @@ The shell runs Chromium's older headless mode, so it is not the browser a person
 runs the same tests on the full Chromium; run it at a milestone, or by hand when a change touches the browser.
 One difference is known: past the last tabbable element, the shell's Tab leaves the page on every lap, where the
 full build alternates (*Where it ends (V5)*, below), so a keyboard walk that ends `wrapped` on the full build ends
-`left` on the shell.
+`left` on the shell. One constant, `TEST_LAP_END` in `test/helpers/test-browser.ts`, holds the end the browser under
+test gives, and the walk tests assert it. The goldens keep the full build's `wrapped`; on the shell
+`test/helpers/goldens.ts` expects a recorded `wrapped` as `left`, so the comparison stays exact, and it refuses
+`UPDATE_GOLDENS=1` there, so `left` never replaces `wrapped` in a golden (rewrite them with
+`A11Y_GENIE_TEST_CHANNEL=chromium UPDATE_GOLDENS=1 npm test`). So the default run checks the shell's lap end, and
+only the opt-in run on the full build checks `wrapped`, the end a person's scan gives.
 Both are installed once per machine with `npx playwright-core@1.65.1 install chromium` (playwright-core's installer
 adds the headless shell to `chromium` unless `--no-shell` is given; about 300 MB in all); `test/setup/global-chromium.ts`
 stops the run once, with that command, if the browser the tests use is missing, and never falls back to Chrome. The
@@ -465,6 +470,10 @@ controls, a same-origin frame last, an open shadow root last, and no control at 
   leaving the document, and the next leaves it again. The same holds when the last stop is in a frame or a
   shadow root.
 - On a page with nothing to focus, every Tab leaves focus on `body`, with `hasFocus()` false.
+- Playwright's headless shell (Chromium 159, the tests' browser, checked 2026-11-21) does not alternate: every Tab
+  past the last element leaves the document. On two buttons, ten Tabs give `a b out a b out a b out a` on the
+  shell, and `a b out a b a b out a b` on the full Chromium. So on the shell the walk ends `left` where Chrome and the
+  full build end `wrapped` (the tests' `TEST_LAP_END`).
 
 Since the walk has just left the page with its Shift+Tab, its lap goes from the last element straight back to
 the first. The walk does not rely on which happens: it ends at a press that puts focus on no element

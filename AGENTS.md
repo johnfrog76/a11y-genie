@@ -11,6 +11,7 @@ npm run typecheck   # tsc --noEmit
 npm test            # builds, then runs vitest; browser tests run on Playwright's headless shell, never Chrome
 npx playwright-core@1.65.1 install chromium   # once per machine (about 300 MB): the headless shell and the full Chromium
 A11Y_GENIE_TEST_CHANNEL=chromium npm test   # the same tests on the full Chromium a person gets; at a milestone, or by hand
+                                            # run it before a milestone closes: only it checks a walk's "wrapped" end
 A11Y_GENIE_TEST_CHROME=1 npm test   # also runs the few tests about the Chrome channel itself (starts Chrome)
 npm run build       # tsc into dist/
 npm run format      # Prettier --write

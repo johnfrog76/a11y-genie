@@ -44,7 +44,7 @@ about the Chrome channel itself; they start your installed Chrome, so they run o
 The tests run on Playwright's headless shell, which runs Chromium's older headless mode. A person's scan runs on
 their Chrome or on the full Chromium, so run the tests on the full build as well at a milestone, or by hand when a
 change touches the browser: `A11Y_GENIE_TEST_CHANNEL=chromium npm test`. On macOS it shows a Dock icon for each
-browser it starts.
+browser it starts. Run it before a milestone closes.
 
 ## The rules a change keeps
 

@@ -66,6 +66,15 @@ export const TEST_CHANNEL: BrowserChannel = chosen === HEADLESS_SHELL ? "chromiu
 if (ON_HEADLESS_SHELL) process.env[HEADLESS_SHELL_ENV] = "1";
 else delete process.env[HEADLESS_SHELL_ENV];
 
+/**
+ * How a keyboard walk's lap ends on the browser under test, where it ends by coming round to the first stop on the
+ * full build. Past the last tabbable element, the headless shell's Tab leaves the page on every lap, so the walk
+ * ends `left`; the full Chromium, Chrome and Edge alternate between leaving the page and going straight back to the
+ * first element, and after the walk's own Shift+Tab out of the page its lap comes back, so it ends `wrapped`
+ * (docs/ARCHITECTURE.md, *Where it ends (V5)*). The goldens record `wrapped`, as the full build gives it.
+ */
+export const TEST_LAP_END: "left" | "wrapped" = ON_HEADLESS_SHELL ? "left" : "wrapped";
+
 /** What `engine.browser` in `scan.json` starts with, for the tests' browser. */
 export const TEST_ENGINE_BROWSER = ON_HEADLESS_SHELL ? "chromium-headless-shell" : TEST_CHANNEL;
 
