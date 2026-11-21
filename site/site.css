@@ -1,8 +1,8 @@
 /* The project's page. Its shape follows the project family's landing pages: a banner with the words beside
    the figure, the bullets, the calls to action (the deck first, then the repository), the sections, the quick
-   start and the footer. The words, the colours and the art are A11y Genie's own: the genie (genie.svg) is a still
-   of the A11y Genie deck's genie, and the colours are the deck's night-violet and lamp-gold. No script and no
-   web font. */
+   start and the footer. The words, the colours and the art are A11y Genie's own: the genie (genie.svg) and his
+   bottle (bottle.svg, and favicon.svg simplified from it) are stills of the A11y Genie deck's drawings, and
+   the colours are the deck's night-violet and lamp-gold. No script and no web font. */
 
 :root {
   /* Light: a lamp-lit page, warm paper with night-violet ink, and lamp-gold for the marks. */
@@ -379,11 +379,22 @@ main:focus {
 /* The footer. */
 
 .lp-footer {
+  position: relative;
   margin-top: 56px;
   padding-top: 24px;
   border-top: 1px solid var(--lp-line);
   font-size: 0.9rem;
   color: var(--lp-muted);
+}
+
+/* The genie's bottle, standing on the footer's rule at the right as on a shelf: decoration, out of the flow,
+   and small enough to stand in the space above the rule. */
+.lp-footer-bottle {
+  position: absolute;
+  right: 8px;
+  bottom: 100%;
+  width: 28px;
+  pointer-events: none;
 }
 
 .lp-footer a {
