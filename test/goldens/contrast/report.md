@@ -40,6 +40,12 @@ Scanned `http://127.0.0.1:0000/contrast.html` with axe-core 0.0.0 in chrome 0.0.
     Element has insufficient color contrast of 2.81 (foreground color: #9a9a9a, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1
   ```
 
+## Cards
+
+One card per finding, worst first. `a11y-genie cards` writes them into the `cards` folder beside this report.
+
+1. Bug: Elements must meet minimum color contrast ratio thresholds on contrast.html (`cards/axe-color-contrast-contrast.html-a8619d76.md`)
+
 ## What this scan cannot see
 
 Automated rules find only some problems. A person has to check what they cannot. The guided checklist (`a11y-genie checklist`) is planned and does not exist yet; until it does, ask these questions by hand:

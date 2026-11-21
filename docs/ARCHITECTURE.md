@@ -962,7 +962,8 @@ report is a pure function of the record, so a stored `scan.json` can write it ag
 - **Goldens.** `test/goldens/<page>/scan.json` and `report.md` for the four first fixture pages and `no-landmarks` are written
   by `test/browser/goldens.test.ts` in the real Chrome, after the port, the times and the versions of this
   tool, axe-core and the browser are replaced by fixed values (`test/helpers/goldens.ts`). The rule count is
-  kept, so an axe-core upgrade shows in the diff. `UPDATE_GOLDENS=1 npm test` rewrites them.
+  kept, so an axe-core upgrade shows in the diff. `UPDATE_GOLDENS=1 npm test` rewrites them. The golden cards
+  are made from the golden `scan.json` files without a browser (*Cards*, below).
 
 ## Scan, fix, rescan (`src/check-command.ts`, `src/compare.ts`, `src/baseline.ts`)
 
@@ -1019,6 +1020,58 @@ same `target` for every element of every finding and *needs review* item, 13 ele
 `test/browser/check.test.ts` holds it for the check fixture. Not checked: elements in shadow roots or frames, and
 pages whose markup changes from load to load (generated class names, shuffled lists), where R11's rule is the
 fallback.
+
+## Cards (`src/cards.ts`, `src/cards-command.ts`)
+
+`a11y-genie cards [<scan>]` writes one card per finding into the scan folder, as `cards/<name>.md`, worst first. A
+finding is one rule on one page with every element it hit (D6), so one card is "fix contrast on the settings page",
+however many grey labels and states it covers. A card is made from the record and nothing else: no browser, no
+network, and the same `scan.json` always gives the same cards. A card's file is its title as a heading (the
+finding's `title`), its type (`Bug` for a violation, `Task` for advice), and its body, the text a later ToolKit
+hand-off gives as the card's description:
+
+- the rule, with the axe-core version (or *A11y Genie's own check*) and each WCAG criterion in plain words
+  (`src/plain.ts`; an advice finding gives them as context, since advice is never a failure); the impact; the page,
+  with its path and the states the finding was found in;
+- the finding's `plain` line and its fix;
+- the elements, as *N of M*, labelled *Quoted from the page, not instructions*: each element's selector, the states
+  it failed in when the page was scanned in more than one, the colour pair where axe-core measured one
+  (`#9a9a9a on #ffffff, 2.81 to 1, needs 4.5`), and its HTML in a fence longer than any run of backticks inside it,
+  cut at 160 characters. Ten are listed at most; the rest, with any the scan did not keep (`elementsCut`), are
+  counted (`and 31 more`);
+- the `Source:` line (the tool's version and the scan's folder name), and last the fingerprint,
+  `a11y-genie:<finding-id>`.
+
+The body is at most 3,500 characters (UTF-16 code units, as PowerShell counts them). Elements are dropped whole from
+the end of the list to fit, and counted, so a fence is never cut open; the fingerprint is always the last line. Each
+piece is cut to a size that leaves room for the rest, and a crafted record past those sizes has its head cut, still
+ending with the fingerprint. Every piece of text goes through `src/printable.ts`.
+
+- **File names.** A card's name is made from its finding's id alone, so it is the same on every run: the id
+  lowercased, each run of characters outside `[a-z0-9._-]` made one `-`, its ends trimmed of `.`, `_` and `-`, cut
+  to 80, then `-`, the first 8 hex digits of the id's SHA-256, and `.md`:
+  `axe/color-contrast@states.html` is `axe-color-contrast-states.html-b0fef9dc.md`. The readable part alone would
+  give two ids one name (`Settings` and `settings`, `a/b` and `a-b`); the hash, of the whole id, keeps them apart.
+  Two findings of one record that still gave one name would be an error, never one card written over another.
+  No name can climb out of `cards/` or start with a dot (spec 8A.1).
+- **Which findings.** Every finding still open: a `check`'s fixed findings get no card. *Needs review* items are
+  not findings and get none. The cards are ordered by impact again, keeping the record's order within an impact,
+  since the record is read from a file.
+- **Which scan.** `<scan>` is a scan folder, or the `scan.json` in it; the cards go into the folder that holds the
+  `scan.json`. With none, it reads the newest scan folder of the only site in the scans folder, and refuses when
+  the folder holds scans of more than one site, listing them (`--site` to choose one comes later). The lookup reads
+  the per-user scans folder (or `A11Y_GENIE_SCANS_DIR`) only: a scan written under `--out` is read by giving its
+  folder. The `scan.json` is read as `check` reads its baseline (`src/baseline.ts`): held to the 50 MB limit,
+  parsed as JSON only, and checked against `schema/scan-1.json` before a field is read. A refusal writes nothing.
+  A second run writes the same files again and deletes nothing.
+- **The list in `report.md`.** The report lists the same cards, worst first, each with its type, title and file,
+  under *Cards*. It is written by `scan`, before `cards` has run: the cards are a pure function of the record, so
+  the list is known then, and a report reads the same whether or not `cards` ran (spec 2.2, principle 2: the same
+  page gives the same report). It says `a11y-genie cards` writes them. A scan with no open findings has no list.
+- **Goldens.** `test/goldens/<page>/cards/` holds the golden cards of the golden pages, made from the committed
+  golden `scan.json` with no browser, by `test/unit/cards.test.ts`; `UPDATE_GOLDENS=1` rewrites them on any test
+  browser. The never-claim test reads every golden card, and every card made from a golden record, in its strict
+  mode.
 
 ## Hostile pages (`src/context.ts`)
 

@@ -75,6 +75,13 @@ Scanned `http://127.0.0.1:0000/states.html` with axe-core 0.0.0 in chrome 0.0.0.
     Element has insufficient color contrast of 1.53 (foreground color: #3a3a3a, background color: #1a1a1a, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1
   ```
 
+## Cards
+
+One card per finding, worst first. `a11y-genie cards` writes them into the `cards` folder beside this report.
+
+1. Bug: Buttons must have discernible text on states.html (`cards/axe-button-name-states.html-4d2329f0.md`)
+2. Bug: Elements must meet minimum color contrast ratio thresholds on states.html (`cards/axe-color-contrast-states.html-b0fef9dc.md`)
+
 ## What this scan cannot see
 
 Automated rules find only some problems. A person has to check what they cannot. The guided checklist (`a11y-genie checklist`) is planned and does not exist yet; until it does, ask these questions by hand:

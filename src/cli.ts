@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { shouldShowBanner, withBanner } from "./banner.js";
+import { cardsCommand } from "./cards-command.js";
 import { checkCommand } from "./check-command.js";
 import { packageInfo } from "./package-info.js";
 import { EXIT } from "./exit-codes.js";
@@ -31,6 +32,7 @@ Usage:
                   [--fail-on <impact>] [--same-origin] [--offline] [--timeout <seconds>]
                   [--max-tabs <n>] [--storage-state <file>] [--commit <sha>]
   a11y-genie check --baseline <scan> [<url>] [scan's flags]
+  a11y-genie cards [<scan>]
 
 Flags:
   --states           a state of the page beside the default one, as "<name>: <steps>" (steps are
@@ -95,6 +97,14 @@ Commands:
              focus on a control with no name is genie/unnamed-step (serious, WCAG 4.1.2). Exit 0: none.
              Exit 1: one, or a flow that stopped early (the transcript says why). Exit 2: a refusal.
 
+  cards      write one card per finding into the scan folder, worst first, as cards/<name>.md, a name
+             made from the finding's id. A finding is one rule on one page, with every element it hit. Each
+             card has a title, a type (Bug for a violation, Task for advice), the rule, the fix and the
+             elements, quoted from the page, in a body of at most 3,500 characters that ends with the line
+             a11y-genie:<finding-id>. <scan> is a scan folder, or its scan.json; without it, the latest scan
+             of the only site in the scans folder. It needs no browser and no network. Exit 0. Exit 2: a
+             refusal, and nothing is written.
+
   rules      list every rule A11y Genie runs: axe-core's, at the version it pins, and its own genie/ rules,
              with impact, WCAG criteria and tags. --tags <list> keeps the rules with one of those tags;
              --json prints them as one JSON document (docs/JSON.md). It needs no browser and no network.
@@ -107,7 +117,6 @@ Exit codes: 0 no findings (for check, no new ones), 1 findings (for check, new o
 2 a refusal (one Error: line and one Hint: line, nothing written), 3 something unexpected, 130 Ctrl-C.
 
 Commands (coming, none works yet):
-  cards      turn findings into cards
   checklist  the questions a scan cannot answer
   ignore     set a finding aside, with a reason and a date
   report     write a report again from a stored scan
@@ -124,6 +133,7 @@ async function main(args: string[]): Promise<void> {
   if (args[0] === "scan") return scanCommand(args.slice(1), HELP_HINT);
   if (args[0] === "check") return checkCommand(args.slice(1), HELP_HINT);
   if (args[0] === "narrate") return narrateCommand(args.slice(1), HELP_HINT);
+  if (args[0] === "cards") return cardsCommand(args.slice(1), HELP_HINT);
   if (args[0] === "rules") return rulesCommand(args.slice(1), HELP_HINT);
   if (args[0] === "prompt") return promptCommand(args.slice(1), HELP_HINT);
   if (args.length === 0 || args.includes("--help")) {

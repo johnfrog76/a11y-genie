@@ -94,6 +94,14 @@ Scanned `http://127.0.0.1:0000/no-landmarks.html` with axe-core 0.0.0 in chrome 
   <p>Every piece of this page is a plain div or paragraph.</p>
   ```
 
+## Cards
+
+One card per finding, worst first. `a11y-genie cards` writes them into the `cards` folder beside this report.
+
+1. Bug: Document should have one main landmark on no-landmarks.html (`cards/axe-landmark-one-main-no-landmarks.html-c880b2e8.md`)
+2. Bug: The page has no landmarks: no banner, navigation, main or contentinfo. on no-landmarks.html (`cards/genie-no-landmarks-no-landmarks.html-66bda6e2.md`)
+3. Bug: All page content should be contained by landmarks on no-landmarks.html (`cards/axe-region-no-landmarks.html-19e45890.md`)
+
 ## What this scan cannot see
 
 Automated rules find only some problems. A person has to check what they cannot. The guided checklist (`a11y-genie checklist`) is planned and does not exist yet; until it does, ask these questions by hand:

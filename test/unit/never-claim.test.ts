@@ -1,9 +1,10 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { CRITERION_WORDING, RULE_WORDING } from "../../src/plain.js";
 import { emptyScanSentence, renderReport } from "../../src/report.js";
 import { CANNOT_SEE } from "../../src/scan-record.js";
-import { GOLDEN_PAGES, readGolden, readGoldenRecord } from "../helpers/goldens.js";
+import { cardFile, cardsOf } from "../../src/cards.js";
+import { GOLDEN_DIR, GOLDEN_PAGES, readGolden, readGoldenRecord } from "../helpers/goldens.js";
 import { neverClaimViolations, PROMPT_WORD_LIST } from "../helpers/never-claim.js";
 
 describe("the phrase list (C16)", () => {
@@ -82,6 +83,20 @@ describe("what a report says", () => {
     expect(neverClaimViolations(readGolden(name, "report.md"))).toEqual([]);
     expect(neverClaimViolations(readGolden(name, "scan.json"))).toEqual([]);
   });
+
+  it.each(GOLDEN_PAGES)(
+    "%s.html: no golden card claims anything, and no card made from its record",
+    (name) => {
+      // Read in the default, strict mode: a card is a report, and none of the docs' phrases is allowed in it.
+      const folder = `${GOLDEN_DIR}${name}/cards/`;
+      for (const file of existsSync(folder) ? readdirSync(folder) : []) {
+        expect(neverClaimViolations(readFileSync(`${folder}${file}`, "utf8")), file).toEqual([]);
+      }
+      for (const card of cardsOf(readGoldenRecord(name))) {
+        expect(neverClaimViolations(cardFile(card)), card.file).toEqual([]);
+      }
+    },
+  );
 
   it("the empty scan's report and sentence claim nothing, and still say what it cannot see", () => {
     const record = readGoldenRecord("clean");

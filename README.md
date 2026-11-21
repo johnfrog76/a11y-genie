@@ -79,6 +79,13 @@ Fix something, then rescan against that first scan. It says what is fixed, what 
 a11y-genie check --baseline <the folder it wrote>/scan.json http://localhost:5173/
 ```
 
+To hand the findings to whoever fixes them, write one card per finding into the scan folder, as Markdown files in
+`cards/`, worst first. With no folder named, it reads the latest scan, when the scans folder holds one site:
+
+```sh
+a11y-genie cards <the folder it wrote>
+```
+
 `a11y-genie --help` lists every command and flag.
 
 ## Work on it

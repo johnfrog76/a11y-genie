@@ -46,6 +46,12 @@ Scanned `http://127.0.0.1:0000/icon-button.html` with axe-core 0.0.0 in chrome 0
     Element's default semantics were not overridden with role="none" or role="presentation"
   ```
 
+## Cards
+
+One card per finding, worst first. `a11y-genie cards` writes them into the `cards` folder beside this report.
+
+1. Bug: Buttons must have discernible text on icon-button.html (`cards/axe-button-name-icon-button.html-64db6047.md`)
+
 ## What this scan cannot see
 
 Automated rules find only some problems. A person has to check what they cannot. The guided checklist (`a11y-genie checklist`) is planned and does not exist yet; until it does, ask these questions by hand:
