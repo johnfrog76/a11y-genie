@@ -162,7 +162,7 @@ advice finding takes the rule's advice words where it has them (`genie/skip-link
 data: nothing from the page and nothing axe-core said goes into them. For a rule the table has no words for,
 `plain` is axe-core's `help` for the rule, and `fix` is axe-core's `failureSummary` for the finding's first
 element, on one line ("Fix any of the following:" then its messages, separated by semicolons); where axe-core
-gave none, it is the rule's `help` and `helpUrl`. A finding always has a fix. `title` is the `help` and the
+gave none, it is the rule's `help` and `helpUrl`. A finding always has a fix. `title` is the `help`, without a closing full stop, and the
 page. `status` is `new` until a scan is compared with an earlier one, then `new`, `still` or `fixed` (below).
 Each element's `failure` stays as
 axe-core, or the product's own check, wrote it, newlines included; `report.md` shows it under the element.
