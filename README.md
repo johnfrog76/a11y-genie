@@ -81,6 +81,9 @@ a11y-genie check --baseline <the folder it wrote>/scan.json http://localhost:517
 
 `a11y-genie --help` lists every command and flag.
 
+[docs/KNOWN-GAPS.md](docs/KNOWN-GAPS.md) lists what is planned and not built yet, and the limits A11y Genie
+was built with.
+
 ## Work on it
 
 `npm test`, `npm run lint` and `npm run typecheck` check a change. [AGENTS.md](AGENTS.md) says how the
