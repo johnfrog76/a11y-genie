@@ -77,6 +77,21 @@ describe("what the prompt file says", () => {
   });
 });
 
+describe("the known-gaps page", () => {
+  // docs/KNOWN-GAPS.md is for strangers: what is planned and not built, and the known limits (#133).
+  const gaps = readFileSync(new URL("../../docs/KNOWN-GAPS.md", import.meta.url), "utf8");
+
+  it("docs/KNOWN-GAPS.md claims nothing", () => {
+    expect(neverClaimViolations(gaps, { docs: true })).toEqual([]);
+  });
+
+  it("lists what is planned and not built, and the README links to it", () => {
+    expect(gaps).toContain("## Planned, not built");
+    const readme = readFileSync(new URL("../../README.md", import.meta.url), "utf8");
+    expect(readme).toContain("](docs/KNOWN-GAPS.md)");
+  });
+});
+
 describe("what a report says", () => {
   it.each(GOLDEN_PAGES)("%s.html: neither golden claims anything", (name) => {
     expect(neverClaimViolations(readGolden(name, "report.md"))).toEqual([]);
