@@ -323,13 +323,22 @@ function toRecordFinding(
     kind: finding.kind,
     impact: finding.impact,
     page: finding.page,
-    title: `${help === "" ? finding.rule.id : help} on ${finding.page}`,
+    title: findingTitle(help === "" ? finding.rule.id : help, finding.page),
     plain: words?.plain ?? (help === "" ? finding.rule.id : help),
     fix: words?.fix ?? fixOf(finding as Finding),
     elements,
     ...(cut > 0 ? { elementsCut: cut } : {}),
     status: "new",
   };
+}
+
+/**
+ * A finding's title: the rule's help text, then " on " and the page. A help text that ends in a full stop
+ * (every `genie/*` rule's, and axe-core's `table-fake-caption`) loses it, so the title never reads
+ * "…contentinfo. on page.html".
+ */
+export function findingTitle(help: string, page: string): string {
+  return `${help.replace(/(?<!\.)\.$/, "")} on ${page}`;
 }
 
 /** The origin of a URL, with no trailing slash. */
