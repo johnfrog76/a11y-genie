@@ -1,8 +1,10 @@
 import type { Browser } from "playwright-core";
 import {
   BrowserNotFound,
+  HEADLESS_SHELL_ENV,
   NO_BROWSER_ENV,
   noBrowserRefusal,
+  runsHeadlessShell,
   withBrowser,
   type BrowserChannel,
   type Launcher,
@@ -60,6 +62,19 @@ function defaultDeps(): BrowserChoiceDeps {
       chromiumInstalled: () => false,
       installChromium: async () => {
         throw downloadFailedRefusal(`downloads are turned off by ${NO_BROWSER_ENV}`);
+      },
+      cacheFolder: () => chromiumCacheFolder(),
+      say: (line) => console.error(line),
+    };
+  }
+  if (runsHeadlessShell("chromium")) {
+    // Tests only: the launch is the headless shell, not the full build, so the full build's cache check does
+    // not apply, and its download would not fetch the shell. The launch says whether the shell is there
+    // (noHeadlessShellRefusal in src/browser.ts), and nothing is downloaded.
+    return {
+      chromiumInstalled: () => true,
+      installChromium: async () => {
+        throw downloadFailedRefusal(`downloads are turned off by ${HEADLESS_SHELL_ENV}`);
       },
       cacheFolder: () => chromiumCacheFolder(),
       say: (line) => console.error(line),

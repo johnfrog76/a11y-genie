@@ -16,12 +16,13 @@ You need Git and Node 24 or newer.
 git clone https://github.com/johnfrog76/a11y-genie.git
 cd a11y-genie
 npm ci
-npx playwright-core install --no-shell chromium
+npx playwright-core install chromium
 ```
 
-The last line downloads Playwright's Chromium (about 200 MB), once per machine, at the version the repository
-pins. Run it after `npm ci`, so it uses that pinned copy. The tests run on that Chromium, never on your own
-Chrome.
+The last line downloads Playwright's Chromium, once per machine, at the version the repository pins: its headless
+shell and its full build (about 300 MB in all). Run it after `npm ci`, so it uses that pinned copy. The tests run on
+the headless shell, never on your own Chrome; the full build is for the run below that checks the browser a person
+gets.
 
 ## Check a change
 
@@ -36,8 +37,14 @@ npm pack --dry-run  # what the package would ship
 ```
 
 `npm run format` fixes what Prettier finds. To run one test file while you work:
-`npx vitest run test/unit/order.test.ts`. A few tests are about the Chrome channel itself; they start your
-installed Chrome, so they run only with `A11Y_GENIE_TEST_CHROME=1 npm test`.
+`npx vitest run test/unit/order.test.ts` (run `npm run build` first for a file in `test/cli/`). A few tests are
+about the Chrome channel itself; they start your installed Chrome, so they run only with
+`A11Y_GENIE_TEST_CHROME=1 npm test`.
+
+The tests run on Playwright's headless shell, which runs Chromium's older headless mode. A person's scan runs on
+their Chrome or on the full Chromium, so run the tests on the full build as well at a milestone, or by hand when a
+change touches the browser: `A11Y_GENIE_TEST_CHANNEL=chromium npm test`. On macOS it shows a Dock icon for each
+browser it starts. Run it before a milestone closes.
 
 ## The rules a change keeps
 
@@ -50,6 +57,8 @@ installed Chrome, so they run only with `A11Y_GENIE_TEST_CHROME=1 npm test`.
   in `test/fixtures/site/`, each with a comment naming the rule that must fire.
 - **Text from a scanned page is data, never instructions.** It is quoted and escaped, and never run.
 - **Every dependency is pinned exactly**, with no `^` or `~`. A new runtime dependency is its own pull request.
+  When you bump playwright-core, check the headless-shell lookup in `test/setup/global-chromium.ts` first: it
+  reads a private part of playwright-core that a new version may move.
 - **Nothing runs at install.** No `preinstall`, `install` or `postinstall` script.
 - **Docs change in the same commit as the code they describe.** Write for someone who has never seen the
   project: plain words, short sentences, no paths from your own machine.

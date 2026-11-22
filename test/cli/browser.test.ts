@@ -1,10 +1,11 @@
 import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 import { NO_BROWSER_ENV } from "../../src/browser.js";
+import { builtCli } from "../helpers/built-cli.js";
 
 // Runs the built command (npm test builds first), as a person would.
 const PAGE = "http://127.0.0.1:9/";
-const cli = new URL("../../dist/cli.js", import.meta.url).pathname;
+const cli = builtCli();
 
 function run(args: string[], env: Record<string, string> = {}) {
   return spawnSync(process.execPath, [cli, ...args], {

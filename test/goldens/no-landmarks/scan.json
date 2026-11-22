@@ -108,7 +108,7 @@
       "kind": "violation",
       "impact": "moderate",
       "page": "no-landmarks.html",
-      "title": "The page has no landmarks: no banner, navigation, main or contentinfo. on no-landmarks.html",
+      "title": "The page has no landmarks: no banner, navigation, main or contentinfo on no-landmarks.html",
       "plain": "The page has no landmarks at all: no header, navigation, main or footer region. A screen-reader user cannot jump between its parts and has to go through it from the top.",
       "fix": "Put the page's own content in a main element, and use header, nav and footer for its banner, its navigation and its footer.",
       "elements": [

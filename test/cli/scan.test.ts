@@ -11,11 +11,12 @@ import { controlsIn } from "../helpers/controls.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 import { neverClaimViolations } from "../helpers/never-claim.js";
 import { validate } from "../helpers/json-schema.js";
+import { builtCli } from "../helpers/built-cli.js";
 
 // Runs the built command (npm test builds first) on pages served from 127.0.0.1, and reads what it wrote.
 // The command runs in its own process, so the browser-side guard cannot be installed on it: the pages here
 // only ever load from the fixture server. The goldens test (test/browser/) runs the guarded path.
-const cli = new URL("../../dist/cli.js", import.meta.url).pathname;
+const cli = builtCli();
 const hasBrowser = await testBrowserIsInstalled();
 const schema = JSON.parse(
   readFileSync(new URL("../../schema/scan-1.json", import.meta.url), "utf8"),

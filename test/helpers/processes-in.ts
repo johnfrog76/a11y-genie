@@ -54,3 +54,14 @@ export function stopProcessesIn(folder: string): void {
     }
   }
 }
+
+/**
+ * The browsers' own main processes among `processesIn(folder)`. A Chromium main process carries
+ * `--user-data-dir=` and no `--type=`; its helpers (renderer, GPU, network and other utilities) all carry
+ * `--type=<kind>`, and never `--headless`, so a check of the main process must leave them out.
+ */
+export function mainBrowserProcesses(folder: string): FolderProcess[] {
+  return processesIn(folder).filter(
+    ({ command }) => command.includes("--user-data-dir=") && !command.includes("--type="),
+  );
+}

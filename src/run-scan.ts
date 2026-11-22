@@ -3,7 +3,7 @@ import type { Browser, BrowserContext, Page } from "playwright-core";
 import { scanPage } from "./axe.js";
 import { FocusGuard } from "./focus-guard.js";
 import { actionSteps, applyMedia, runSteps, SETTLE_MS, StepFailure } from "./drive.js";
-import type { BrowserChannel } from "./browser.js";
+import { engineBrowserName, type BrowserChannel } from "./browser.js";
 import { withChosenBrowser, type BrowserChoiceDeps } from "./browser-choice.js";
 import {
   armContext,
@@ -578,7 +578,7 @@ export async function runScan(options: RunScanOptions): Promise<ScanRecord> {
     return buildPagesRecord({
       ...(options.narrateOnly === true ? { command: "narrate" as const } : {}),
       tool: packageInfo(),
-      browser: `${used.channel} ${browser.version()}`,
+      browser: `${engineBrowserName(used.channel)} ${browser.version()}`,
       fallback: used.fallback,
       startedAt,
       finishedAt: stamp(),

@@ -2,7 +2,9 @@ import type { Browser, LaunchOptions } from "playwright-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   BrowserNotFound,
+  HEADLESS_SHELL_ENV,
   NO_BROWSER_ENV,
+  engineBrowserName,
   isNotInstalledError,
   withBrowser,
   type Launcher,
@@ -86,6 +88,61 @@ describe("withBrowser", () => {
     const launcher = vi.fn<Launcher>();
     await expect(withBrowser("chrome", async () => undefined, launcher)).rejects.toBeInstanceOf(Refusal);
     expect(launcher).not.toHaveBeenCalled();
+  });
+});
+
+describe(`the tests' headless shell, ${HEADLESS_SHELL_ENV}=1`, () => {
+  function recording() {
+    const { browser } = fakeBrowser();
+    const seen: LaunchOptions[] = [];
+    const launcher: Launcher = async (options) => {
+      seen.push(options);
+      return browser;
+    };
+    return { seen, launcher };
+  }
+  const HANDLERS_OFF = { handleSIGINT: false, handleSIGTERM: false, handleSIGHUP: false };
+
+  it("launches chromium with no channel, headless, which is playwright-core's headless shell", async () => {
+    vi.stubEnv(HEADLESS_SHELL_ENV, "1");
+    const { seen, launcher } = recording();
+    await withBrowser("chromium", async () => undefined, launcher);
+    expect(seen).toEqual([{ headless: true, ...HANDLERS_OFF }]);
+    expect(engineBrowserName("chromium")).toBe("chromium-headless-shell");
+  });
+
+  it("leaves chrome and msedge as they are", async () => {
+    vi.stubEnv(HEADLESS_SHELL_ENV, "1");
+    const { seen, launcher } = recording();
+    await withBrowser("chrome", async () => undefined, launcher);
+    await withBrowser("msedge", async () => undefined, launcher);
+    expect(seen.map((options) => options.channel)).toEqual(["chrome", "msedge"]);
+    expect(engineBrowserName("chrome")).toBe("chrome");
+  });
+
+  it("without it, chromium is launched by its channel and named by it", async () => {
+    vi.stubEnv(HEADLESS_SHELL_ENV, "");
+    const { seen, launcher } = recording();
+    await withBrowser("chromium", async () => undefined, launcher);
+    expect(seen).toEqual([{ channel: "chromium", headless: true, ...HANDLERS_OFF }]);
+    expect(engineBrowserName("chromium")).toBe("chromium");
+  });
+
+  it("says the shell is missing, by name, when it is", async () => {
+    vi.stubEnv(HEADLESS_SHELL_ENV, "1");
+    const launcher: Launcher = async () => {
+      throw new Error(
+        "browserType.launch: Executable doesn't exist at /cache/chromium_headless_shell-1255/chrome-headless-shell-linux64/chrome-headless-shell",
+      );
+    };
+    const refusal = await withBrowser("chromium", async () => undefined, launcher).catch((e: unknown) => e);
+    expect(refusal).toBeInstanceOf(BrowserNotFound);
+    expect((refusal as Refusal).message).toBe(
+      `Playwright's headless shell is not installed on this machine, and ${HEADLESS_SHELL_ENV}=1 asks for it.`,
+    );
+    expect((refusal as Refusal).hint).toBe(
+      `install it once: npx playwright-core@1.65.1 install chromium, or unset ${HEADLESS_SHELL_ENV}.`,
+    );
   });
 });
 
