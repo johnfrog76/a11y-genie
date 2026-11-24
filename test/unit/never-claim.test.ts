@@ -6,7 +6,7 @@ import { CANNOT_SEE } from "../../src/scan-record.js";
 import { GOLDEN_PAGES, readGolden, readGoldenRecord } from "../helpers/goldens.js";
 import { neverClaimViolations, PROMPT_WORD_LIST } from "../helpers/never-claim.js";
 
-describe("the phrase list (C16)", () => {
+describe("the phrase list", () => {
   it.each([
     "This site is accessible.",
     "The page is COMPLIANT",
@@ -51,7 +51,7 @@ describe("the phrase list (C16)", () => {
  * one is adopted text and the other quotes licences (Apache-2.0 says "compliance"), so neither is the project's
  * own words. Do not add them. The site and the prompt file are held in test/unit/site.test.ts and above.
  */
-describe("the project's own docs claim nothing (C16)", () => {
+describe("the project's own docs claim nothing", () => {
   const root = new URL("../../", import.meta.url);
   const read = (path: string) => readFileSync(new URL(path, root), "utf8");
   const docs = [

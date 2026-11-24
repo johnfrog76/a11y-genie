@@ -33,7 +33,7 @@ describe("mapping recorded axe-core results", () => {
     expect(scan.needsReview).toEqual([]);
   });
 
-  it("fills a finding with the spec's fields", () => {
+  it("fills every field of a finding", () => {
     const scan = mapAxeResults(recorded("impact-mix"), "impact-mix.html");
     const contrast = scan.findings.find((f) => f.rule.id === "color-contrast");
     expect(contrast).toEqual({
@@ -194,7 +194,7 @@ describe("selectorOf", () => {
   });
 });
 
-describe("pageKeyOf (D6: a page is a URL)", () => {
+describe("pageKeyOf (a page is a URL)", () => {
   it.each([
     ["http://127.0.0.1:5173/", "home"],
     ["http://127.0.0.1:5173", "home"],

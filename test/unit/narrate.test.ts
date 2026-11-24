@@ -20,7 +20,7 @@ function step(key: string, spoken: string, rest: Partial<NarratedStep> = {}): Na
 }
 
 describe("the transcript", () => {
-  it("is the spec's format: a heading, one line a step, and a note under a step with no name", () => {
+  it("is the transcript's format: a heading, one line a step, and a note under a step with no name", () => {
     const text = renderTranscript({
       name: "flow",
       page: "settings",

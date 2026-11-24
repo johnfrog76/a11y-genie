@@ -92,7 +92,7 @@ describe("every step form", () => {
 });
 
 describe("steps together", () => {
-  it("parses the spec's flow", () => {
+  it("parses a flow", () => {
     expect(flow("Tab to combobox 'Time zone'; ArrowDown; Tab; Enter")).toEqual([
       { kind: "tabTo", target: { by: "role", role: "combobox", name: "Time zone" } },
       { kind: "press", key: "ArrowDown" },
@@ -101,7 +101,7 @@ describe("steps together", () => {
     ]);
   });
 
-  it("parses the spec's states", () => {
+  it("parses states", () => {
     expect(parseState("menu-open: click button 'Menu'")).toEqual({
       name: "menu-open",
       steps: [{ kind: "click", target: { by: "role", role: "button", name: "Menu" } }],
@@ -112,7 +112,7 @@ describe("steps together", () => {
     });
   });
 
-  it("parses the spec's config steps one string at a time", () => {
+  it("parses config steps one string at a time", () => {
     const steps = ["Tab to combobox 'Time zone'", "ArrowDown", "Tab to button 'Save'", "Enter"];
     const parsed = steps.map((text) => parseStep(text, { source: "a11y-genie.yaml line 20", use: "flow" }));
     expect(parsed).toEqual(flow(steps.join("; ")));
