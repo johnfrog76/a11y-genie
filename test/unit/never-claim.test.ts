@@ -216,5 +216,8 @@ describe("the shipped deck claims nothing", () => {
     }
     expect(neverClaimViolations("The page is accessible now.", { deck: true })).toEqual(["accessible"]);
     expect(neverClaimViolations("Accessible HTML, at last.", { deck: true })).toEqual(["Accessible"]);
+    expect(neverClaimViolations("The page passed WCAG.", { deck: true })).toEqual(["passed WCAG"]);
+    expect(neverClaimViolations("the dust lifts as the duster passes", { deck: true })).toEqual([]);
+    expect(neverClaimViolations("the dust lifts as the duster passes")).toEqual(["passes"]);
   });
 });

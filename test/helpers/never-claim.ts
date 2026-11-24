@@ -37,14 +37,27 @@ export const ALLOWED_IN_DOCS = [
 export const PROMPT_WORD_LIST = 'Never call the site "accessible", "compliant" or "conformant".';
 
 /**
- * Allowed in the shipped deck's own text (`web/src/deck/decks/` and its voices' scripts), and nowhere else. Each
- * is an exact phrase the owner approved for the deck (2026-11-24), with why it is not a claim. Any other use of a
+ * Allowed in the shipped deck's own text (`web/src/deck/decks/` and its voices' scripts), and nowhere else: each
+ * an exact phrase the deck has, approved by the owner (2026-11-24), with why it is not a claim. Any other use of a
  * forbidden word in the deck still fails, so a later ship that makes a claim is caught here.
  */
 export const ALLOWED_IN_DECK: readonly { phrase: string; reason: string }[] = [
   { phrase: "Wish One, Accessible HTML", reason: "the first wish's title: the wish, not a verdict" },
+  { phrase: "wish-one-accessible-html", reason: "the first wish's slide id: the wish, not a verdict" },
+  {
+    phrase: "grant three wishes: accessible",
+    reason: "the file's header naming the wishes: the wish, not a verdict",
+  },
   { phrase: "part of the journey to accessible HTML", reason: "the journey, not a claim" },
+  { phrase: "on the journey to accessible HTML", reason: "the presenter's note: the journey, not a claim" },
+  { phrase: "not that the page is fully accessible", reason: "the presenter's note denies the claim" },
 ];
+
+/**
+ * In the deck, a bare "passes" is motion in the art's comments (the duster passes, light passes through the
+ * glass), never a test result, so deck mode does not count it. "passed WCAG" and every other word still count.
+ */
+const NOT_COUNTED_IN_DECK = ["passes"];
 
 /** A phrase as a case-insensitive pattern, every character literal, bounded by a word edge where it has one. */
 function phrasePattern(phrase: string): RegExp {
@@ -77,7 +90,7 @@ export function neverClaimViolations(
   ];
   for (const phrase of allowed) rest = rest.replace(phrasePattern(phrase), " ");
   const found: string[] = [];
-  for (const phrase of FORBIDDEN) {
+  for (const phrase of deck ? FORBIDDEN.filter((word) => !NOT_COUNTED_IN_DECK.includes(word)) : FORBIDDEN) {
     for (const match of rest.matchAll(new RegExp(`\\b${phrase}\\b`, "gi"))) found.push(match[0]);
   }
   return found;
