@@ -132,7 +132,7 @@ finding `genie/unnamed-step`; a 1.9 record has `workflows: []`, and is still val
 | `baseline` | On a `check` only: `path`, the `--baseline` as it was given; `startedAt`, when the baseline's scan began; `commit`, the baseline's own `target.commit`; and `notScanned`, each `{ page, state }` the baseline asked for and did not scan |
 | `limits` | The limits the page was held to: `pageSeconds` (60), `redirects` (10), `elementsPerFinding` (500), `excerptChars` (160), `scanJsonBytes` (52428800, 50 MB). docs/ARCHITECTURE.md, *Hostile pages*, says what each does |
 
-**One finding per rule per page.** A page is a URL, and the states of a page are merged into it (D6). A finding is one rule on one page, so
+**One finding per rule per page.** A page is a URL, and the states of a page are merged into it. A finding is one rule on one page, so
 its `id` is the same whatever the number of states; its elements are the elements any state found, each listed once and
 naming the states it was found in. Two elements are the same element when their axe-core `target` is the same. A merged
 finding keeps the wording (`help`, `fix`, an element's `html` and `failure`) of the first state that had it, and the
