@@ -91,7 +91,7 @@ describe("with no Chrome, and no --browser-channel", () => {
     expect(m.said).toEqual([lines.using]);
   });
 
-  it("says the size and the cache in the line, as the spec words it", () => {
+  it("says the size and the cache in the line", () => {
     expect(lines.downloading).toBe(
       `Chrome was not found, so A11y Genie is downloading Playwright's Chromium (${downloadSize()}) once, into ${CACHE}. --browser-channel names another browser.`,
     );

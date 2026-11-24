@@ -151,7 +151,7 @@ describe("check against a baseline", () => {
     expect(record.exit).toBe(1);
   });
 
-  it("reads elements whose selectors moved, as many as before, as still: never fixed plus new (R11)", () => {
+  it("reads elements whose selectors moved, as many as before, as still: never fixed plus new", () => {
     const now = scanOf(
       only(finding("button-name", ["#save", "button:nth-child(3)"]), finding("image-alt", ["img"])),
     );
