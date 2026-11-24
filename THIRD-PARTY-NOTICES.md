@@ -21,6 +21,19 @@ License applies to those files, and to no file of A11y Genie's own.
 None of them ship in the package. TypeScript, vitest, ESLint, Prettier and their dependencies are used to
 build and test A11y Genie.
 
+## Copied into the repository
+
+Not part of the installed package. These are copied into the repository and used by the deck page, `web/`,
+which is published beside the project's page ([docs/DECK.md](docs/DECK.md)).
+
+| Source | Version | Licence | Copyright | What was copied, and where |
+| --- | --- | --- | --- | --- |
+| Connected Deck, <https://github.com/johnfrog76/connected-deck> | commit `6e1293f`, by way of Code Sleuth's copy | MIT | Copyright (c) 2026 John Webster | `src/deck-engine/` (the deck player, without its tests) to `web/src/deck/deck-engine/`, and the files it imports from outside that folder (`decks/types.ts`, `presenterMode.tsx`, `SettingsForm.tsx`, `settingsRules.ts`, `viewport.tsx`, `media.ts`, `voicePreference.tsx`, `shared/MarkdownViewer.tsx`, `shared/usePersistedState.ts`, `shared/ZoomControl.tsx`) to the same paths under `web/src/deck/` |
+
+`web/src/deck/deck-engine/NOTICE.md` carries the licence in full and lists the few changes made. The deck
+page's npm dependencies (React, Fluent UI, React Router) are bundled into the page, not the package; they are
+listed, with their licences, in `web/package-lock.json`.
+
 ## axe-core and @axe-core/playwright: Mozilla Public License, version 2.0
 
 The text below is the `LICENSE` file of `axe-core` 4.14.1. The `LICENSE` file of `@axe-core/playwright`

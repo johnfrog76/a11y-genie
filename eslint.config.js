@@ -3,8 +3,32 @@ import prettier from "eslint-config-prettier";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist/", "coverage/", "test/fixtures/", "_site/"] },
+  {
+    ignores: [
+      "dist/",
+      "coverage/",
+      "test/fixtures/",
+      "_site/",
+      // The deck page is its own npm project (web/package.json), checked by its own type check. Its deck home
+      // holds a copied player and a deck carried in byte for byte, which keep their own style (docs/DECK.md).
+      "web/dist/",
+      "web/src/deck/",
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  // The deck page's smoke test runs under Node, and hands the browser functions that read the page.
+  {
+    files: ["web/tests/**/*.mjs"],
+    languageOptions: {
+      globals: {
+        console: "readonly",
+        process: "readonly",
+        URL: "readonly",
+        document: "readonly",
+        window: "readonly",
+      },
+    },
+  },
   prettier,
 );
