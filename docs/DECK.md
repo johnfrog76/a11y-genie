@@ -84,8 +84,10 @@ The player runs inside an in-memory router, so the address bar never changes. `t
 holds the lock.
 
 `npm run build` in `web/` writes `web/dist/`, with every address relative (`base: "./"`), so the page works
-under any path. Pages will serve it at `deck/`, beside the project's page; the workflow that publishes it there
-is a change of its own. The project's page stays plain HTML with no script.
+under any path. `.github/workflows/pages.yml` publishes it at `deck/`, beside the project's page, in two jobs:
+`build` installs `web/` from its lockfile, builds both pages, puts them in one folder (its "Assemble the page"
+step) and uploads it, holding no token that can publish; `deploy` holds the Pages token and only deploys that
+upload, installing nothing. The project's page stays plain HTML with no script.
 
 ## Running it locally
 
@@ -96,13 +98,13 @@ npm ci
 npm run dev        # the page, served by Vite
 npm run typecheck  # tsc
 npm run build      # web/dist/
-npm run smoke                 # both pages, in the headless shell, as Pages will serve them
+npm run smoke                 # both pages, in the headless shell, as Pages serves them
 npm run smoke -- --serve      # the same, then keeps serving them and prints the address
 ```
 
 Served alone by Vite, the page has no project's page one folder up, so its link back lands on itself.
-`npm run smoke` serves both, put together the way Pages will put them: the project's page built by
-`scripts/build-site.ts`, with `web/dist` at `deck/`.
+`npm run smoke` serves both, put together by the Pages workflow's own "Assemble the page" step: the project's
+page built by `scripts/build-site.ts`, with `web/dist` at `deck/`.
 
 The smoke test builds `web/`, assembles the two pages, serves them on `127.0.0.1` and drives Playwright's
 headless shell, never the Google Chrome app. While the registry is empty it holds that the deck page says the
