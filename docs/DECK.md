@@ -4,10 +4,9 @@ A11y Genie will have a short product deck: the genie's story, narrated, played i
 own beside the project's page. This page says where the deck is made, where it lives here, how a deck is
 registered, and how its page is built, checked and served.
 
-The deck page is built and ready, but the deck has not arrived yet. Until it does, the page says so and links
-back to the project's page, and nothing links to it: the project's page shows its "Watch the video" button
-only once `DECK_URL` is set in `scripts/build-site.ts`. The deck arrives once A11y Genie does everything the
-deck shows it doing.
+The deck has arrived, and the deck page plays it. Nothing links to it yet: the project's page shows its
+"Watch the video" button only once `DECK_URL` is set in `scripts/build-site.ts`, which is the owner's own step.
+With the registry empty, the page says the deck is not here and links back to the project's page.
 
 ## Where the deck is made
 
@@ -56,7 +55,12 @@ does `web/tests/smoke.mjs`, which gains the checks that the deck plays.
 
 ## The decks here
 
-None yet.
+| Deck | File | Voices |
+| --- | --- | --- |
+| `a11y-genie`: the genie's story, seven slides, the deck page's first and only deck | `decks/a11y-genie.tsx` | `voices/a11y-genie/`: Brian and Jenny, 14 clips |
+
+Its own figures are drawn in its one file, so it ships no figures file. It is shipped as it was made, still a
+draft where it is made.
 
 ## The page
 
@@ -107,10 +111,11 @@ Served alone by Vite, the page has no project's page one folder up, so its link 
 page built by `scripts/build-site.ts`, with `web/dist` at `deck/`.
 
 The smoke test builds `web/`, assembles the two pages, serves them on `127.0.0.1` and drives Playwright's
-headless shell, never the Google Chrome app. While the registry is empty it holds that the deck page says the
-deck is not here yet and links back to the project's page, which the link opens; that the project's page has
-no deck button; that the deck page does not scroll sideways on a 390 px phone; that neither page logs an
-error; and that A11y Genie's own scan of the deck page finds nothing critical or serious. `--shots <dir>` saves
+headless shell, never the Google Chrome app. It holds that the deck page plays the registered deck ("1 / N" in
+its bar, slide 1's title on screen) and that Escape leaves it for the project's page; that every baked clip is
+in the build and answers as audio; that the project's page has no deck button while `DECK_URL` is empty; that
+on a 390 px phone the deck page plays slide 1 and does not scroll sideways; that neither page logs an error;
+and that A11y Genie's own scan of the deck page, on the deck's first slide, finds nothing critical or serious. `--shots <dir>` saves
 screenshots, and `--host` and `--port` choose where it listens.
 
 The root's `npm run lint` checks the page's own files (`web/src/*.tsx`, `web/index.html`, `web/tests/`, its

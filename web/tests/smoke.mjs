@@ -3,15 +3,14 @@
 // It builds web/ (unless --no-build), puts the two pages together by running the Pages workflow's own
 // "Assemble the page" step (.github/workflows/pages.yml), serves the result on 127.0.0.1, and holds:
 //
-//   1. While the registry is empty, the deck page says the deck is not here yet, and links back to the
-//      project's page, which that link opens.
-//   2. While DECK_URL is empty, the project's page has no deck button (scripts/build-site.ts).
-//   3. On a phone, 390 px wide, the deck page does not scroll sideways.
-//   4. Neither page logs an error.
-//   5. A11y Genie's own scan of the deck page finds nothing critical or serious (it needs `npm run build` at the
-//      repository's root first, for dist/cli.js).
-//
-// When a deck is registered, this test gains the checks that it plays, as Code Sleuth's does.
+//   1. The deck page plays the registered deck: "1 / N" in its bar, slide 1's title on screen, and Escape
+//      leaves it for the project's page.
+//   2. Every baked clip is in the build and answers 200 as audio.
+//   3. While DECK_URL is empty, the project's page has no deck button (scripts/build-site.ts).
+//   4. On a phone, 390 px wide, the deck page plays slide 1 and does not scroll sideways.
+//   5. Neither page logs an error.
+//   6. A11y Genie's own scan of the deck page, on the deck's first slide, finds nothing critical or serious (it
+//      needs `npm run build` at the repository's root first, for dist/cli.js).
 //
 // The browser is Playwright's headless shell, never the Google Chrome app: playwright-core launched headless
 // with no channel runs the shell (`npx playwright-core@1.65.1 install chromium` installs it). It needs no
@@ -112,6 +111,7 @@ const BASE = `http://${host.includes(":") ? `[${host}]` : host}:${address.port}/
 
 const registry = fs.readFileSync(path.join(WEB_ROOT, "src", "deck", "decks", "index.ts"), "utf8");
 const empty = /export const DECKS: Deck\[\] = \[\];/.test(registry);
+const VOICES = path.join(WEB_ROOT, "src", "deck", "voices");
 
 // No channel, headless: playwright-core's headless shell.
 const browser = await chromium.launch({ headless: true });
@@ -134,8 +134,7 @@ const shot = async (page, name) => {
 const sideways = (page) => page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
 
 try {
-  // A registered deck needs this test's checks that it plays (see the top), added in the same commit.
-  check(empty, "the registry is empty, as the checks below expect (a shipped deck brings its own checks)");
+  check(!empty, "the registry lists a deck, as the checks below expect");
 
   // The project's page has no deck button while DECK_URL is empty.
   const desk = await open({ width: 1280, height: 800 });
@@ -143,35 +142,61 @@ try {
   check((await desk.locator('[data-cta="deck"]').count()) === 0, "the project's page has no deck button yet");
   await shot(desk, "landing-desktop");
 
-  // The deck page says the deck is not here, and links back.
+  // The deck page plays the deck.
   await desk.goto(`${BASE}deck/`);
-  const line = desk.getByText("The deck isn’t here yet.");
-  await line.waitFor({ timeout: 15_000 }).catch(() => {});
-  check(await line.isVisible(), 'the deck page says "The deck isn’t here yet."');
-  const back = desk.getByRole("link", { name: "Back to A11y Genie" });
-  check((await back.getAttribute("href")) === "../", 'it links "Back to A11y Genie" at ../');
-  await shot(desk, "deck-empty-desktop");
-  await back.click();
+  const counter = desk.getByText(/^\s*1\s*\/\s*\d+\s*$/).first();
+  await counter.waitFor({ timeout: 15_000 }).catch(() => {});
+  check(await counter.isVisible(), 'the deck page plays the deck: "1 / N" in its bar');
+  const title = desk.locator("h1, h2").first();
+  check(
+    (await title.isVisible()) && (await title.innerText()).trim().length > 0,
+    "slide 1's title is on screen",
+  );
+  await desk.waitForTimeout(1500);
+  await shot(desk, "deck-slide-1-desktop");
+
+  // Every baked clip is in the build and answers as audio.
+  const baked = fs
+    .readdirSync(VOICES, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .flatMap((entry) =>
+      fs.readdirSync(path.join(VOICES, entry.name)).filter((name) => name.endsWith(".mp3")),
+    );
+  const built = fs.readdirSync(path.join(SITE, "deck", "assets")).filter((name) => name.endsWith(".mp3"));
+  check(
+    built.length === baked.length,
+    `every baked clip is in the build (${built.length} of ${baked.length})`,
+  );
+  let answered = 0;
+  for (const name of built) {
+    const response = await globalThis.fetch(`${BASE}deck/assets/${name}`);
+    if (response.ok && response.headers.get("content-type") === "audio/mpeg") answered += 1;
+  }
+  check(built.length > 0 && answered === built.length, "each clip answers 200 as audio");
+
+  // Escape leaves the deck for the project's page.
+  await desk.keyboard.press("Escape");
   await desk.waitForURL(BASE, { timeout: 5_000 }).catch(() => {});
-  check(desk.url() === BASE, "that link opens the project's page");
+  check(desk.url() === BASE, "Escape leaves the deck for the project's page");
 
   // A phone.
   const phone = await open({ width: 390, height: 844 });
   await phone.goto(`${BASE}deck/`);
-  await phone
-    .getByText("The deck isn’t here yet.")
-    .waitFor({ timeout: 15_000 })
-    .catch(() => {});
+  const phoneCounter = phone.getByText(/^\s*1\s*\/\s*\d+\s*$/).first();
+  await phoneCounter.waitFor({ timeout: 15_000 }).catch(() => {});
+  check(await phoneCounter.isVisible(), "on a phone, the deck page plays slide 1");
   check(!(await sideways(phone)), "on a phone, the deck page does not scroll sideways");
-  await shot(phone, "deck-empty-phone");
+  await phone.waitForTimeout(1500);
+  await shot(phone, "deck-slide-1-phone");
 
+  // A browser may refuse sound before a press; that is not an error of the page's.
   const real = errors.filter((text) => !/play\(\) failed|NotAllowedError|user didn't interact/i.test(text));
   check(real.length === 0, `neither page logs an error${real.length ? `: ${real.join(" | ")}` : ""}`);
 } finally {
   await browser.close();
 }
 
-// 5. A11y Genie scans its own deck page, on the headless shell, held to the loopback address.
+// 6. A11y Genie scans its own deck page, on the deck's first slide, on the headless shell, held to the loopback address.
 if (!fs.existsSync(CLI)) {
   check(false, "A11y Genie scans the deck page: run `npm run build` at the repository's root first");
 } else {
