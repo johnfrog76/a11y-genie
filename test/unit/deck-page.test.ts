@@ -50,6 +50,11 @@ describe("the deck page's own npm project", () => {
 describe("the deck page's player", () => {
   const page = readFileSync(new URL("web/src/DeckPage.tsx", root), "utf8");
 
+  it("offers the presentation engine on the closing button: Connected Deck's repository, by default", () => {
+    const button = readFileSync(new URL("web/src/deck/deck-engine/CopyLinkButton.tsx", root), "utf8");
+    expect(button).toContain('const DEFAULT_URL = "https://github.com/johnfrog76/connected-deck";');
+  });
+
   it("plays to an audience only: Sofa, with no Podium", () => {
     expect(page).toContain('const AUDIENCE_ONLY: readonly DeckMode[] = ["audience"];');
     expect(page).toContain('mode="audience"');

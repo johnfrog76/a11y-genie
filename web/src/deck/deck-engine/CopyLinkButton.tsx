@@ -10,12 +10,12 @@ function GitHubMark({ size = 20 }: { size?: number }) {
   );
 }
 
-// A11y Genie's copy: `url` is optional and defaults to this repository, so the deck's closing slide can say
-// `<CopyLinkButton />` as it arrives (see NOTICE.md).
-const DEFAULT_URL = "https://github.com/johnfrog76/a11y-genie";
+// A11y Genie's copy: `url` is optional and defaults to the presentation engine's repository, Connected Deck,
+// so the deck's closing slide can say `<CopyLinkButton />` as it arrives (see NOTICE.md).
+const DEFAULT_URL = "https://github.com/johnfrog76/connected-deck";
 
 interface CopyLinkButtonProps {
-  /** The link to copy. Defaults to A11y Genie's repository. */
+  /** The link to copy. Defaults to Connected Deck's repository, the presentation engine. */
   url?: string;
   /** Fixed-position corner placement. Set to null to render inline instead. */
   corner?: "bottom-right" | "bottom-left" | "top-right" | "top-left" | null;
