@@ -51,13 +51,11 @@ export const ALLOWED_IN_DECK: readonly { phrase: string; reason: string }[] = [
   { phrase: "part of the journey to accessible HTML", reason: "the journey, not a claim" },
   { phrase: "on the journey to accessible HTML", reason: "the presenter's note: the journey, not a claim" },
   { phrase: "not that the page is fully accessible", reason: "the presenter's note denies the claim" },
+  { phrase: "the duster passes", reason: "motion in the art: the duster wiping the bottle" },
+  { phrase: "light passes", reason: "motion in the art: light through the glass, the band of light" },
+  { phrase: "a glow passes over", reason: "motion in the art: the glow over the navigation" },
+  { phrase: "the band passes", reason: "motion in the art: the band of light stamping the cards" },
 ];
-
-/**
- * In the deck, a bare "passes" is motion in the art's comments (the duster passes, light passes through the
- * glass), never a test result, so deck mode does not count it. "passed WCAG" and every other word still count.
- */
-const NOT_COUNTED_IN_DECK = ["passes"];
 
 /** A phrase as a case-insensitive pattern, every character literal, bounded by a word edge where it has one. */
 function phrasePattern(phrase: string): RegExp {
@@ -90,7 +88,7 @@ export function neverClaimViolations(
   ];
   for (const phrase of allowed) rest = rest.replace(phrasePattern(phrase), " ");
   const found: string[] = [];
-  for (const phrase of deck ? FORBIDDEN.filter((word) => !NOT_COUNTED_IN_DECK.includes(word)) : FORBIDDEN) {
+  for (const phrase of FORBIDDEN) {
     for (const match of rest.matchAll(new RegExp(`\\b${phrase}\\b`, "gi"))) found.push(match[0]);
   }
   return found;
