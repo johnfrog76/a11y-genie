@@ -69,6 +69,12 @@ registerGenieRule({
 export const PAD_PX = 4;
 
 /**
+ * How far past the previous stop's padded box the witness leaves pixels out, in CSS pixels: room for a ring drawn
+ * further out than `PAD_PX`, such as an outline with an offset or a wide shadow.
+ */
+export const MASK_PX = 16;
+
+/**
  * How much one of a pixel's red, green and blue must differ, out of 255, for the pixel to count as changed.
  * Below it a change is too faint for many people to notice: `focus-faint.html` changes a white background to
  * `#f4f4f4` (11 levels), and is not counted. Tuned in M8 (docs/ARCHITECTURE.md, V4).
@@ -96,9 +102,10 @@ export const COMPARED_STYLES = [
 const HTML_CHARS = 300;
 
 /** Turns transitions off while a screenshot is taken. Playwright applies it inside shadow roots and frames too. */
-const NO_TRANSITIONS =
+const NO_TRANSITIONS_CSS =
   "*, *::before, *::after { transition-duration: 0s !important; transition-delay: 0s !important; " +
   "caret-color: transparent !important; }";
+const NO_TRANSITIONS = NO_TRANSITIONS_CSS;
 
 /** The name, in the isolated world's own global object, under which the element and the event guard are kept. */
 const HELD = "__a11yGenieFocusHeld";
@@ -196,10 +203,33 @@ const REFOCUS = `function () {
 }`;
 
 /**
+ * Shared by the witness's functions: every root to look in, the top document first, then each open shadow root
+ * and each same-origin frame's document, however deep (capped), since a document's `getAnimations()` does not
+ * reach into shadow roots (checked at Chrome 158).
+ */
+const WITNESS_ROOTS = `
+  const roots = [document];
+  for (let i = 0; i < roots.length && i < 500; i++) {
+    let all = [];
+    try { all = roots[i].querySelectorAll("*"); } catch (e) { all = []; }
+    for (const el of all) {
+      if (el.shadowRoot) roots.push(el.shadowRoot);
+      if (el.localName === "iframe" || el.localName === "frame") {
+        let inner = null;
+        try { inner = el.contentDocument; } catch (e) { inner = null; }
+        if (inner) roots.push(inner);
+      }
+    }
+  }
+`;
+
+/**
  * Holds the page still for a screenshot, in the page and its same-origin frames (shadow roots included). Each
  * running animation and transition is paused, its `currentTime` kept, and a finite one is set to its end while
  * paused, so a ring that grows in is judged as it ends. A paused animation set to its end is not finished, so
- * no `finish`, `animationend` or `transitionend` event is heard. An infinite one is paused where it is.
+ * no `finish`, `animationend` or `transitionend` event is heard. An infinite one on the element, an ancestor or a
+ * descendant is paused where it is (it may be the ring); one anywhere else is set to its start, so it does not differ
+ * between the two screenshots.
  * `RESUME` puts every one back. Playwright's own `animations: "disabled"` is not used, because it finishes the
  * finite ones for good and cancels an infinite one back to the element's style without it, which hides a
  * pulsing ring (V4).
@@ -207,14 +237,10 @@ const REFOCUS = `function () {
 const STILL = `function (only) {
   const held = globalThis.${HELD};
   const kept = held ? held.paused : [];
-  const docs = [document];
-  for (let i = 0; i < docs.length && i < 50; i++) {
-    for (const frame of docs[i].querySelectorAll("iframe, frame")) {
-      let inner = null;
-      try { inner = frame.contentDocument; } catch (e) { inner = null; }
-      if (inner) docs.push(inner);
-    }
-  }
+  // Every open shadow root and same-origin frame, since a document's getAnimations() does not reach into shadow
+  // roots: an animation beside the element would otherwise run on between the two screenshots.
+  ${WITNESS_ROOTS}
+  const docs = roots;
   // The shadow roots on the kept element's way up: a focus animation inside one is found there for certain.
   for (let node = held ? held.el : null; node; ) {
     const root = node.getRootNode();
@@ -238,7 +264,16 @@ const STILL = `function (only) {
         const rate = animation.playbackRate;
         animation.pause();
         kept.push({ animation, time, rate, at: performance.now(), name });
-        if (typeof end === "number" && end !== Infinity) animation.currentTime = rate < 0 ? 0 : end;
+        if (typeof end === "number" && end !== Infinity) {
+          animation.currentTime = rate < 0 ? 0 : end;
+        } else {
+          // An infinite one on the element, an ancestor or a descendant may be its ring, and is judged where it is;
+          // one anywhere else is set to its start, the same in both screenshots, so it is not read as focus.
+          const target = animation.effect ? animation.effect.target : null;
+          const el = held ? held.el : null;
+          const own = !!(target && el && (target === el || target.contains(el) || el.contains(target)));
+          if (!own) animation.currentTime = 0;
+        }
       } catch (e) {}
     }
   }
@@ -262,44 +297,66 @@ const RESUME = `function () {
   }
 }`;
 
-/** The isolated world's own global under which the witness keeps the animations it paused. */
+/** The isolated world's own global under which the witness keeps what it paused and the style it added. */
 const WITNESS = "__a11yGenieFocusWitness";
 
+/** How long the witness's scroll mark waits for the next frame before it gives up, in milliseconds. */
+export const WITNESS_FRAME_MS = 1000;
+
 /**
- * Where the page is scrolled, read with the next frame waited for, so a scroll the Tab press caused has fired its
- * event: the window's offsets and how many `scroll` events the isolated world has heard. The listener is the
- * isolated world's own and only counts; the page cannot see it.
+ * Where the page is scrolled, read once the next frame has come, so a scroll the Tab press caused has fired its
+ * event: the offsets of the window and of each same-origin frame's window, and how many `scroll` events the
+ * isolated world's own listeners have heard, on the window and each frame's. The listeners only count, and the
+ * page cannot see them. A page that draws no frame (a hidden one) gives up after `WITNESS_FRAME_MS` and answers
+ * null: no witness.
  */
-const SCROLL_MARK = `function () {
-  if (!globalThis.${WITNESS}) {
-    globalThis.${WITNESS} = { scrolls: 0, paused: [] };
-    window.addEventListener("scroll", () => { globalThis.${WITNESS}.scrolls += 1; }, { capture: true, passive: true });
+export const SCROLL_MARK = `function () {
+  ${WITNESS_ROOTS}
+  if (!globalThis.${WITNESS}) globalThis.${WITNESS} = { scrolls: 0, paused: [], sheets: [], heard: new WeakSet() };
+  const witness = globalThis.${WITNESS};
+  const offsets = [];
+  for (const root of roots) {
+    const win = root.defaultView;
+    if (!win) continue;
+    try {
+      if (!witness.heard.has(win)) {
+        win.addEventListener("scroll", () => { witness.scrolls += 1; }, { capture: true, passive: true });
+        witness.heard.add(win);
+      }
+      offsets.push(win.scrollX, win.scrollY);
+    } catch (e) { offsets.push("?"); }
   }
-  return new Promise((done) => requestAnimationFrame(() => {
-    done([window.scrollX, window.scrollY, globalThis.${WITNESS}.scrolls].join(","));
-  }));
+  return new Promise((done) => {
+    const timer = setTimeout(() => done(null), ${WITNESS_FRAME_MS.toString()});
+    requestAnimationFrame(() => {
+      clearTimeout(timer);
+      const late = [];
+      for (const root of roots) {
+        const win = root.defaultView;
+        if (!win) continue;
+        try { late.push(win.scrollX, win.scrollY); } catch (e) { late.push("?"); }
+      }
+      // A frame read before and after the frame came must agree too.
+      done(late.join(",") === offsets.join(",") ? [late.join(","), witness.scrolls].join("|") : null);
+    });
+  });
 }`;
 
 /**
- * As `STILL`, for the witness: every running animation and transition in the page and its same-origin frames is
- * paused, a finite one set to its end and an infinite one to its start, so the shot before the press and the shot
- * of the element focused are of the same moment. `WITNESS_RESUME` puts them back.
+ * As `STILL`, for the witness: every running animation and transition in the page, its open shadow roots and its
+ * same-origin frames is paused, a finite one set to its end and an infinite one to its start, so the shot before
+ * the press and the shot of the element focused are of the same moment; and a style that hides the caret and turns
+ * transitions off is adopted, as a constructed style sheet, in each of those roots, which the page's observers do
+ * not hear. `WITNESS_RESUME` puts all of it back.
  */
 const WITNESS_STILL = `function (only) {
-  if (!globalThis.${WITNESS}) globalThis.${WITNESS} = { scrolls: 0, paused: [] };
-  const kept = globalThis.${WITNESS}.paused;
+  ${WITNESS_ROOTS}
+  if (!globalThis.${WITNESS}) globalThis.${WITNESS} = { scrolls: 0, paused: [], sheets: [], heard: new WeakSet() };
+  const witness = globalThis.${WITNESS};
   const names = [];
-  const docs = [document];
-  for (let i = 0; i < docs.length && i < 50; i++) {
-    for (const frame of docs[i].querySelectorAll("iframe, frame")) {
-      let inner = null;
-      try { inner = frame.contentDocument; } catch (e) { inner = null; }
-      if (inner) docs.push(inner);
-    }
-  }
-  for (const doc of docs) {
+  for (const root of roots) {
     let animations = [];
-    try { animations = doc.getAnimations(); } catch (e) { animations = []; }
+    try { animations = root.getAnimations(); } catch (e) { animations = []; }
     for (const animation of animations) {
       try {
         if (animation.playState !== "running") continue;
@@ -310,23 +367,46 @@ const WITNESS_STILL = `function (only) {
         const time = animation.currentTime;
         const rate = animation.playbackRate;
         animation.pause();
-        kept.push({ animation, time, rate, at: performance.now() });
+        witness.paused.push({ animation, time, rate, at: performance.now() });
         animation.currentTime = typeof end === "number" && end !== Infinity ? (rate < 0 ? 0 : end) : 0;
       } catch (e) {}
     }
   }
-  return only === null ? names : true;
+  if (only === null) return names;
+  for (const root of roots) {
+    try {
+      const view = (root.ownerDocument || root).defaultView;
+      const sheet = new view.CSSStyleSheet();
+      sheet.replaceSync(${JSON.stringify(NO_TRANSITIONS_CSS)});
+      root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet];
+      witness.sheets.push({ root, sheet });
+    } catch (e) {}
+  }
+  return true;
 }`;
 
-/** The window's size in CSS pixels and its device pixel ratio, for a screenshot of it at one pixel a CSS pixel. */
+/**
+ * The window's size in CSS pixels, its device pixel ratio, and where the visible part of the page starts in the
+ * page: the DevTools Protocol takes a screenshot's clip in the page's coordinates, not the window's.
+ */
 const VIEW = `function () {
-  return [document.documentElement.clientWidth, document.documentElement.clientHeight, window.devicePixelRatio].join(",");
+  const vv = window.visualViewport;
+  return [
+    document.documentElement.clientWidth,
+    document.documentElement.clientHeight,
+    window.devicePixelRatio,
+    vv ? vv.pageLeft : window.scrollX,
+    vv ? vv.pageTop : window.scrollY,
+  ].join(",");
 }`;
 
-/** Puts back what `WITNESS_STILL` held, as `RESUME` does. */
+/** Puts back what `WITNESS_STILL` held, as `RESUME` does, and takes its style away. */
 const WITNESS_RESUME = `function () {
   const witness = globalThis.${WITNESS};
   if (!witness) return;
+  for (const { root, sheet } of witness.sheets.splice(0)) {
+    try { root.adoptedStyleSheets = root.adoptedStyleSheets.filter((s) => s !== sheet); } catch (e) {}
+  }
   for (const { animation, time, rate, at } of witness.paused.splice(0)) {
     try {
       if (animation.playbackRate === rate) {
@@ -471,8 +551,11 @@ export class FocusVisibleCheck {
   private before: { png: Buffer; mark: string } | undefined;
   /** The DevTools Protocol session the witness's screenshots are taken through, opened at the first. */
   private cdp: CDPSession | undefined;
-  /** The padded box of the stop measured last, in the window, while nothing has scrolled since. */
+  /** The padded box of the stop measured last, in the window, and the press that reached it. */
   private lastClip: { x: number; y: number; width: number; height: number } | undefined;
+  private lastClipPress = 0;
+  /** How many Tab presses the walk has made, counted in `beforePress`. */
+  private presses = 0;
 
   /** `reader` is the scan's own, which the skip-link check shares; the check does not close it. */
   constructor(
@@ -487,6 +570,7 @@ export class FocusVisibleCheck {
    * the witness for the stop the press lands on. Taken only while the check still takes screenshots.
    */
   async beforePress(): Promise<void> {
+    this.presses += 1;
     this.before = undefined;
     if (this.stopped || this.shots >= MAX_SCREENSHOT_STOPS || this.guard.late) return;
     try {
@@ -510,20 +594,22 @@ export class FocusVisibleCheck {
     const running = await this.reader.call(WITNESS_STILL, null);
     const names = Array.isArray(running) ? running.filter((n): n is string => typeof n === "string") : [];
     await this.guard.still(names);
-    await this.reader.call(WITNESS_STILL, names);
     try {
+      // Inside the try: whatever fails after the guard was told, the finally puts the page back and settles it.
+      await this.reader.call(WITNESS_STILL, names);
       // Straight from the DevTools Protocol, encoded for speed: the witness is taken before every press, and
-      // Playwright's own screenshot costs several times more. Running transitions are held by WITNESS_STILL.
+      // Playwright's own screenshot costs several times more. Transitions and the caret are held by WITNESS_STILL.
       const view = await this.reader.call(VIEW);
       if (typeof view !== "string") throw new Error("the window could not be read");
-      const [width, height, ratio] = view.split(",").map(Number);
-      if (!isNumber(width) || !isNumber(height) || !isNumber(ratio) || ratio <= 0)
+      const [width, height, ratio, left, top] = view.split(",").map(Number);
+      if (![width, height, ratio, left, top].every(isNumber) || (ratio ?? 0) <= 0)
         throw new Error("bad window");
-      const area = clip ?? { x: 0, y: 0, width, height };
+      const area = clip ?? { x: 0, y: 0, width: width ?? 0, height: height ?? 0 };
       this.cdp ??= await this.page.context().newCDPSession(this.page);
       const shot = await this.cdp.send("Page.captureScreenshot", {
         format: "png",
-        clip: { ...area, scale: 1 / ratio },
+        // The clip is in the page's coordinates; the window's starts at (left, top) in them.
+        clip: { ...area, x: area.x + (left ?? 0), y: area.y + (top ?? 0), scale: 1 / (ratio ?? 1) },
         captureBeyondViewport: false,
         optimizeForSpeed: true,
       });
@@ -547,17 +633,24 @@ export class FocusVisibleCheck {
     const before = this.before;
     this.before = undefined;
     if (before === undefined) return undefined;
+    // The element focus left must be the one this check measured at the press just before; otherwise its ring,
+    // which went away with this press, sits in the witness where the mask cannot find it. The first press left
+    // no element.
+    const previous = this.lastClipPress === this.presses - 1 ? this.lastClip : undefined;
+    if (previous === undefined && this.presses !== 1) return undefined;
     const mark = await this.reader.call(SCROLL_MARK);
-    if (mark !== before.mark) {
-      this.lastClip = undefined;
-      return undefined;
-    }
+    if (typeof mark !== "string" || mark !== before.mark) return undefined;
     const now = decodePng(await this.stillShot(clip));
     if (now.width !== clip.width || now.height !== clip.height) return undefined;
     const then = cropImage(decodePng(before.png), clip);
-    const previous = this.lastClip;
     if (previous !== undefined) {
-      maskArea(then, now, { ...previous, x: previous.x - clip.x, y: previous.y - clip.y });
+      // Wider than its padded box, so a ring drawn further out (an offset outline, a spread shadow) is left out too.
+      maskArea(then, now, {
+        x: previous.x - MASK_PX - clip.x,
+        y: previous.y - MASK_PX - clip.y,
+        width: previous.width + 2 * MASK_PX,
+        height: previous.height + 2 * MASK_PX,
+      });
     }
     return changedPixels(now, then, PIXEL_TOLERANCE) / (now.width * now.height);
   }
@@ -611,8 +704,9 @@ export class FocusVisibleCheck {
         const running = await this.reader.call(STILL, null);
         const names = Array.isArray(running) ? running.filter((n): n is string => typeof n === "string") : [];
         await this.guard.still(names);
-        await this.reader.call(STILL, names);
         try {
+          // Inside the try: whatever fails after the guard was told, the finally puts the page back and settles it.
+          await this.reader.call(STILL, names);
           // `caret: "initial"`: Playwright's own caret hiding writes a style attribute on every field and leaves
           // it behind, empty; the caret is hidden by `NO_TRANSITIONS` instead.
           const png = await this.page.screenshot({
@@ -654,6 +748,7 @@ export class FocusVisibleCheck {
     }
     this.before = undefined;
     this.lastClip = clip;
+    this.lastClipPress = this.presses;
     if (verdict.kind === "hidden") this.hidden.push({ ...element(html), failure: NO_CHANGE_FAILURE });
     else if (verdict.kind === "review") this.review.push({ ...element(html), reason: verdict.reason });
   }
@@ -664,6 +759,13 @@ export class FocusVisibleCheck {
     // Last: the events the refocus fired have been stopped before the guard is let go.
     await this.guard.hold(false).catch(() => undefined);
     if (back !== true) this.stopped = true;
+  }
+
+  /** Lets go of the witness's DevTools Protocol session. The scan calls it when the walk is done. */
+  async close(): Promise<void> {
+    const cdp = this.cdp;
+    this.cdp = undefined;
+    await cdp?.detach().catch(() => undefined);
   }
 
   /** Forgets the kept element without moving focus (nothing was blurred yet). */

@@ -102,6 +102,7 @@ export async function scanPage(
         ? await checkSkipLink(page, pageKey, skipLinkSeen, reader)
         : undefined;
   } finally {
+    await focusVisible?.close();
     await reader?.close();
   }
   // Where the walk went round: a keyboard trap, or a modal dialog that does not give focus back (src/keyboard-trap.ts).

@@ -4,7 +4,7 @@ import { scanPage } from "../../src/axe.js";
 import { withBrowser } from "../../src/browser.js";
 import type { AxeScan, Finding, NeedsReview } from "../../src/finding.js";
 import { FocusGuard } from "../../src/focus-guard.js";
-import { MAX_SCREENSHOT_STOPS } from "../../src/focus-visible.js";
+import { MAX_SCREENSHOT_STOPS, SCROLL_MARK, WITNESS_FRAME_MS } from "../../src/focus-visible.js";
 import { wordingOf } from "../../src/plain.js";
 import { runScan } from "../../src/run-scan.js";
 import { CANNOT_SEE } from "../../src/scan-record.js";
@@ -77,6 +77,41 @@ describe.skipIf(!hasBrowser)("focus visible (skipped where the test browser is n
     expect(result.walk?.stops.map((s) => s.selector)).toEqual(["#top", "#marked-low", "#native"]);
     expect(finding?.elements.map((e) => e.selector)).toEqual(["#marked-low"]);
     expect(review).toBeUndefined();
+  });
+
+  it("focus-witness-edges.html: a wide ring beside, a shadow-root animation and a caret do not fool the witness", async () => {
+    const { result, finding } = await scan("focus-witness-edges.html");
+    expect(result.walk?.stops.map((s) => s.selector)).toEqual([
+      "#wide-ring",
+      "#after-wide",
+      "#beside-spinner",
+      "#small-field",
+    ]);
+    expect(finding?.elements.map((e) => e.selector)).toEqual([
+      "#after-wide",
+      "#beside-spinner",
+      "#small-field",
+    ]);
+  });
+
+  it("focus-witness-scrolled.html: on a page scrolled far down, the witness photographs the window", async () => {
+    const { result, finding } = await scan("focus-witness-scrolled.html");
+    expect(result.walk?.stops.map((s) => s.selector)).toEqual(["#deep", "#fixed-marked", "#fixed-bare"]);
+    expect(finding?.elements.map((e) => e.selector)).toEqual(["#fixed-bare"]);
+  });
+
+  it("the witness's scroll mark gives up, with no witness, on a page whose frames never come", async () => {
+    await withBrowser(TEST_CHANNEL, async (browser) => {
+      const context = await browser.newContext();
+      const tab = await context.newPage();
+      await tab.goto(server.url("focus-marked.html"));
+      // The page's own frames stop: requestAnimationFrame never calls back, as on a hidden page.
+      await tab.evaluate("window.requestAnimationFrame = () => 0");
+      const started = Date.now();
+      const mark = await tab.evaluate(`(${SCROLL_MARK})()`);
+      expect(mark).toBeNull();
+      expect(Date.now() - started).toBeLessThan(WITNESS_FRAME_MS + 2000);
+    });
   });
 
   it("focus-hidden.html: outline: none with nothing in its place is a serious WCAG 2.4.7 finding", async () => {
