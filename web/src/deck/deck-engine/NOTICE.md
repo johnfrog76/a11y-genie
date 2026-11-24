@@ -1,7 +1,9 @@
 # The deck engine
 
-This folder is the deck player from Connected Deck, copied as it was at commit `6e1293f`
-(<https://github.com/johnfrog76/connected-deck>, `src/deck-engine/`), without its tests. Connected Deck is
+This folder is the deck player from Connected Deck, copied as it was at commit `cbb3f9e5`
+(<https://github.com/johnfrog76/connected-deck>, `src/deck-engine/`), without its tests. It was first copied at
+`6e1293f`; at `cbb3f9e5` four files came again: `ComponentFrame.tsx` (its `transparent`, `inverse` and `zoomStep`,
+and its zoom on a phone), `artScale.tsx` (new), `SlideRenderer.tsx` and `../shared/ZoomControl.tsx`. Connected Deck is
 MIT licensed:
 
 ```text
@@ -33,8 +35,8 @@ The files it imports from outside this folder came from the same commit, to the 
 `media.ts`, `voicePreference.tsx`, and `shared/` (`MarkdownViewer.tsx`, `usePersistedState.ts`,
 `ZoomControl.tsx`).
 
-It came here by way of Code Sleuth's copy (`web/src/deck/` in <https://github.com/johnfrog76/code-sleuth>, at commit
-`1aff0c2`), so the two products play their decks with the same player.
+It first came here by way of Code Sleuth's copy (`web/src/deck/` in <https://github.com/johnfrog76/code-sleuth>),
+and both products copy the same Connected Deck commit, so they play their decks with the same player.
 
 ## What changed here
 
