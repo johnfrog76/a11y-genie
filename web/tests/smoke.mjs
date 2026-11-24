@@ -6,7 +6,7 @@
 //   1. The deck page plays the registered deck: "1 / N" in its bar, slide 1's title on screen, and Escape
 //      leaves it for the project's page.
 //   2. Every baked clip is in the build and answers 200 as audio.
-//   3. While DECK_URL is empty, the project's page has no deck button (scripts/build-site.ts).
+//   3. The project's page shows "Watch the video" (scripts/build-site.ts, DECK_URL), and it opens deck/.
 //   4. On a phone, 390 px wide, the deck page plays slide 1 and does not scroll sideways.
 //   5. Neither page logs an error.
 //   6. A11y Genie's own scan of the deck page, on the deck's first slide, finds nothing critical or serious (it
@@ -136,14 +136,17 @@ const sideways = (page) => page.evaluate(() => document.documentElement.scrollWi
 try {
   check(!empty, "the registry lists a deck, as the checks below expect");
 
-  // The project's page has no deck button while DECK_URL is empty.
+  // The project's page shows "Watch the video", and it opens the deck page.
   const desk = await open({ width: 1280, height: 800 });
   await desk.goto(BASE);
-  check((await desk.locator('[data-cta="deck"]').count()) === 0, "the project's page has no deck button yet");
+  const video = desk.locator('[data-cta="deck"]');
+  check(await video.isVisible(), 'the project\'s page shows "Watch the video"');
+  check((await video.getAttribute("href")) === "deck/", "it links the deck page, deck/");
   await shot(desk, "landing-desktop");
 
-  // The deck page plays the deck.
-  await desk.goto(`${BASE}deck/`);
+  // The deck page, opened from it, plays the deck.
+  await video.click();
+  await desk.waitForURL(`${BASE}deck/`, { timeout: 5_000 }).catch(() => {});
   const counter = desk.getByText(/^\s*1\s*\/\s*\d+\s*$/).first();
   await counter.waitFor({ timeout: 15_000 }).catch(() => {});
   check(await counter.isVisible(), 'the deck page plays the deck: "1 / N" in its bar');
