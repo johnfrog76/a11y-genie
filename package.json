@@ -1,7 +1,7 @@
 {
   "name": "a11y-genie",
   "version": "0.0.0",
-  "description": "An accessibility scanner for agents and people. It never tells you a site has no problems, or that it meets a standard: automated checks find some problems, not all of them.",
+  "description": "An accessibility scanner for agents and people. It gives you a list of suggested improvements for your HTML: automated checks find many problems with HTML, but they are no substitute for a full accessibility audit.",
   "license": "MIT",
   "type": "module",
   "bin": {

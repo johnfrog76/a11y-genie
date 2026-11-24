@@ -14,8 +14,9 @@ import { scanCommand } from "./scan-command.js";
 
 const HELP = `A11y Genie: an accessibility scanner for agents and people.
 
-It never tells you a site has no problems, or that it meets a standard:
-automated checks find some problems, not all of them.
+It gives you a list of suggested improvements for your HTML:
+automated checks find many problems with HTML,
+but they are no substitute for a full accessibility audit.
 
 Usage:
   a11y-genie --version
