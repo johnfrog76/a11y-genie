@@ -93,6 +93,7 @@ export async function scanPage(
         }
         await focusVisible?.atStop(stop);
       },
+      ...(focusVisible === undefined ? {} : { beforePress: () => focusVisible.beforePress() }),
     });
     seen = focusVisible?.result() ?? {};
     // No skip link (src/skip-link.ts).

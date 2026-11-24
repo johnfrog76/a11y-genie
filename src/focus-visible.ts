@@ -19,6 +19,14 @@
  * indicator stays on the list of what a scan cannot see. docs/ARCHITECTURE.md (*Focus visible*) has the
  * measurements the numbers were tuned on (V4).
  *
+ * A page may draw its ring from a mark its own focus handlers set and remove (Fluent UI's `data-fui-focus-visible`,
+ * the focus-visible polyfill's class). The guard below stops those handlers, so the mark, and the ring, stay on
+ * through the blur, and the two screenshots match though a person sees a ring. So the check also keeps a witness:
+ * a screenshot of the window taken just before the Tab press, when the page had not yet drawn focus there. When
+ * the press scrolled nothing, the element's padded box cut from it is compared with the element focused, the
+ * previous stop's padded box left out (its own ring went away as focus left it). A witness can only show focus
+ * visible; it never makes a finding, and with a scroll it is not used.
+ *
  * The page must not notice. Focus is taken off with `blur()` and given back with `focus()`, in an isolated
  * world, while a guard (src/focus-guard.ts), installed at document start and so ahead of any listener of the
  * page's own, stops the `blur`, `focusout`, `focus` and `focusin` events before the page's handlers see them. Focus ends where the Tab key put it, so the walk
@@ -26,15 +34,16 @@
  *
  * The screenshots stay in memory, are compared, and are dropped. None is written to disk or to the record.
  *
- * The cost: two screenshots and a handful of DevTools Protocol calls a stop, for the first
+ * The cost: two screenshots and a handful of DevTools Protocol calls a stop, and the witness's shot of the window
+ * before each press, for the first
  * `MAX_SCREENSHOT_STOPS` stops of each walk. The stops after that are *needs review*, not looked at.
  */
 
-import type { Page } from "playwright-core";
+import type { CDPSession, Page } from "playwright-core";
 import type { Finding, FindingElement, NeedsReview, NeedsReviewElement } from "./finding.js";
 import type { FocusGuard } from "./focus-guard.js";
 import { registerGenieRule } from "./genie-rules.js";
-import { changedPixels, decodePng } from "./png.js";
+import { changedPixels, cropImage, decodePng, maskArea } from "./png.js";
 import { FocusReader, type WalkStop } from "./walk.js";
 
 export const FOCUS_VISIBLE_RULE = {
@@ -253,6 +262,83 @@ const RESUME = `function () {
   }
 }`;
 
+/** The isolated world's own global under which the witness keeps the animations it paused. */
+const WITNESS = "__a11yGenieFocusWitness";
+
+/**
+ * Where the page is scrolled, read with the next frame waited for, so a scroll the Tab press caused has fired its
+ * event: the window's offsets and how many `scroll` events the isolated world has heard. The listener is the
+ * isolated world's own and only counts; the page cannot see it.
+ */
+const SCROLL_MARK = `function () {
+  if (!globalThis.${WITNESS}) {
+    globalThis.${WITNESS} = { scrolls: 0, paused: [] };
+    window.addEventListener("scroll", () => { globalThis.${WITNESS}.scrolls += 1; }, { capture: true, passive: true });
+  }
+  return new Promise((done) => requestAnimationFrame(() => {
+    done([window.scrollX, window.scrollY, globalThis.${WITNESS}.scrolls].join(","));
+  }));
+}`;
+
+/**
+ * As `STILL`, for the witness: every running animation and transition in the page and its same-origin frames is
+ * paused, a finite one set to its end and an infinite one to its start, so the shot before the press and the shot
+ * of the element focused are of the same moment. `WITNESS_RESUME` puts them back.
+ */
+const WITNESS_STILL = `function (only) {
+  if (!globalThis.${WITNESS}) globalThis.${WITNESS} = { scrolls: 0, paused: [] };
+  const kept = globalThis.${WITNESS}.paused;
+  const names = [];
+  const docs = [document];
+  for (let i = 0; i < docs.length && i < 50; i++) {
+    for (const frame of docs[i].querySelectorAll("iframe, frame")) {
+      let inner = null;
+      try { inner = frame.contentDocument; } catch (e) { inner = null; }
+      if (inner) docs.push(inner);
+    }
+  }
+  for (const doc of docs) {
+    let animations = [];
+    try { animations = doc.getAnimations(); } catch (e) { animations = []; }
+    for (const animation of animations) {
+      try {
+        if (animation.playState !== "running") continue;
+        const name = animation.animationName ?? animation.transitionProperty ?? "";
+        if (only === null) { names.push(name); continue; }
+        if (!only.includes(name)) continue;
+        const end = animation.effect ? animation.effect.getComputedTiming().endTime : 0;
+        const time = animation.currentTime;
+        const rate = animation.playbackRate;
+        animation.pause();
+        kept.push({ animation, time, rate, at: performance.now() });
+        animation.currentTime = typeof end === "number" && end !== Infinity ? (rate < 0 ? 0 : end) : 0;
+      } catch (e) {}
+    }
+  }
+  return only === null ? names : true;
+}`;
+
+/** The window's size in CSS pixels and its device pixel ratio, for a screenshot of it at one pixel a CSS pixel. */
+const VIEW = `function () {
+  return [document.documentElement.clientWidth, document.documentElement.clientHeight, window.devicePixelRatio].join(",");
+}`;
+
+/** Puts back what `WITNESS_STILL` held, as `RESUME` does. */
+const WITNESS_RESUME = `function () {
+  const witness = globalThis.${WITNESS};
+  if (!witness) return;
+  for (const { animation, time, rate, at } of witness.paused.splice(0)) {
+    try {
+      if (animation.playbackRate === rate) {
+        const end = animation.effect ? animation.effect.getComputedTiming().endTime : 0;
+        const now = time + (performance.now() - at) * rate;
+        animation.currentTime = typeof end === "number" && end !== Infinity ? Math.max(0, Math.min(now, end)) : now;
+      }
+      animation.play();
+    } catch (e) {}
+  }
+}`;
+
 /** The element's box in the top page's window, and the window's size, as read and checked. */
 interface Box {
   x: number;
@@ -381,6 +467,12 @@ export class FocusVisibleCheck {
   private shots = 0;
   /** Set when focus could not be given back: the check takes no more screenshots on this walk. */
   private stopped = false;
+  /** The witness: the window just before the latest Tab press, and where the page was scrolled then. */
+  private before: { png: Buffer; mark: string } | undefined;
+  /** The DevTools Protocol session the witness's screenshots are taken through, opened at the first. */
+  private cdp: CDPSession | undefined;
+  /** The padded box of the stop measured last, in the window, while nothing has scrolled since. */
+  private lastClip: { x: number; y: number; width: number; height: number } | undefined;
 
   /** `reader` is the scan's own, which the skip-link check shares; the check does not close it. */
   constructor(
@@ -389,6 +481,86 @@ export class FocusVisibleCheck {
     private readonly reader: FocusReader,
     private readonly guard: FocusGuard,
   ) {}
+
+  /**
+   * Called just before each Tab press: a screenshot of the window as the page draws it before focus moves, kept as
+   * the witness for the stop the press lands on. Taken only while the check still takes screenshots.
+   */
+  async beforePress(): Promise<void> {
+    this.before = undefined;
+    if (this.stopped || this.shots >= MAX_SCREENSHOT_STOPS || this.guard.late) return;
+    try {
+      const mark = await this.reader.call(SCROLL_MARK);
+      if (typeof mark !== "string") return;
+      const png = await this.stillShot(undefined);
+      // Decoded only when a stop needs it, which is rare: the blur shows most rings.
+      this.before = { png, mark };
+    } catch {
+      this.before = undefined;
+    }
+  }
+
+  /**
+   * A screenshot held still the witness's way (finite animations at their end, infinite ones at their start), of
+   * `clip`, or of the whole window when it is undefined.
+   */
+  private async stillShot(
+    clip: { x: number; y: number; width: number; height: number } | undefined,
+  ): Promise<Buffer> {
+    const running = await this.reader.call(WITNESS_STILL, null);
+    const names = Array.isArray(running) ? running.filter((n): n is string => typeof n === "string") : [];
+    await this.guard.still(names);
+    await this.reader.call(WITNESS_STILL, names);
+    try {
+      // Straight from the DevTools Protocol, encoded for speed: the witness is taken before every press, and
+      // Playwright's own screenshot costs several times more. Running transitions are held by WITNESS_STILL.
+      const view = await this.reader.call(VIEW);
+      if (typeof view !== "string") throw new Error("the window could not be read");
+      const [width, height, ratio] = view.split(",").map(Number);
+      if (!isNumber(width) || !isNumber(height) || !isNumber(ratio) || ratio <= 0)
+        throw new Error("bad window");
+      const area = clip ?? { x: 0, y: 0, width, height };
+      this.cdp ??= await this.page.context().newCDPSession(this.page);
+      const shot = await this.cdp.send("Page.captureScreenshot", {
+        format: "png",
+        clip: { ...area, scale: 1 / ratio },
+        captureBeyondViewport: false,
+        optimizeForSpeed: true,
+      });
+      return Buffer.from(shot.data, "base64");
+    } finally {
+      await this.reader.call(WITNESS_RESUME);
+      await this.guard.settle();
+    }
+  }
+
+  /**
+   * The share of the padded box that differs between the witness and the element focused now, or undefined when
+   * there is no witness for this stop or the press scrolled the page. Focus must be on the element.
+   */
+  private async witnessShare(clip: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }): Promise<number | undefined> {
+    const before = this.before;
+    this.before = undefined;
+    if (before === undefined) return undefined;
+    const mark = await this.reader.call(SCROLL_MARK);
+    if (mark !== before.mark) {
+      this.lastClip = undefined;
+      return undefined;
+    }
+    const now = decodePng(await this.stillShot(clip));
+    if (now.width !== clip.width || now.height !== clip.height) return undefined;
+    const then = cropImage(decodePng(before.png), clip);
+    const previous = this.lastClip;
+    if (previous !== undefined) {
+      maskArea(then, now, { ...previous, x: previous.x - clip.x, y: previous.y - clip.y });
+    }
+    return changedPixels(now, then, PIXEL_TOLERANCE) / (now.width * now.height);
+  }
 
   /** Looks at the stop focus is on now. Never throws for what the page does: a stop it cannot measure is *needs review*. */
   async atStop(stop: WalkStop): Promise<void> {
@@ -469,10 +641,19 @@ export class FocusVisibleCheck {
       const b = decodePng(unfocusedShot);
       const share = changedPixels(a, b, PIXEL_TOLERANCE) / (a.width * a.height);
       verdict = verdictOf(share, changedStyles(focusedStyles, unfocusedStyles));
+      // The witness, with focus given back: a ring the blur could not take away, because the page's own focus
+      // handlers draw it and the guard kept them from hearing the blur, still shows against the window before the
+      // press. It can only show focus visible.
+      if (verdict.kind !== "visible" && !this.stopped) {
+        const witnessed = await this.witnessShare(clip).catch(() => undefined);
+        if (witnessed !== undefined && witnessed >= VISIBLE_SHARE) verdict = { kind: "visible" };
+      }
     } catch {
       await this.giveBack();
       verdict = { kind: "review", reason: NOT_MEASURED_REASON };
     }
+    this.before = undefined;
+    this.lastClip = clip;
     if (verdict.kind === "hidden") this.hidden.push({ ...element(html), failure: NO_CHANGE_FAILURE });
     else if (verdict.kind === "review") this.review.push({ ...element(html), reason: verdict.reason });
   }

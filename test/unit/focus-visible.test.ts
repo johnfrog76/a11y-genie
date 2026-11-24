@@ -8,7 +8,7 @@ import {
   verdictOf,
   VISIBLE_SHARE,
 } from "../../src/focus-visible.js";
-import { changedPixels, decodePng } from "../../src/png.js";
+import { changedPixels, cropImage, decodePng, maskArea, type Rgba } from "../../src/png.js";
 
 /** A PNG of 8-bit RGB (colour type 2), each row with the given filter type, for the reader to read back. */
 function png(
@@ -95,5 +95,37 @@ describe("genie/focus-visible, without a browser", () => {
     expect(
       clipOf({ x: -9999, y: 0, width: 40, height: 20, viewWidth: 800, viewHeight: 600 }),
     ).toBeUndefined();
+  });
+});
+
+describe("the witness's crop and mask", () => {
+  /** A width by height image whose pixel at (x, y) has red x, green y and blue 0. */
+  const grid = (width: number, height: number): Rgba => {
+    const data = new Uint8Array(width * height * 4);
+    for (let y = 0; y < height; y += 1)
+      for (let x = 0; x < width; x += 1) data.set([x, y, 0, 255], (y * width + x) * 4);
+    return { width, height, data };
+  };
+
+  it("crops the padded box out of the window shot, pixel for pixel", () => {
+    const part = cropImage(grid(10, 8), { x: 3, y: 2, width: 4, height: 3 });
+    expect([part.width, part.height]).toEqual([4, 3]);
+    expect(Array.from(part.data.subarray(0, 4))).toEqual([3, 2, 0, 255]);
+    expect(Array.from(part.data.subarray(part.data.length - 4))).toEqual([6, 4, 0, 255]);
+  });
+
+  it("refuses a crop outside the window", () => {
+    expect(() => cropImage(grid(10, 8), { x: 8, y: 0, width: 4, height: 2 })).toThrow();
+  });
+
+  it("leaves out the previous stop's box, cut to the image, so only the rest is compared", () => {
+    const now = grid(6, 6);
+    const then: Rgba = { width: 6, height: 6, data: new Uint8Array(6 * 6 * 4) };
+    expect(changedPixels(now, then, 0)).toBeGreaterThan(0);
+    maskArea(then, now, { x: -2, y: -2, width: 20, height: 20 });
+    expect(changedPixels(now, then, 0)).toBe(0);
+    const partly: Rgba = { width: 6, height: 6, data: new Uint8Array(6 * 6 * 4) };
+    maskArea(partly, now, { x: 0, y: 0, width: 6, height: 3 });
+    expect(Array.from(partly.data.subarray(6 * 3 * 4, 6 * 3 * 4 + 4))).toEqual([0, 0, 0, 0]);
   });
 });
