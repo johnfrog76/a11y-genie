@@ -13,10 +13,11 @@ import { testBrowserIsInstalled } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 import { neverClaimViolations } from "../helpers/never-claim.js";
 import { validate } from "../helpers/json-schema.js";
+import { builtCli } from "../helpers/built-cli.js";
 
 // `scan --states` and `scan --config`, run as the built command (npm test builds first). The refusals need no
 // browser. The scans need Chrome, and are skipped by name where it is not installed.
-const cli = new URL("../../dist/cli.js", import.meta.url).pathname;
+const cli = builtCli();
 const hasBrowser = await testBrowserIsInstalled();
 const schema = JSON.parse(
   readFileSync(new URL("../../schema/scan-1.json", import.meta.url), "utf8"),

@@ -143,7 +143,7 @@ browser as a selector string it did not come from:
 - a CSS selector is read as CSS and nothing else, by two locks. The parser refuses a selector that holds `>>`
   (Playwright's chain into another engine) and one that starts with a word and `=` (`^[a-z-]+=`, such as
   `xpath=//a`, `text=Menu` or `id=foo`, which Playwright reads as another engine), each with an `Error:` and a
-  `Hint:`. And the driver never passes the selector bare: it is `page.locator("css=" + selector)`, so even one
+  `Hint:`. And the driver never hands the selector over bare: it is `page.locator("css=" + selector)`, so even one
   the parser let through is read as CSS, where an engine prefix is only a syntax error.
 
 ## Errors
@@ -197,9 +197,9 @@ Every error, with an example of what causes it:
 The person's text in an `Error:` line is made safe to print first (no terminal escapes or control characters, as
 everywhere else the command prints) and cut short past 60 characters.
 
-## Choices the spec left open
+## Choices made around the steps
 
-The spec (section 4.1) gives the steps but not every rule around them. Where it was silent, the simplest reading
+The steps above do not settle every rule around them. Where they were silent, the simplest reading
 was taken:
 
 - **Escaping.** A `'` inside quotes is written twice (`'Don''t'`), and there is no backslash escape, so a CSS
@@ -211,10 +211,10 @@ was taken:
   string.
 - **`css '<selector>'` names an element anywhere one is named:** in `Tab to` and `wait` as well as in `click`,
   following the config section's "by CSS selector where it cannot".
-- **The name is needed in `Tab to` and `click`,** and may be left out only in `wait`, as the spec's table writes
+- **The name is needed in `Tab to` and `click`,** and may be left out only in `wait`, as the table above writes
   them.
-- **The media steps are applied before the page loads,** in the order written, as the spec's "apply the state's
-  options, load, run its steps" has it (5.2): a page that reads its colour scheme or width while it loads sees
+- **The media steps are applied before the page loads,** in the order written, so that a state applies its
+  options, loads, then runs its steps: a page that reads its colour scheme or width while it loads sees
   them. Only a flow refuses them. A state may set them more than once, and the last of each kind holds. The other
   steps run after the load, in order, so a media step written after a click still takes effect first.
 - **`click` and `type` are allowed in a flow.** Only the media steps are marked "states only".
@@ -225,7 +225,7 @@ was taken:
   and finding entries, and a name that differs from another only in case would collide on some file systems.
 - **A viewport is from 1 to 10000 pixels each way.**
 - **A name is matched whole, and case-sensitively** (decided with `--states`): `click button 'Menu'` is the button
-  whose accessible name is `Menu`, not `Menu settings` and not `menu`. The driver passes `exact: true` to
+  whose accessible name is `Menu`, not `Menu settings` and not `menu`. The driver gives `exact: true` to
   `getByRole()`. The steps are meant to read like what a screen reader says, and a partial match would click the
   wrong thing without a word; a name that is too short matches nothing, and the state reads *not scanned* with
   the step named, which is the signal. Two elements with the same role and name are an error too (`click`), not

@@ -11,10 +11,11 @@ import { startFixtureServer, type FixtureServer } from "../helpers/fixture-serve
 import { expectTextGolden } from "../helpers/goldens.js";
 import { validate } from "../helpers/json-schema.js";
 import { neverClaimViolations } from "../helpers/never-claim.js";
+import { builtCli } from "../helpers/built-cli.js";
 
 // `a11y-genie narrate` and a config's workflows, run as the built command (npm test builds first). The refusals
 // need no browser. The runs need Chrome, and are skipped by name where it is not installed.
-const cli = new URL("../../dist/cli.js", import.meta.url).pathname;
+const cli = builtCli();
 const hasBrowser = await testBrowserIsInstalled();
 const schema = JSON.parse(
   readFileSync(new URL("../../schema/scan-1.json", import.meta.url), "utf8"),

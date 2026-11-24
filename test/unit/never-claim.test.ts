@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { CRITERION_WORDING, RULE_WORDING } from "../../src/plain.js";
 import { emptyScanSentence, renderReport } from "../../src/report.js";
@@ -35,6 +35,56 @@ describe("the phrase list (C16)", () => {
     expect(neverClaimViolations(text, { docs: true })).toEqual([]);
     expect(neverClaimViolations(text)).toEqual(["passes", "passes", "passes"]);
     expect(neverClaimViolations("The page passes, and the tests pass.", { docs: true })).toEqual(["passes"]);
+  });
+
+  it("allows axe-core's `passes` key, with its backticks, in the docs only", () => {
+    expect(neverClaimViolations("`null` in `passes`.", { docs: true })).toEqual([]);
+    expect(neverClaimViolations("`null` in `passes`.")).toEqual(["passes"]);
+    expect(neverClaimViolations("The scan passes; see `passes`.", { docs: true })).toEqual(["passes"]);
+  });
+});
+
+/**
+ * The project's own words for people (spec C16, and AGENTS.md rule 1). The README and docs/ are read in docs mode,
+ * as the spec says. CONTRIBUTING, SECURITY and the .github templates are read in the strict mode, so the test-run
+ * phrases stay where the spec allows them. CODE_OF_CONDUCT.md and THIRD-PARTY-NOTICES.md are left out on purpose:
+ * one is adopted text and the other quotes licences (Apache-2.0 says "compliance"), so neither is the project's
+ * own words. Do not add them. The site and the prompt file are held in test/unit/site.test.ts and above.
+ */
+describe("the project's own docs claim nothing (C16)", () => {
+  const root = new URL("../../", import.meta.url);
+  const read = (path: string) => readFileSync(new URL(path, root), "utf8");
+  const docs = [
+    "README.md",
+    ...readdirSync(new URL("docs/", root))
+      .filter((name) => name.endsWith(".md"))
+      .map((name) => `docs/${name}`),
+  ];
+  const strict = [
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    ".github/pull_request_template.md",
+    ...readdirSync(new URL(".github/ISSUE_TEMPLATE/", root)).map((name) => `.github/ISSUE_TEMPLATE/${name}`),
+  ];
+
+  it("reads every doc there is", () => {
+    expect(docs).toContain("docs/JSON.md");
+    expect(strict).toContain(".github/ISSUE_TEMPLATE/bug_report.yml");
+  });
+
+  it.each(docs)("%s, in docs mode", (path) => {
+    expect(neverClaimViolations(read(path), { docs: true })).toEqual([]);
+  });
+
+  it.each(strict)("%s, strictly", (path) => {
+    expect(neverClaimViolations(read(path))).toEqual([]);
+  });
+
+  it("the --help text and the package description, strictly", () => {
+    expect(
+      neverClaimViolations(read("src/cli.ts").match(/const HELP = `([\s\S]*?)`;/)?.[1] ?? "missing"),
+    ).toEqual([]);
+    expect(neverClaimViolations(JSON.parse(read("package.json")).description)).toEqual([]);
   });
 });
 
@@ -74,6 +124,21 @@ describe("what the prompt file says", () => {
       "compliant",
       "conformant",
     ]);
+  });
+});
+
+describe("the known-gaps page", () => {
+  // docs/KNOWN-GAPS.md is for strangers: what is planned and not built, and the known limits (#133).
+  const gaps = readFileSync(new URL("../../docs/KNOWN-GAPS.md", import.meta.url), "utf8");
+
+  it("docs/KNOWN-GAPS.md claims nothing", () => {
+    expect(neverClaimViolations(gaps, { docs: true })).toEqual([]);
+  });
+
+  it("lists what is planned and not built, and the README links to it", () => {
+    expect(gaps).toContain("## Planned, not built");
+    const readme = readFileSync(new URL("../../README.md", import.meta.url), "utf8");
+    expect(readme).toContain("](docs/KNOWN-GAPS.md)");
   });
 });
 

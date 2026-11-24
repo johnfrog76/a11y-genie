@@ -12,8 +12,9 @@ import {
 } from "../../scripts/build-site.js";
 import { neverClaimViolations } from "../helpers/never-claim.js";
 
-// The project's page (site/) and its build (scripts/build-site.ts). With DECK_URL set, the page's calls to
-// action are the deck, then the repository; with it empty, the page has no deck link at all.
+// The project's page (site/) and its build (scripts/build-site.ts). DECK_URL stays empty until the deck is
+// published (#132), and then the page has no deck link at all; set, the calls to action are the deck, then the
+// repository.
 const source = readFileSync(join(SITE_DIR, "index.html"), "utf8");
 
 /** The `href` of every call-to-action button, in order, with its `data-cta`. */
@@ -25,12 +26,12 @@ function ctas(html: string): { cta: string; href: string }[] {
 }
 
 describe("the deck button", () => {
-  it("is set to the deck's address, so the built page shows the deck first, then the repository", () => {
-    expect(DECK_URL).toBe("https://css-wasteland.com/decks/a11y-genie");
-    expect(ctas(renderIndex(source))).toEqual([
-      { cta: "deck", href: "https://css-wasteland.com/decks/a11y-genie" },
-      { cta: "repository", href: "https://github.com/johnfrog76/a11y-genie" },
-    ]);
+  it("is empty until the deck is published, so the built page has no deck button and no link to the deck", () => {
+    expect(DECK_URL).toBe("");
+    const html = renderIndex(source);
+    expect(ctas(html)).toEqual([{ cta: "repository", href: "https://github.com/johnfrog76/a11y-genie" }]);
+    expect(html).not.toContain(DECK_LABEL);
+    expect(html).not.toContain("css-wasteland.com");
   });
 
   it("leaves no deck link at all when DECK_URL is emptied, and the repository is the only call to action", () => {
@@ -67,10 +68,26 @@ describe("the build", () => {
   const out = mkdtempSync(join(tmpdir(), "a11y-genie-site-"));
   afterAll(() => rmSync(out, { recursive: true, force: true }));
 
-  it("copies every file in site/ and writes index.html with the deck button", () => {
+  it("copies every file in site/ and writes index.html with no deck button while DECK_URL is empty", () => {
     buildSite(out);
     expect(readdirSync(out).sort()).toEqual(readdirSync(SITE_DIR).sort());
-    expect(readFileSync(join(out, "index.html"), "utf8")).toBe(renderIndex(source));
+    const built = readFileSync(join(out, "index.html"), "utf8");
+    expect(built).toBe(renderIndex(source));
+    expect(built).not.toContain('data-cta="deck"');
+    expect(built).not.toContain("css-wasteland.com");
+  });
+
+  it("brings the deck button back when the build is given the deck's address", () => {
+    const withDeck = mkdtempSync(join(tmpdir(), "a11y-genie-site-"));
+    try {
+      buildSite(withDeck, "https://css-wasteland.com/decks/a11y-genie");
+      expect(ctas(readFileSync(join(withDeck, "index.html"), "utf8"))).toEqual([
+        { cta: "deck", href: "https://css-wasteland.com/decks/a11y-genie" },
+        { cta: "repository", href: "https://github.com/johnfrog76/a11y-genie" },
+      ]);
+    } finally {
+      rmSync(withDeck, { recursive: true, force: true });
+    }
   });
 });
 

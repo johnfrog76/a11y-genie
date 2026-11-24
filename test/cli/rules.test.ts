@@ -7,9 +7,10 @@ import "../../src/click-on-non-control.js";
 import "../../src/keyboard-trap.js";
 import "../../src/landmarks.js";
 import "../../src/skip-link.js";
+import { builtCli } from "../helpers/built-cli.js";
 
 // Runs the built command (npm test builds first), as a person would. `rules` needs no browser or network.
-const cli = new URL("../../dist/cli.js", import.meta.url).pathname;
+const cli = builtCli();
 const axe = createRequire(import.meta.url)("axe-core") as {
   version: string;
   getRules(): { ruleId: string; tags: string[] }[];

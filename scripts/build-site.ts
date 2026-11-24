@@ -5,7 +5,7 @@
  * `site/index.html` holds one marker, `<!-- deck-cta -->`, where the deck's button goes. With `DECK_URL` set,
  * the button to watch the deck goes there, before the repository's. Emptied, the marker is taken out and the
  * page has no deck button at all, so there is never a link to nowhere. The page is published only once the
- * repository is public (pages.yml), and the deck must be published at this address before then.
+ * repository is public (pages.yml); `DECK_URL` stays empty until the deck is published too.
  *
  * Run it with `npm run site` (or `node scripts/build-site.ts [folder]`); it writes `_site/` by default.
  * test/unit/site.test.ts checks both cases.
@@ -14,8 +14,11 @@ import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-/** The product-intro deck's address, set here and only here. Emptying it takes the button off the page. */
-export const DECK_URL: string = "https://css-wasteland.com/decks/a11y-genie";
+/**
+ * The product-intro deck's address, set here and only here. It stays empty, and the page has no deck button,
+ * until the deck is published. Then this one line becomes `"https://css-wasteland.com/decks/a11y-genie"`.
+ */
+export const DECK_URL: string = "";
 
 /** The marker in `site/index.html` the deck's button replaces. */
 export const DECK_MARKER = "<!-- deck-cta -->";

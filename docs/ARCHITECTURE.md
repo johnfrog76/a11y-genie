@@ -18,7 +18,7 @@ the person's own browser profile, with its cookies, extensions and sign-ins, is 
 each process a temp folder of its own, below:
 
 - playwright-core makes a new folder in the temp folder for each launch
-  (`playwright_chromiumdev_profile-` and a random suffix), and passes it to the browser as `--user-data-dir`;
+  (`playwright_chromiumdev_profile-` and a random suffix), and hands it to the browser as `--user-data-dir`;
 - it deletes that folder when the browser closes;
 - `withBrowser()` closes the browser in a `finally`, so the folder goes whether the run returns or throws.
 
@@ -42,21 +42,52 @@ profile are inside it), until the system clears the temp folder.
 **Tests** get the same isolation: `test/setup/private-temp.ts` (a vitest setup file) gives each test file its own
 temp folder and removes it after the file, so test files that launch browsers side by side, or one that tests a
 missing browser, never share one. The shared one is in `A11Y_GENIE_TEST_SHARED_TMP`.
-The same setup file stops every browser a file left running: when the file ends, and again when the worker exits,
-it sends SIGKILL to each process whose command line names the file's own temp folder (`test/helpers/processes-in.ts`,
-read with `ps`, so not on Windows). A browser a test launches, or a command it spawns launches, always has that
-folder in its command line, so a test that fails or times out cannot leave one behind. It is not done after each
-failed test, because many files share one browser across their tests.
+The same setup file stops every browser a file left running: when the file ends, when the worker exits, and when the
+worker is stopped by SIGTERM or SIGINT (it stops them, removes the folder, and raises the signal again, so vitest
+sees it). It sends SIGKILL to each process whose command line names the file's own temp folder
+(`test/helpers/processes-in.ts`, read with `ps`, so not on Windows). A browser a test launches, or a command it
+spawns launches, always has that folder in its command line, so a test that fails or times out cannot leave one
+behind. It is not done after each failed test, because many files share one browser across their tests.
+A run that is itself stopped (SIGTERM or SIGINT to vitest) is different: vitest's watchdog ends the workers with
+SIGKILL as soon as vitest's own process exits, so no handler in a worker is sure to run. So each file's folder is
+made inside one folder for the run (`test/setup/run-folder.ts`, a global setup, `A11Y_GENIE_TEST_RUN_TMP`), and
+vitest's own process, which does run its `exit` handlers when it is stopped, stops every process that names the
+run's folder, synchronously, before the workers go. Only that run's folder is named, so another run on the same
+machine is never touched.
 `test/cli/browser-leak.test.ts` holds this: it runs `test/fixtures/leak/leak.fixture.ts`, tests built to fail and
-to time out with a browser open (the main run never includes that file), and looks for any process left.
-**Which browser the tests launch.** Playwright's own Chromium, headless, never the Google Chrome app: the browser
-tests take their channel from `test/helpers/test-browser.ts` (`A11Y_GENIE_TEST_CHANNEL`, `chromium` by default), and
-the commands they spawn get `--browser-channel` from it. The product is unchanged: a person still gets their
-installed Chrome by default. Chromium is installed once per machine with
-`npx playwright-core@1.65.1 install --no-shell chromium` (about 200 MB); `test/setup/global-chromium.ts` stops the
-run once, with that command, if it is missing, and never falls back to Chrome. The tests about the Chrome channel
-itself (`test/browser/launch.test.ts`: the branded Chrome, its profile folder) run only with
-`A11Y_GENIE_TEST_CHROME=1`, and say so in their names.
+to time out with a browser open (the main run never includes that file), and looks for any process left; and it
+runs `test/fixtures/leak/signal.fixture.ts`, stops that run with SIGTERM while a process the test started has a
+browser open, and looks again. Without the run's folder, that browser was left running.
+**Which browser the tests launch.** Playwright's headless shell (`chromium-headless-shell`), never the Google Chrome
+app, and never an app bundle: on macOS every launch of an app (the full Chromium is "Google Chrome for Testing.app")
+shows an icon in the Dock, even headless, and a suite run launches many. `test/helpers/test-browser.ts` is the one
+place that chooses: by default it hands the product `chromium` and sets `A11Y_GENIE_TEST_HEADLESS_SHELL=1` in the
+test process, so the in-process launches and every command a test spawns (with the test's environment) get it.
+`src/browser.ts` reads that variable in one place (`runsHeadlessShell()`): a `chromium` launch then omits `channel`
+and stays headless, which playwright-core 1.65.1 resolves to the headless shell (`getExecutableName()`: no channel
+and headless is `chromium-headless-shell`). `chrome` and `msedge` are not changed by it. Under it, `engine.browser`
+says `chromium-headless-shell <version>`, a missing shell is refused by that name, and nothing is downloaded. It is a
+test setting only, not in `--help` or the product's docs. The product is unchanged: a person still gets their
+installed Chrome by default, or the full Chromium. `test/browser/headless-shell.test.ts` holds it: the launched
+browser's main process, read from `ps` (the one with `--user-data-dir=` and no `--type=`; its helpers carry `--type=`
+and never `--headless`), must carry `--headless` and must not be inside an `.app/`, in a launch in the test process
+and in a spawned `scan --json`, whose `engine.browser` names the shell.
+The shell runs Chromium's older headless mode, so it is not the browser a person runs. `A11Y_GENIE_TEST_CHANNEL=chromium`
+runs the same tests on the full Chromium; run it at a milestone, or by hand when a change touches the browser.
+One difference is known: past the last tabbable element, the shell's Tab leaves the page on every lap, where the
+full build alternates (*Where it ends (V5)*, below), so a keyboard walk that ends `wrapped` on the full build ends
+`left` on the shell. One constant, `TEST_LAP_END` in `test/helpers/test-browser.ts`, holds the end the browser under
+test gives, and the walk tests assert it. The goldens keep the full build's `wrapped`; on the shell
+`test/helpers/goldens.ts` expects a recorded `wrapped` as `left`, so the comparison stays exact, and it refuses
+`UPDATE_GOLDENS=1` there, so `left` never replaces `wrapped` in a golden (rewrite them with
+`A11Y_GENIE_TEST_CHANNEL=chromium UPDATE_GOLDENS=1 npm test`). So the default run checks the shell's lap end, and
+only the opt-in run on the full build checks `wrapped`, the end a person's scan gives.
+Both are installed once per machine with `npx playwright-core@1.65.1 install chromium` (playwright-core's installer
+adds the headless shell to `chromium` unless `--no-shell` is given; about 300 MB in all); `test/setup/global-chromium.ts`
+stops the run once, with that command, if the browser the tests use is missing, and never falls back to Chrome. The
+tests about the Chrome channel itself (`test/browser/launch.test.ts`: the branded Chrome, its profile folder) run only
+with `A11Y_GENIE_TEST_CHROME=1`, and say so in their names. The tests that spawn the built command name it through
+`test/helpers/built-cli.ts`, which stops the file with "run `npm run build` first" when `dist/cli.js` is missing.
 `test/cli/private-temp.test.ts` runs the built command with a temp folder of its own on every exit path, and runs
 a Chrome scan for 20 rounds beside loops of missing-browser launches.
 
@@ -69,7 +100,7 @@ folder from its own `chrome://version` page, and checks that the folder is in th
 this run, differs between two runs, and is gone after the run, including a run that throws.
 
 On Ctrl-C, a plain `kill` (`SIGTERM`) or a closed terminal (`SIGHUP`), `src/interrupt.ts` closes the browser (so
-the folder is deleted) and exits 130, 143 or 129; the launch passes `handleSIGINT: false`, `handleSIGTERM: false`
+the folder is deleted) and exits 130, 143 or 129; the launch sets `handleSIGINT: false`, `handleSIGTERM: false`
 and `handleSIGHUP: false`, so playwright-core's own handlers (all on by default) do not race it or change the code.
 
 ### A browser that is not installed
@@ -292,7 +323,7 @@ is `experimental`, and none needs to be turned on:
 | `landmark-no-duplicate-main` | `two-mains.html` |
 | `landmark-unique`, `landmark-no-duplicate-banner`, `landmark-no-duplicate-contentinfo`, `landmark-banner-is-top-level`, `landmark-main-is-top-level`, `landmark-contentinfo-is-top-level`, `landmark-complementary-is-top-level` | not fixtured; each carries the `best-practice` tag, and none is `experimental` (`landmark-complementary-is-top-level` is also tagged `deprecated`) |
 
-The spec (6.1.1) wants `region` and `landmark-one-main` on, so nothing is enabled. A `--tags` list that leaves
+`region` and `landmark-one-main` are wanted on, and axe-core's default set already runs both, so nothing is enabled. A `--tags` list that leaves
 out `best-practice` runs none of the landmark rules, so `--help` and the unknown-tag hint both say the landmark
 rules need it, and `genie/no-landmarks`, which sums them up, is not run either.
 
@@ -321,7 +352,7 @@ tagged `cat.keyboard`, `wcag2a`, `wcag211` and `wcag412`) flags an element that 
 is not a control. It runs after axe-core, on the page's own frame, under the default rule set or a `--tags` list
 with one of its tags. Like `genie/no-landmarks` it does not change `engine.rulesRun`.
 
-**What is a control.** As spec 6.2 says: `a[href]`, `button`, `input`, `select`, `textarea`, `summary`, `label`
+**What is a control.** These are the controls: `a[href]`, `button`, `input`, `select`, `textarea`, `summary`, `label`
 and `option`; any element whose `role` names one of ARIA's widget roles (`button`, `link`, `checkbox`,
 `menuitem`, `tab`, `switch` and the rest, the composite ones such as `listbox` and `grid` included); and any
 element with `tabindex` 0 or more. A `role` of several tokens counts when any one of them names a control:
@@ -338,7 +369,7 @@ button: "Make it a `<button>` with the same handler and the same text", or give 
 
 **Delegated handlers go to *needs review*.** A list with one listener for all its items, or a framework such as
 React with one listener at the root, leaves the item with no handler of its own, and from the item alone that
-cannot be told from a pointer cursor that does nothing (spec 13, G3). So a candidate that sets a pointer cursor
+cannot be told from a pointer cursor that does nothing (gap G3 in [KNOWN-GAPS.md](KNOWN-GAPS.md)). So a candidate that sets a pointer cursor
 and has no click handler of its own is a *needs review* item, never a finding: "looks clickable, has no role and
 cannot take focus; check whether it does something". Only the element that sets the pointer is listed: the
 elements inside it inherit the cursor (their parent's cursor is a pointer too), and listing each would say the
@@ -389,14 +420,14 @@ time limit, with axe-core.
 
 ### The skip link (`src/skip-link.ts`)
 
-`genie/skip-link` (spec 6.4) reads the first three stops of the keyboard walk (below), which runs after
+`genie/skip-link` reads the first three stops of the keyboard walk (below), which runs after
 axe-core and the other checks and starts at the top of the page: at each, it asks whether the element that has
-focus is a skip link. It presses no Tab of its own (spec 6.5: one walk feeds 6.3 and 6.4). A skip link is a same-page link (`href="#id"`) whose target
+focus is a skip link. It presses no Tab of its own: one walk feeds the skip link, the trap check and focus visible. A skip link is a same-page link (`href="#id"`) whose target
 exists and is the page's `main` or inside it. With none, the finding is **advice** (`minor`) when the page has a
 landmark or a heading (read as `genie/no-landmarks` reads landmarks, in the isolated world), and a WCAG 2.4.1 **violation** (`moderate`) when it has neither. A page with fewer than
 five tabbable elements before its main content (all of them when it has no main) is not checked. It is tagged
 `best-practice`, as `genie/no-landmarks` is, and the registry lists the violation's impact. The check does not
-test whether the link shows itself on focus or whether its target takes focus; the spec asks for neither.
+test whether the link shows itself on focus or whether its target takes focus.
 A link counts only when it belongs to the top document: its fragment is resolved against its own
 `ownerDocument`, so a fragment link inside a same-origin frame, which scrolls only the frame, is not a skip link,
 while one in a shadow root is. Every read it makes of the page (the focused element, the tabbable count, the
@@ -411,7 +442,7 @@ Advice never changes the exit code. Fixtures: `no-skip-link.html`, `no-skip-no-s
 
 ### The keyboard walk (`src/walk.ts`)
 
-The walk (spec 6.5) presses Tab from the top of the page, up to `--max-tabs` times (default 200, at most 1000),
+The walk presses Tab from the top of the page, up to `--max-tabs` times (default 200, at most 1000),
 and records where focus lands after each press: a *stop*. It is not a rule and makes no finding: it is a record,
 kept in `scan.json` as `pages[].walks` (docs/JSON.md), that the skip link, the trap check and the
 focus-visible check read. It runs in every state that is scanned, last in `scanPage`, because it moves
@@ -439,6 +470,10 @@ controls, a same-origin frame last, an open shadow root last, and no control at 
   leaving the document, and the next leaves it again. The same holds when the last stop is in a frame or a
   shadow root.
 - On a page with nothing to focus, every Tab leaves focus on `body`, with `hasFocus()` false.
+- Playwright's headless shell (Chromium 159, the tests' browser, checked 2026-11-21) does not alternate: every Tab
+  past the last element leaves the document. On two buttons, ten Tabs give `a b out a b out a b out a` on the
+  shell, and `a b out a b a b out a b` on the full Chromium. So on the shell the walk ends `left` where Chrome and the
+  full build end `wrapped` (the tests' `TEST_LAP_END`).
 
 Since the walk has just left the page with its Shift+Tab, its lap goes from the last element straight back to
 the first. The walk does not rely on which happens: it ends at a press that puts focus on no element
@@ -450,7 +485,7 @@ end are recorded; `tabs` counts every press.
 not recorded again: it starts a second lap. If the presses after it go round the same stops in the same order
 and come back to it, the walk ends `cycled`, and `cycleFrom` is the `index` of the stop the cycle starts at; the
 cycle runs from there to the last stop. Focus that does not move at all is a cycle of one, and ends the walk at
-the same element after three presses (the spec's rule). If the second lap goes anywhere else, the walk goes on
+the same element after three presses. If the second lap goes anywhere else, the walk goes on
 from there, so a page that sends focus back once is walked to its end (`walk-revisit.html`). The second lap
 costs as many presses as the cycle has stops, inside `--max-tabs`. Before this, a walk held in a widget ran to
 the limit and recorded the same stops again and again. Playwright's Chromium was not installed at the pinned version on
@@ -497,7 +532,7 @@ second. Fixtures: `impact-mix.html` (its golden), `walk-shadow.html`, `walk-fram
 
 ### The keyboard trap (`src/keyboard-trap.ts`)
 
-`genie/keyboard-trap` (spec 6.5, critical, WCAG 2.1.2) and `genie/focus-not-returned` (moderate, WCAG 2.4.3)
+`genie/keyboard-trap` (critical, WCAG 2.1.2) and `genie/focus-not-returned` (moderate, WCAG 2.4.3)
 read the keyboard walk and press a few more keys with the walk's own `FocusReader`; there is no second walker.
 They run last in `scanPage`, after the skip link, because Escape may close a dialog. Each is tagged
 `cat.keyboard` and `wcag2a`, with `wcag212` or `wcag243`, and runs when a `--tags` list has one of its tags.
@@ -555,7 +590,7 @@ Escape and one Tab, and two or three DevTools Protocol calls after each press. T
 
 ### Focus visible (`src/focus-visible.ts`)
 
-`genie/focus-visible` (spec 6.3, serious, WCAG 2.4.7) asks, at each stop of the keyboard walk, whether the Tab
+`genie/focus-visible` (serious, WCAG 2.4.7) asks, at each stop of the keyboard walk, whether the Tab
 key's focus changed anything on screen. It is tagged `cat.keyboard`, `wcag2aa` and `wcag247`, as axe-core tags its
 own level AA rules, and runs under the default rule set or a `--tags` list with one of those. It runs inside the
 walk, from its `onStop`, while focus is still where Tab put it, through the one `FocusReader` that `scanPage` opens
@@ -605,7 +640,7 @@ the fixtures. The share is of the padded box's pixels that changed by more than 
 
 The smallest visible change measured was 14% of the padded box, and every unchanged element changed no pixel at
 all, at any tolerance: the two screenshots are taken in the same run, of the same layout, so nothing but focus
-differs. The 1% the spec gives as the default is far inside that gap and is kept. The tolerance of 16 levels is
+differs. The default of 1% is far inside that gap and is kept. The tolerance of 16 levels is
 what makes the faint fixtures faint: below it, a change is too small for many people to notice, and with no
 tolerance `#faint-fill` would count as fully changed. A smaller tolerance would pass the faint fixtures as
 visible; a much larger one would start to miss light focus colours.
@@ -682,7 +717,7 @@ such items a state. Fixtures: `focus-custom-ok.html`, `focus-hidden.html`, `focu
 
 ### Reading the accessibility tree (`src/a11y-tree.ts`)
 
-Narration (spec 6.6, M9) reads, after each key of a flow, what the browser's accessibility tree says of the
+Narration reads, after each key of a flow, what the browser's accessibility tree says of the
 element focus is on, and writes the line a screen reader would say for it. This part is the reader and the line;
 the `narrate` command, its transcript and `genie/unnamed-step` are in *Narration*, below. It is not a screen reader: it says what
 Chrome's tree holds, in words of its own, and NVDA, JAWS and VoiceOver each say it their own way.
@@ -765,7 +800,7 @@ nest in, and one for each nested set. Fixtures: `workflow.html`, `a11y-tree-sets
 ### Narration (`src/narrate.ts`, `src/narrate-command.ts`)
 
 `a11y-genie narrate <url> --flow "<steps>"` drives one flow by the keyboard and writes down what a screen reader
-would say after each step (spec 6.6). A config's `workflows` are narrated the same way on `scan --config`, after the
+would say after each step. A config's `workflows` are narrated the same way on `scan --config`, after the
 pages and their states. Each flow runs in a new context of its own, with every hostile-page rule of
 `src/context.ts` (below), from a fresh load of its page, held to the page time limit (`--timeout`). The load, the
 rules and the refusals are `src/run-scan.ts`'s (`loadPage`, `narrateWorkflow`); with `narrate`, nothing else runs:
@@ -815,11 +850,11 @@ A flow that stopped early ends with `Not narrated past this point: <why>.` `narr
 writes it as `narration/flow.txt` in the scan folder beside `scan.json`; with `scan --config` each workflow has
 `narration/<name>.txt` (docs/CONFIG.md says how a name becomes a file name). Every report carries each transcript
 under *Narrated flows*. The golden is `test/goldens/narration/flow.txt`, from `workflow.html` with the flow
-`Tab; Tab; Tab; Enter`; `UPDATE_GOLDENS=1 npm test` rewrites it. Speaking the transcript is D4 and comes later:
+`Tab; Tab; Tab; Enter`; `UPDATE_GOLDENS=1 npm test` rewrites it. Speaking the transcript aloud comes later:
 `spoken` is what a speech engine would be given.
 
 **`genie/unnamed-step`** (serious, WCAG 4.1.2): a step that brings focus to an element that has a role that is
-said and no name (`unnamed` of `Accessible`). A step that leaves focus where the step before it left it is not
+said and no name (the tree reader's `unnamed` field). A step that leaves focus where the step before it left it is not
 counted again, and the same element reached by two flows is one element of the finding. The finding is the page's, in
 the record's default state, and makes `narrate` exit 1 at the default `--fail-on`. It is registered with the tags
 `cat.name-role-value`, `wcag2a` and `wcag412`, like the other level-A own rules (decided 2026-11-19). The tags only
@@ -836,8 +871,8 @@ Enter on Save submits instead of stopping at the empty required Email), `narrate
 A finding's `plain` (what is wrong, and who it hurts) and `fix` (what to change), and the short `title` that
 heads it in the report, come from one table,
 `RULE_WORDING`, keyed by `<source>/<id>`, such as `axe/image-alt` or `genie/skip-link`. They are written for a
-reader who knows no WCAG, in plain facts and never in the genie's voice (D7), and never call a site accessible,
-compliant or conformant (C16). A second table, `CRITERION_WORDING`, names each WCAG criterion the rules carry,
+reader who knows no WCAG, in plain facts and never in the genie's voice, and never tell a reader a site has
+no problems or meets a standard. A second table, `CRITERION_WORDING`, names each WCAG criterion the rules carry,
 with what it asks in a few words; the report prints `1.4.3 Contrast (Minimum): text must stand out from its
 background`. A rule with no entry keeps axe-core's `help` and `failureSummary`, and a criterion with no entry
 reads as its number. The tables are data: no page text and nothing axe-core said goes into them, and the
@@ -887,7 +922,7 @@ without `wcag2a` (or another of its tags) leaves out `genie/click-on-non-control
   violation is at or above it (`atOrAbove`), or a page was not scanned; otherwise 0. A finding below it is still
   in `scan.json` and `report.md`, so the summary can read *Found 1 problem* and the exit be 0; the command line
   and the report say why. Advice and *needs review* items never change the exit, with any `--fail-on`: a
-  *needs review* item is something axe-core or an own check could not decide, and a person looks (spec 4.3). The floor is
+  *needs review* item is something axe-core or an own check could not decide, and a person looks. The floor is
   recorded in `options.failOn`.
 
 ## One scan, end to end (`src/run-scan.ts`, `src/scan-command.ts`, `src/cli.ts`)
@@ -940,7 +975,7 @@ The comparison is a pure function of two records, so the browser tests and the u
 
 - **Match by id, then by selector.** A finding's id names its rule and page; within a finding, elements are
   matched by `selector`. Unmatched elements, as many on each side, are read as the same elements under selectors
-  that moved, so a list that only reordered reads `still`, never fixed plus new (spec R11). docs/JSON.md has the
+  that moved, so a list that only reordered reads `still`, never fixed plus new. docs/JSON.md has the
   rest of the rule.
 - **Not scanned is never fixed.** A baseline element found in a state that was not scanned this time stays still
   open, marked `unverified`, and the run exits 1 for the state not scanned anyway.
@@ -960,7 +995,7 @@ The comparison is a pure function of two records, so the browser tests and the u
   the file failed the schema and never the value. What a check carries forward from it (its fixed findings, and
   elements no longer failing) is copied field by field, only the fields this version knows, with each excerpt cut
   to 160 characters again, with `failure` and `selector` cut to 1,000 and at most 500 elements kept per finding (the
-  rest counted in `elementsCut`), so a crafted baseline cannot carry more into a record than these caps allow (a fresh scan takes `failure` and `selector` as axe-core and the checks wrote them, which are short; carried ones come from a file and are capped); and everything printed from it passes through `src/printable.ts`.
+  rest counted in `elementsCut`), so a crafted baseline cannot carry more into a record than these caps allow (a fresh scan takes `failure` and `selector` as axe-core and the checks wrote them, which are short; carried ones come from a file and are capped); and everything printed from it goes through `src/printable.ts`.
 - **Plain `scan` reads its last scan too**, for one line and `summary.sincePrevious`: the newest scan folder of the
   site under the scans folder or `--out`, read the same way. A last scan that cannot be read, or that covered other
   pages, states or tags, reads *not comparable* and says why; it is never a refusal, and it never changes the exit.
@@ -982,12 +1017,12 @@ on macOS: eight fixture pages (`impact-mix`, `contrast`, `icon-button`, `no-land
 `needs-review`, `content-outside-landmarks`, `two-mains`), each scanned three times with nothing changed, gave the
 same `target` for every element of every finding and *needs review* item, 13 elements in all.
 `test/browser/check.test.ts` holds it for the check fixture. Not checked: elements in shadow roots or frames, and
-pages whose markup changes from load to load (generated class names, shuffled lists), where R11's rule is the
+pages whose markup changes from load to load (generated class names, shuffled lists), where that rule, matching the elements left over in order, is the
 fallback.
 
 ## Hostile pages (`src/context.ts`)
 
-Every page is assumed to be written by someone who wants the tool to misbehave (the spec's 8A.1). The browser
+Every page is assumed to be written by someone who wants the tool to misbehave. The browser
 context's defences are all set in `src/context.ts`, so they can be read together: `CONTEXT_OPTIONS` (the
 options the context is made with), `LIMITS` (the caps), `ALLOWED_SCHEMES`, and `armContext()`, which watches
 the context before any page opens. `src/run-scan.ts` applies them to the one page it loads. Each defence has a
@@ -1008,15 +1043,15 @@ fixture in the real Chrome, from `127.0.0.1`, with every request off the fixture
 | The size cap | `scan.json` at most 50 MB. Over it, every walk is cut to its first N stops (N the most that fits, at least one; the rest counted in `stopsCut`), then elements are dropped, least severe first and never a finding's last one, and counted; if that is not enough, *not scanned* | `many-elements.html`, with the limit lowered | *the time, element and size caps* |
 | Private networks | when the address scanned is public, every request to a loopback, link-local, private or unspecified address is aborted before it leaves the browser and noted under `stopped` as `private-network`; a page whose own frame goes to one reads *not scanned*. `--allow-private` turns it off, and a target that is itself loopback or private is never limited. See *The private-network rule (V12)* below | `private-network.html`, and redirects the test's fixture server makes | *a public page cannot reach private addresses* |
 | `--same-origin` | every request to an origin other than the address scanned (scheme, host and port) is aborted and noted under `stopped` as `other-origin`; a page whose own frame goes to one reads *not scanned*. The report says so, and that some of the page's content may be missing. It is the private-network rule's mechanism, below, asked a second question: there is one interception layer, `networkRule()` in `src/context.ts` | `private-network.html`, and redirects the test's fixture server makes | `test/browser/network-flags.test.ts`, *--same-origin* |
-| `--offline` | the target must be loopback (`127.0.0.0/8`, `::1`, `localhost`, `*.localhost`), or the run is refused; every request to an address that is not loopback is aborted and noted as `offline`, a page whose own frame goes to one reads *not scanned*, and no browser is downloaded. Nothing else of A11y Genie's own leaves the machine either, so there is nothing more to switch off (no ToolKit probe exists yet; spec 8) | `private-network.html`, and redirects the test's fixture server makes | `network-flags.test.ts`, *--offline* |
+| `--offline` | the target must be loopback (`127.0.0.0/8`, `::1`, `localhost`, `*.localhost`), or the run is refused; every request to an address that is not loopback is aborted and noted as `offline`, a page whose own frame goes to one reads *not scanned*, and no browser is downloaded. Nothing else of A11y Genie's own leaves the machine either, so there is nothing more to switch off (no ToolKit probe exists yet) | `private-network.html`, and redirects the test's fixture server makes | `network-flags.test.ts`, *--offline* |
 | Page text printed without its escapes | `printable()` (`src/printable.ts`) strips every terminal escape sequence whole (CSI, OSC with OSC 8 links and window titles, DCS, APC and the rest, in their 7-bit and 8-bit forms) and every control character but newline and tab (carriage return, DEL, C1 and the bidi overrides and isolates included) from every line the command prints and from all of `report.md`. `scan.json` keeps the page's text exactly, as data, and writes the controls `JSON.stringify` leaves raw (DEL, C1, bidi) as `\u` escapes, so `--json` on a terminal carries none either | `escapes.html` | *page text is printed without its escapes*; `test/cli/scan.test.ts` checks the real terminal output |
 
 What was stopped is recorded per page in `scan.json` (`pages[].stopped`: the kind, a count, and the first five,
 cut at 160 characters) and listed in `report.md` under *What the page tried, and was stopped*, quoted as data.
 The command line prints only the counts, never the page's own words.
 
-**The caps.** The spec gives the time limit (60 s, per state, which `--timeout` will set in M3), 500 elements
-a finding, 160 characters an excerpt, and 50 MB for `scan.json`. It gives no redirect cap: Chrome's own is 20,
+**The caps.** The time limit is 60 s per state, which `--timeout` sets; then 500 elements
+a finding, 160 characters an excerpt, and 50 MB for `scan.json`. There was no redirect cap to follow: Chrome's own is 20,
 and A11y Genie stops at 10. Five examples are kept of each kind of thing stopped. `scan.json` records the caps
 the run used under `limits`.
 
@@ -1038,7 +1073,7 @@ the run used under `limits`.
 
 A hostile public page could use the browser to reach services on the person's own machine or network: a
 router's admin page, a dev server, a cloud metadata address. So when the address scanned is public, every
-request the page makes to one of these is aborted (spec 8A.1):
+request the page makes to one of these is aborted:
 
 | Kind | Ranges |
 | --- | --- |
@@ -1054,7 +1089,7 @@ request the page makes to one of these is aborted (spec 8A.1):
 `src/private-address.ts` holds the classifier, and `test/unit/private-address.test.ts` its edges. It reads the
 host in the form the browser's URL parser gives it, so `http://0x7f.1/`, `http://2130706433/` and
 `http://[::ffff:127.0.0.1]/` read as the loopback addresses they are. Anything else reads public, `100.64.0.0/10`
-(shared address space) among them, since the spec does not list it. So are 6to4 (`2002::/16`) and Teredo
+(shared address space) among them, since it is not a private range. So are 6to4 (`2002::/16`) and Teredo
 (`2001::/32`): the IPv4 address inside them is a relay's or a tunnel end's, reached across the internet, not the
 service a page could reach on the person's network.
 
@@ -1067,7 +1102,7 @@ never looks a name up, so a public name that resolves to a private address is no
 `SECURITY.md`). A target that is itself loopback or private (the usual dev server) is not limited at all, and
 `--allow-private` turns the rule off.
 
-**V12: what passes through Playwright's routes.** Checked with playwright-core 1.65.1 and Chrome 158 on macOS,
+**V12: what goes through Playwright's routes.** Checked with playwright-core 1.65.1 and Chrome 158 on macOS,
 against loopback servers; the two *not*s below are pinned by the test *V12, at playwright-core 1.65.1* in
 `hostile.test.ts`, so an upgrade that changes them fails it:
 
@@ -1119,5 +1154,5 @@ frame on another site's does.
   connection, which is not a proof.
 
 **What a scan does not defend against.** A page shares its document with axe-core, and can change what
-axe-core reads (gap G6 in the spec): a scan describes the page as the page presents itself, and is never a
+axe-core reads (gap G6 in [KNOWN-GAPS.md](KNOWN-GAPS.md)): a scan describes the page as the page presents itself, and is never a
 security boundary. `SECURITY.md` lists this and every other known gap.

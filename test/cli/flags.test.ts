@@ -8,11 +8,12 @@ import { NO_BROWSER_ENV } from "../../src/browser.js";
 import { SCANS_DIR_ENV } from "../../src/scans-folder.js";
 import { testBrowserIsInstalled } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
+import { builtCli } from "../helpers/built-cli.js";
 
 // `--tags`, `--fail-on`, `--same-origin` and `--offline` through the built command (npm test builds first):
 // every refusal's words, and the exit codes the flags set. A refusal exits 2, prints one Error: and one Hint:
 // on stderr, nothing on stdout, and writes nothing.
-const cli = new URL("../../dist/cli.js", import.meta.url).pathname;
+const cli = builtCli();
 const hasBrowser = await testBrowserIsInstalled();
 
 interface Run {

@@ -16,7 +16,7 @@ With `--config`, or with `--states`, the run covers several pages or states, and
 violation was found in any state, or any page or state was *not scanned*; 0 only when every one was scanned and
 none had a violation.
 
-A scan with no findings says how much it checked. It never says a site is accessible.
+A scan with no findings says how much it checked. It never tells you a site has no problems, or that it meets a standard: automated checks find some problems, not all of them.
 
 **`--fail-on <impact>`** (`critical`, `serious`, `moderate` or `minor`; default `minor`, so any violation fails the
 run) sets the lowest impact that makes the exit 1. With `--fail-on serious`, a page whose only findings are
@@ -169,7 +169,7 @@ page nobody saw never exits 0. The reasons, in the scan's own words:
 | with `--same-origin`, the page's own frame went (or was redirected) to another origin | `it went to another origin, and --same-origin stopped it` |
 | `scan.json` would be over 50 MB even with one element per finding and no walk stops | `its results were larger than the 52428800 byte limit on scan.json, even cut down` |
 
-The 60 seconds are the spec's limit for one state, from its first request to the end of axe-core; `--timeout <seconds>`
+The 60 seconds are the limit for one state, from its first request to the end of axe-core; `--timeout <seconds>`
 sets it. On the command line the line reads `<address> was not scanned: <reason>.` for the default state, and
 `<address> was not scanned in the state "menu-open": <reason>.` for another. The run goes on with every other page
 and state, and the exit is 1.

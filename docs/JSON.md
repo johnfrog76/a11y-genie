@@ -63,7 +63,7 @@ it cannot measure. The product's own checks have them too: `genie/click-on-non-c
 looks clickable but has no click handler of its own, since a handler further up the page may act on it, and
 `genie/focus-visible` lists an element whose focus changes too faintly to be sure of, or that it could not
 photograph (docs/ARCHITECTURE.md, *Focus visible*). They
-are never passes and never findings. Each is a *needs review* item: the same fields as a finding except
+are never counted as a pass and never as findings. Each is a *needs review* item: the same fields as a finding except
 `kind`, and each element has one more field.
 
 | Field | What it holds |
@@ -132,7 +132,7 @@ finding `genie/unnamed-step`; a 1.9 record has `workflows: []`, and is still val
 | `baseline` | On a `check` only: `path`, the `--baseline` as it was given; `startedAt`, when the baseline's scan began; `commit`, the baseline's own `target.commit`; and `notScanned`, each `{ page, state }` the baseline asked for and did not scan |
 | `limits` | The limits the page was held to: `pageSeconds` (60), `redirects` (10), `elementsPerFinding` (500), `excerptChars` (160), `scanJsonBytes` (52428800, 50 MB). docs/ARCHITECTURE.md, *Hostile pages*, says what each does |
 
-**One finding per rule per page.** A page is a URL, and the states of a page are merged into it (D6). A finding is one rule on one page, so
+**One finding per rule per page.** A page is a URL, and the states of a page are merged into it. A finding is one rule on one page, so
 its `id` is the same whatever the number of states; its elements are the elements any state found, each listed once and
 naming the states it was found in. Two elements are the same element when their axe-core `target` is the same. A merged
 finding keeps the wording (`help`, `fix`, an element's `html` and `failure`) of the first state that had it, and the
@@ -162,7 +162,7 @@ advice finding takes the rule's advice words where it has them (`genie/skip-link
 data: nothing from the page and nothing axe-core said goes into them. For a rule the table has no words for,
 `plain` is axe-core's `help` for the rule, and `fix` is axe-core's `failureSummary` for the finding's first
 element, on one line ("Fix any of the following:" then its messages, separated by semicolons); where axe-core
-gave none, it is the rule's `help` and `helpUrl`. A finding always has a fix. `title` is the `help` and the
+gave none, it is the rule's `help` and `helpUrl`. A finding always has a fix. `title` is the `help`, without a closing full stop, and the
 page. `status` is `new` until a scan is compared with an earlier one, then `new`, `still` or `fixed` (below).
 Each element's `failure` stays as
 axe-core, or the product's own check, wrote it, newlines included; `report.md` shows it under the element.
@@ -370,7 +370,7 @@ axe-core could not decide something; *What the page tried, and was stopped*, whe
 pop-ups or started downloads, with the first few quoted; and *What this scan cannot see*, the same fixed
 list in every report, last.
 
-- It never calls a site accessible, compliant or conformant and never says it passes WCAG. A page that was
+- It never tells you a site has no problems, or that it meets a standard: automated checks find some problems, not all of them. A page that was
   not scanned never reads as nothing found. A scan with no findings reads: `No problems found by these {rulesRun} rules on {pages}. Automated rules find only some
   problems; the checklist covers what they cannot see.` Both counts come from the record (`engine.rulesRun`,
   and the number of `pages`, written "this page" for one and "these 3 pages" for more; the header line reads "90 rules ran on this page" for one page and "90 rules ran on 3 pages" for more).

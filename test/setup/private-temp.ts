@@ -14,7 +14,10 @@ export const SHARED_TMP_ENV = "A11Y_GENIE_TEST_SHARED_TMP";
 
 const names = process.platform === "win32" ? ["TMPDIR", "TEMP", "TMP"] : ["TMPDIR"];
 process.env[SHARED_TMP_ENV] ??= tmpdir();
-const own = mkdtempSync(join(process.env[SHARED_TMP_ENV], "a11y-genie-vitest-"));
+// Inside the run's folder (test/setup/run-folder.ts) when there is one, so the run can stop it on a signal too.
+const own = mkdtempSync(
+  join(process.env.A11Y_GENIE_TEST_RUN_TMP ?? process.env[SHARED_TMP_ENV], "a11y-genie-vitest-"),
+);
 for (const name of names) process.env[name] = own;
 
 /**
@@ -32,6 +35,24 @@ function stopBrowsers(): void {
   }
 }
 process.on("exit", stopBrowsers);
+
+/**
+ * A signal stops the browsers, synchronously, removes the folder, and then lets the signal do what it would have
+ * done: with no other listener it is raised again, so the worker ends by that signal and vitest sees it; with
+ * another listener (vitest's own), that one already ran for this signal and decides.
+ */
+function onSignal(signal: NodeJS.Signals): void {
+  process.off(signal, onSignal);
+  stopBrowsers();
+  try {
+    rmSync(own, { recursive: true, force: true });
+  } catch {
+    // Cleanup must never hide the signal.
+  }
+  if (process.listenerCount(signal) === 0) process.kill(process.pid, signal);
+}
+process.on("SIGTERM", onSignal);
+process.on("SIGINT", onSignal);
 
 afterAll(() => {
   stopBrowsers();

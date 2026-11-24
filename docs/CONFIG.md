@@ -48,7 +48,7 @@ Only these are read. An unknown key is a refusal, not ignored.
 
 A step that does not parse is a refusal that names the file, the line and the step's column, for example
 `a11y-genie.yaml line 6 "clik", column 1: "clik" is not a step.` Each state starts from a fresh load of its page,
-so states never leak into each other (spec 5.2). A page that does not answer after the first, or a state whose
+so states never leak into each other. A page that does not answer after the first, or a state whose
 step fails, reads *not scanned* with why, the run goes on, and the exit is 1.
 
 `--states` does not mix with `--config`: a config's states live under their pages.

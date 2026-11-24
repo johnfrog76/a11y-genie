@@ -8,8 +8,10 @@ For contributors and coding agents. A11y Genie is an accessibility scanner for a
 npm ci              # install exactly what the lockfile says
 npm run lint        # ESLint, then Prettier --check
 npm run typecheck   # tsc --noEmit
-npm test            # builds, then runs vitest; browser tests run on Playwright's own Chromium, never Chrome
-npx playwright-core@1.65.1 install --no-shell chromium   # once per machine (about 200 MB); npm test needs it
+npm test            # builds, then runs vitest; browser tests run on Playwright's headless shell, never Chrome
+npx playwright-core@1.65.1 install chromium   # once per machine (about 300 MB): the headless shell and the full Chromium
+A11Y_GENIE_TEST_CHANNEL=chromium npm test   # the same tests on the full Chromium a person gets; at a milestone, or by hand
+                                            # run it before a milestone closes: only it checks a walk's "wrapped" end
 A11Y_GENIE_TEST_CHROME=1 npm test   # also runs the few tests about the Chrome channel itself (starts Chrome)
 npm run build       # tsc into dist/
 npm run format      # Prettier --write
@@ -69,10 +71,14 @@ Run all five before you ask for a review. CI runs the same five in that order, o
   `src/report.ts` writes `report.md` from it, `src/scans-folder.ts` says where a scan goes, and
   `src/run-scan.ts` loads a page and scans it. `docs/JSON.md` documents all of it.
 - `test/` holds the tests, in folders by kind. `test/cli/` runs the built `dist/`, so `npm test` builds first.
-  `test/unit/` runs no browser. `test/browser/` launches Playwright's own Chromium, headless (the channel
-  is read in one place, `test/helpers/test-browser.ts`; `test/setup/global-chromium.ts` fails once, with the install
-  command, when it is missing). Only `test/browser/launch.test.ts`'s Chrome tests start the installed Chrome, and only
-  with `A11Y_GENIE_TEST_CHROME=1`.
+  `test/unit/` runs no browser. `test/browser/` launches Playwright's headless shell, a plain executable with no app
+  bundle, so no icon in the macOS Dock (the browser is read in one place, `test/helpers/test-browser.ts`, which sets
+  `A11Y_GENIE_TEST_HEADLESS_SHELL=1`, a test-only setting `src/browser.ts` reads for in-process launches and spawned
+  commands alike; `test/browser/headless-shell.test.ts` holds it; `test/setup/global-chromium.ts` fails once, with the
+  install command, when it is missing). `A11Y_GENIE_TEST_CHANNEL=chromium` runs them on the full Chromium instead.
+  Only `test/browser/launch.test.ts`'s Chrome tests start the installed Chrome, and only with `A11Y_GENIE_TEST_CHROME=1`.
+  `test/helpers/built-cli.ts` names `dist/cli.js` for every test that spawns it, and stops the file with "run
+  `npm run build` first" when it is missing.
 - `test/fixtures/site/` holds the fixture pages, each with a comment naming the axe-core rule that must fire. `test/fixtures/axe/` holds axe-core results recorded from those pages, for tests with no browser. `test/fixtures/loop/` is the fix loop's trial site: one page with exactly three named bugs (`test/browser/loop-site.test.ts`). `test/goldens/` holds the committed `scan.json` and `report.md` of the first fixture pages (the four first, and `no-landmarks`); `UPDATE_GOLDENS=1 npm test` rewrites them, and you review the diff. `test/helpers/` holds the loopback fixture server, the no-network guard for Node, and `guardContext()`, its browser-side half; `test/setup/` installs the guard for every test file.
 - `src/exit-codes.ts` names the exit codes, `src/out-folder.ts` checks `--out`, and `src/interrupt.ts` handles
   Ctrl-C, SIGTERM and SIGHUP. `docs/EXIT-CODES.md` lists the exit codes and every refusal's words.
