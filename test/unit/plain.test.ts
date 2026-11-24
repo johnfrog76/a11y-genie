@@ -81,7 +81,7 @@ describe("the wording table", () => {
     }
   });
 
-  it("has an entry for every axe-core rule a fixture page hits, and for link-name, which the spec names", () => {
+  it("has an entry for every axe-core rule a fixture page hits, and for link-name", () => {
     for (const id of [...FIXTURE_AXE_RULES, "link-name"]) {
       expect(Object.keys(RULE_WORDING), id).toContain(`axe/${id}`);
     }

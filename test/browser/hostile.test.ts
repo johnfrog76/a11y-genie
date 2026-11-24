@@ -30,7 +30,7 @@ describe("the context's options, in one place", () => {
     expect(CONTEXT_OPTIONS).toEqual({ acceptDownloads: false, permissions: [], serviceWorkers: "block" });
   });
 
-  it("hold the spec's limits, and conservative ones where it gives none", () => {
+  it("hold the limits docs/ARCHITECTURE.md gives, under *The caps*", () => {
     expect(LIMITS).toEqual({
       pageMs: 60_000,
       redirects: 10,

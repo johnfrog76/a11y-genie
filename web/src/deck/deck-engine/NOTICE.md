@@ -38,7 +38,7 @@ It came here by way of Code Sleuth's copy (`web/src/deck/` in <https://github.co
 
 ## What changed here
 
-- `CopyLinkButton.tsx`: `url` is optional and defaults to A11y Genie's repository, so a deck's closing slide
+- `CopyLinkButton.tsx`: `url` is optional and defaults to Connected Deck's repository, the presentation engine, so a deck's closing slide
   can use the button with no props.
 - `useCompactLayout.ts` is new: it answers from `../viewport`, where Connected Deck asks the same question.
 - `../shared/MarkdownViewer.tsx` is trimmed: it shows plain-string notes as plain paragraphs, without

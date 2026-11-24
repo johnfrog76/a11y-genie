@@ -91,7 +91,7 @@ describe("the build", () => {
   });
 });
 
-describe("the page's own words (C16)", () => {
+describe("the page's own words", () => {
   it.each(readdirSync(SITE_DIR))("site/%s claims nothing", (name) => {
     expect(neverClaimViolations(readFileSync(join(SITE_DIR, name), "utf8"))).toEqual([]);
   });
