@@ -1,7 +1,7 @@
 // `npm run smoke` -- the project's page and the deck page, in a browser, as Pages will serve them.
 //
-// It builds web/ (unless --no-build), builds the project's page with scripts/build-site.ts, puts web/dist
-// beside it at deck/, serves the two on 127.0.0.1, and holds:
+// It builds web/ (unless --no-build), puts the two pages together by running the Pages workflow's own
+// "Assemble the page" step (.github/workflows/pages.yml), serves the result on 127.0.0.1, and holds:
 //
 //   1. While the registry is empty, the deck page says the deck is not here yet, and links back to the
 //      project's page, which that link opens.
@@ -69,13 +69,26 @@ if (!args.includes("--no-build")) {
   });
   if (built.status !== 0) throw new Error("npm run build failed in web/");
 }
+// The two are put together by the Pages workflow's own "Assemble the page" step, read from
+// .github/workflows/pages.yml and run here in a scratch folder, so what this test serves is what Pages publishes.
+const workflow = fs.readFileSync(path.join(REPO_ROOT, ".github", "workflows", "pages.yml"), "utf8");
+const step = /- name: Assemble the page\n\s+run: \|\n((?:\s{10}.*\n)+)/.exec(workflow);
+if (!step) throw new Error('pages.yml has no "Assemble the page" step to run');
+const assemble = step[1]
+  .split("\n")
+  .map((line) => line.trim())
+  .filter(Boolean)
+  .join("\n");
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-genie-pages-"));
+for (const folder of ["site", "web"]) {
+  fs.symlinkSync(path.join(REPO_ROOT, folder), path.join(scratch, folder), "dir");
+}
+// Copied, not linked: scripts/build-site.ts builds only when it is the script Node was started on, which it
+// tells by its own path, and a link would give it a second one.
+fs.cpSync(path.join(REPO_ROOT, "scripts"), path.join(scratch, "scripts"), { recursive: true });
+const ran = spawnSync("bash", ["-e", "-c", assemble], { cwd: scratch, stdio: "inherit" });
+if (ran.status !== 0) throw new Error("the Assemble the page step failed");
 const SITE = path.join(scratch, "_site");
-const site = spawnSync(process.execPath, [path.join(REPO_ROOT, "scripts", "build-site.ts"), SITE], {
-  stdio: "ignore",
-});
-if (site.status !== 0) throw new Error("scripts/build-site.ts failed");
-fs.cpSync(path.join(WEB_ROOT, "dist"), path.join(SITE, "deck"), { recursive: true });
 
 // 2. Serve it, as Pages would: a folder answers with its index.html.
 const server = http.createServer((req, res) => {

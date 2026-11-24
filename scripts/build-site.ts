@@ -5,7 +5,8 @@
  * `site/index.html` holds one marker, `<!-- deck-cta -->`, where the deck's button goes. With `DECK_URL` set,
  * the button to watch the deck goes there, before the repository's. Emptied, the marker is taken out and the
  * page has no deck button at all, so there is never a link to nowhere. The page is published only once the
- * repository is public (pages.yml); `DECK_URL` stays empty until the deck is published too.
+ * repository is public (pages.yml, which also puts the deck page beside it at deck/); `DECK_URL` stays empty
+ * until the deck is published too.
  *
  * Run it with `npm run site` (or `node scripts/build-site.ts [folder]`); it writes `_site/` by default.
  * test/unit/site.test.ts checks both cases.
