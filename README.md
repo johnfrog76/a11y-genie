@@ -25,8 +25,10 @@ An accessibility scanner for agents and people. It drives a real browser through
 states, runs axe-core and its own checks, and writes a plain-language report with the fixes, worst first,
 as JSON, Markdown and HTML.
 
-It never says a site is "accessible" or "compliant". Automated checks find some problems, not all of them,
-and every report says what a scan cannot see.
+It gives you a list of suggested improvements for your HTML:
+automated checks find many problems with HTML,
+but they are no substitute for a full accessibility audit.
+Every report says what a scan cannot see.
 
 A11y Genie is in early development. Today:
 
@@ -79,7 +81,8 @@ Fix something, then rescan against that first scan. It says what is fixed, what 
 a11y-genie check --baseline <the folder it wrote>/scan.json http://localhost:5173/
 ```
 
-`a11y-genie --help` lists every command and flag.
+`a11y-genie --help` lists every command and flag. [docs/CLI.md](docs/CLI.md) says what each one does,
+and [docs/CHECKS.md](docs/CHECKS.md) what a scan checks.
 
 [docs/KNOWN-GAPS.md](docs/KNOWN-GAPS.md) lists what is planned and not built yet, and the limits A11y Genie
 was built with.

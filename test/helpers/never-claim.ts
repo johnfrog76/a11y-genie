@@ -2,7 +2,7 @@
  * The never-claim phrase list (spec C16): no report, in any format, calls a site accessible, compliant or
  * conformant, or says it passes WCAG. The match is case-insensitive and by whole word. The allowed phrases
  * are exactly "accessible name" and "accessible names", and, in the README, the docs and the prompt file only,
- * the four in `ALLOWED_IN_DOCS`; and, in the prompt file only, once, `PROMPT_WORD_LIST`. A new allowed phrase
+ * the five in `ALLOWED_IN_DOCS`; and, in the prompt file only, once, `PROMPT_WORD_LIST`. A new allowed phrase
  * is a change to these lists and to the spec's.
  */
 export const FORBIDDEN = [
@@ -15,8 +15,18 @@ export const FORBIDDEN = [
   "passed WCAG",
 ];
 export const ALLOWED = ["accessible name", "accessible names"];
-/** Allowed in the README, `docs/` and the prompt file as well, and nowhere else (spec C16). */
-export const ALLOWED_IN_DOCS = ["`npm test` passes", "the test passes", "the tests pass", "CI passes"];
+/**
+ * Allowed in the README, `docs/` and the prompt file as well, and nowhere else (spec C16). "`passes`", with its
+ * backticks, is axe-core's own result key, which docs/JSON.md documents by name (decided 2026-11-20); the word in
+ * prose still fails.
+ */
+export const ALLOWED_IN_DOCS = [
+  "`npm test` passes",
+  "the test passes",
+  "the tests pass",
+  "CI passes",
+  "`passes`",
+];
 
 /**
  * The one sentence that may name the forbidden words, allowed only in `agentic/fix-loop.prompt.md` and only once
