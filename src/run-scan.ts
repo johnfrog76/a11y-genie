@@ -499,6 +499,7 @@ export async function runScan(options: RunScanOptions): Promise<ScanRecord> {
     // `--offline` downloads nothing, whatever `download` says.
     download: options.offline === true ? false : (options.download ?? false),
     noDownloadFlag: options.noDownloadFlag ?? (options.offline === true ? "--offline" : "--no-download"),
+    offline: options.offline === true,
     deps: options.browserDeps,
   };
   return withChosenBrowser(choice, async (browser, used) => {

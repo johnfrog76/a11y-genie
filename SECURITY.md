@@ -47,9 +47,12 @@ is.
   up, so a public name that resolves to a private address is not caught.
 - **A dedicated worker's WebSocket.** A page's WebSockets, and its frames', are blocked; one opened from a
   dedicated worker is not, because none of the browser's interception points sees it (checked with
-  playwright-core 1.65.1 and Chrome 158).
+  playwright-core 1.65.1 and Chrome 158). This holds for the private-network rule and for `--same-origin`.
 - **Other ways out.** Shared workers, WebRTC, and any connection that is not an HTTP request or a WebSocket are
-  not checked against the private-network rule.
+  not checked against the private-network rule or `--same-origin`.
+- Under `--offline` these two are closed: the browser is launched so that every connection off the machine goes
+  to a proxy on the machine that refuses it, and WebRTC sends no UDP (checked on Playwright's headless shell;
+  docs/ARCHITECTURE.md, *--offline at the launch*).
 - **A page can tamper with the scan.** A page's script shares the page with axe-core and can change what it
   reads, so a hostile page can hide its own findings. A scan describes a page as the page presents itself and is
   never a security boundary.
