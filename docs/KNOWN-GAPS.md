@@ -90,12 +90,18 @@ rebinding) is not caught. A check in the browser's request path that looks names
 
 ## Two more security limits
 
-[SECURITY.md](../SECURITY.md) lists these as known gaps too. They belong to the same private-network rule:
+[SECURITY.md](../SECURITY.md) lists these as known gaps too. They belong to the private-network rule, and to
+`--same-origin`, which stops requests in the same places; `--offline` closes them (below):
 
 - **A dedicated worker's WebSocket.** A page's WebSockets, and its frames', are blocked from private addresses;
   one opened from a dedicated worker is not, because none of the browser's interception points sees it.
 - **Other ways out.** Shared workers, WebRTC, and any connection that is not an HTTP request or a WebSocket are
   not checked against the private-network rule.
+
+Under `--offline` the browser is launched so that every connection off the machine goes to a proxy on the machine
+that refuses it, WebRTC sends no UDP, and no name is looked up but `localhost` and `*.localhost`. So under
+`--offline` neither of these gets off the machine (checked on Playwright's headless shell;
+[ARCHITECTURE.md](ARCHITECTURE.md), *--offline at the launch*).
 
 ## Planned, not built
 

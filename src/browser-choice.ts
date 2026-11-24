@@ -31,6 +31,8 @@ export interface BrowserChoice {
   download: boolean;
   /** The flag the refusal names when `download` is false. Default `--no-download`. */
   noDownloadFlag?: NoDownloadFlag | undefined;
+  /** `--offline`: every launch adds `offlineSwitches()` (src/browser.ts). */
+  offline?: boolean | undefined;
   /** For tests: stand-ins for the launch and the download. */
   deps?: Partial<BrowserChoiceDeps> | undefined;
 }
@@ -154,6 +156,7 @@ export async function withChosenBrowser<T>(
         choice.channel,
         (browser) => use(browser, { channel: choice.channel, fallback: false }),
         deps.launcher,
+        { offline: choice.offline },
       );
     } catch (error) {
       // Only a launch that found no browser falls back; the run's own refusals and errors pass on.
@@ -163,5 +166,12 @@ export async function withChosenBrowser<T>(
     }
   }
   await ensureChromium(choice, fallback, deps);
-  return withBrowser("chromium", (browser) => use(browser, { channel: "chromium", fallback }), deps.launcher);
+  return withBrowser(
+    "chromium",
+    (browser) => use(browser, { channel: "chromium", fallback }),
+    deps.launcher,
+    {
+      offline: choice.offline,
+    },
+  );
 }

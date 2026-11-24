@@ -1,6 +1,6 @@
 import type { Browser, LaunchOptions } from "playwright-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { NO_BROWSER_ENV, BrowserNotFound, type Launcher } from "../../src/browser.js";
+import { NO_BROWSER_ENV, BrowserNotFound, offlineSwitches, type Launcher } from "../../src/browser.js";
 import {
   fallbackLines,
   noDownloadRefusal,
@@ -58,6 +58,23 @@ const lines = fallbackLines(downloadSize(), CACHE);
 
 afterEach(() => {
   vi.unstubAllEnvs();
+});
+
+describe("--offline", () => {
+  it("launches Chrome, or the Chromium it falls back to, with the offline switches", async () => {
+    const withChrome = machine({ chrome: true });
+    await run({ ...DEFAULT, download: false, offline: true }, withChrome.deps);
+    expect(withChrome.launched.map((o) => o.args)).toEqual([offlineSwitches()]);
+    const fallingBack = machine({ chromium: true });
+    await run({ ...DEFAULT, download: false, offline: true }, fallingBack.deps);
+    expect(fallingBack.launched.map((o) => o.args)).toEqual([offlineSwitches(), offlineSwitches()]);
+  });
+
+  it("launches with no switch without it", async () => {
+    const m = machine({ chrome: true });
+    await run(DEFAULT, m.deps);
+    expect(m.launched.map((o) => o.args)).toEqual([undefined]);
+  });
 });
 
 describe("with Chrome installed", () => {

@@ -281,8 +281,8 @@ seconds with Chrome's network log on (`--log-net-log`), once with the defaults a
 So on a branded Chrome the switches do stop the variations fetch and the component updater. **One request is
 left**: the fetch of a public key from `www.gstatic.com/ohttp_gateway/...`, which by its path belongs to Safe
 Browsing's privacy-preserving lookups. None of the default switches stops it. It carries no page content and
-no person's data, but it is traffic the person did not ask for, and the security gate should decide whether to
-turn it off.
+no person's data, but it is traffic the person did not ask for. Under `--offline` it goes to the refusing proxy
+instead (*--offline at the launch*, below); without `--offline` it is still sent.
 
 Not checked here: Microsoft Edge (not installed where this was run), Chrome on Windows or Linux, and runs
 longer than 90 seconds. A scan that loads a page also sends that page's own traffic, which is a different
@@ -1097,7 +1097,7 @@ fixture in the real Chrome, from `127.0.0.1`, with every request off the fixture
 | The size cap | `scan.json` at most 50 MB. Over it, every walk is cut to its first N stops (N the most that fits, at least one; the rest counted in `stopsCut`), then elements are dropped, least severe first and never a finding's last one, and counted; if that is not enough, *not scanned* | `many-elements.html`, with the limit lowered | *the time, element and size caps* |
 | Private networks | when the address scanned is public, every request to a loopback, link-local, private or unspecified address is aborted before it leaves the browser and noted under `stopped` as `private-network`; a page whose own frame goes to one reads *not scanned*. `--allow-private` turns it off, and a target that is itself loopback or private is never limited. See *The private-network rule (V12)* below | `private-network.html`, and redirects the test's fixture server makes | *a public page cannot reach private addresses* |
 | `--same-origin` | every request to an origin other than the address scanned (scheme, host and port) is aborted and noted under `stopped` as `other-origin`; a page whose own frame goes to one reads *not scanned*. The report says so, and that some of the page's content may be missing. It is the private-network rule's mechanism, below, asked a second question: there is one interception layer, `networkRule()` in `src/context.ts` | `private-network.html`, and redirects the test's fixture server makes | `test/browser/network-flags.test.ts`, *--same-origin* |
-| `--offline` | the target must be loopback (`127.0.0.0/8`, `::1`, `localhost`, `*.localhost`), or the run is refused; every request to an address that is not loopback is aborted and noted as `offline`, a page whose own frame goes to one reads *not scanned*, and no browser is downloaded. Nothing else of A11y Genie's own leaves the machine either, so there is nothing more to switch off (no ToolKit probe exists yet) | `private-network.html`, and redirects the test's fixture server makes | `network-flags.test.ts`, *--offline* |
+| `--offline` | the target must be loopback (`127.0.0.0/8`, `::1`, `localhost`, `*.localhost`), or the run is refused; every request to an address that is not loopback is aborted and noted as `offline`, a page whose own frame goes to one reads *not scanned*, and no browser is downloaded. The browser is launched with switches that keep what it starts on its own on the machine too (*--offline at the launch*, below) | `private-network.html`, and redirects the test's fixture server makes | `network-flags.test.ts`, *--offline* |
 | Page text printed without its escapes | `printable()` (`src/printable.ts`) strips every terminal escape sequence whole (CSI, OSC with OSC 8 links and window titles, DCS, APC and the rest, in their 7-bit and 8-bit forms) and every control character but newline and tab (carriage return, DEL, C1 and the bidi overrides and isolates included) from every line the command prints and from all of `report.md`. `scan.json` keeps the page's text exactly, as data, and writes the controls `JSON.stringify` leaves raw (DEL, C1, bidi) as `\u` escapes, so `--json` on a terminal carries none either | `escapes.html` | *page text is printed without its escapes*; `test/cli/scan.test.ts` checks the real terminal output |
 
 What was stopped is recorded per page in `scan.json` (`pages[].stopped`: the kind, a count, and the first five,
@@ -1197,6 +1197,28 @@ that redirects, and the page moving itself or being redirected there. Each layer
 hand, to see its tests fail: without `FetchGuard` every redirect-hop test fails, and without its auto-attach the
 frame on another site's does.
 
+**--offline at the launch.** The rules above see only what the page asks for. Under `--offline` the browser is
+also launched with three switches (`offlineSwitches()` in `src/browser.ts`), so that what it starts on its own,
+and what the page opens around the interception points, stays on the machine:
+
+- `--proxy-server=http://127.0.0.1:9`: every connection goes to a proxy on a port nothing answers on, so it
+  fails. Chrome never sends a connection to this machine through a proxy, so the page itself still loads.
+  (Playwright's own `proxy` launch option is not used: it sends loopback through the proxy as well.)
+- `--force-webrtc-ip-handling-policy=disable_non_proxied_udp`: WebRTC may not send UDP the proxy cannot carry,
+  which is all of it.
+- `--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE *.localhost, EXCLUDE 127.*, EXCLUDE [::1]`:
+  no name is looked up but `localhost` and `*.localhost`, so no DNS query leaves the machine, a prefetch's
+  included. The loopback addresses are kept as they are (without the last two, the rule turned `127.0.0.1` itself
+  into "not found").
+
+`test/browser/offline-launch.test.ts` holds what they do, with a recording proxy on 127.0.0.1 in place of the dead
+one: the page still loads by `127.0.0.1`, `localhost` and `app.localhost`; a page's fetch off the machine, a
+dedicated worker's WebSocket and a shared worker's fetch all go to the proxy; and WebRTC gathers no candidate and
+sends no packet, even to a STUN server on 127.0.0.1 (without the switches it sent five). Checked on Playwright's
+headless shell; the branded Chrome reads the same command-line switches, but the gstatic.com request above was not
+measured again under them here. `--same-origin` cannot use the proxy, since other origins on the internet are
+allowed, so the gaps below stay open for it.
+
 **What it does not hold.** These are not caught, and `SECURITY.md` lists them:
 
 - **A dedicated worker's WebSocket.** Neither `routeWebSocket()`, nor the `Fetch` domain, nor
@@ -1206,6 +1228,11 @@ frame on another site's does.
 - **Shared workers**, and connections that are not HTTP requests or WebSockets: WebRTC, and anything else that
   opens a socket of its own. Not checked. One check of `<link rel="preconnect">` to a private address opened no
   connection, which is not a proof.
+
+
+All of these hold for `--same-origin` as for the private-network rule: it uses the same three places. Under
+`--offline` the launch closes the WebSocket, the shared worker and WebRTC (*--offline at the launch*, above), and
+the rule never looks a name up at all.
 
 **What a scan does not defend against.** A page shares its document with axe-core, and can change what
 axe-core reads (gap G6 in [KNOWN-GAPS.md](KNOWN-GAPS.md)): a scan describes the page as the page presents itself, and is never a

@@ -6,6 +6,8 @@ import {
   NO_BROWSER_ENV,
   engineBrowserName,
   isNotInstalledError,
+  OFFLINE_PROXY,
+  offlineSwitches,
   withBrowser,
   type Launcher,
 } from "../../src/browser.js";
@@ -32,6 +34,28 @@ describe("withBrowser", () => {
     await withBrowser("msedge", async () => undefined, launcher);
     expect(seen).toEqual([
       { channel: "msedge", headless: true, handleSIGINT: false, handleSIGTERM: false, handleSIGHUP: false },
+    ]);
+  });
+
+  it("adds no switch unless --offline, and the offline switches with it", async () => {
+    const { browser } = fakeBrowser();
+    const seen: LaunchOptions[] = [];
+    const launcher: Launcher = async (options) => {
+      seen.push(options);
+      return browser;
+    };
+    await withBrowser("chrome", async () => undefined, launcher, { offline: false });
+    await withBrowser("chrome", async () => undefined, launcher, { offline: true });
+    expect(seen[0]?.args).toBeUndefined();
+    expect(seen[1]?.args).toEqual(offlineSwitches());
+  });
+
+  it("sends --offline's connections to a dead loopback proxy, holds WebRTC to it, and looks up loopback names only", () => {
+    expect(OFFLINE_PROXY).toBe("http://127.0.0.1:9");
+    expect(offlineSwitches()).toEqual([
+      "--proxy-server=http://127.0.0.1:9",
+      "--force-webrtc-ip-handling-policy=disable_non_proxied_udp",
+      "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE *.localhost, EXCLUDE 127.*, EXCLUDE [::1]",
     ]);
   });
 

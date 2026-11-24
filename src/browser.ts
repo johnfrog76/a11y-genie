@@ -48,6 +48,30 @@ export function engineBrowserName(channel: BrowserChannel): string {
 
 export type Launcher = (options: LaunchOptions) => Promise<Browser>;
 
+/** Where `--offline` sends every connection that is not to this machine: a port nothing answers on. */
+export const OFFLINE_PROXY = "http://127.0.0.1:9";
+
+/**
+ * The launch switches `--offline` adds, so that nothing the browser itself starts leaves the machine either
+ * (docs/ARCHITECTURE.md, *--offline at the launch*). Every connection goes to `proxy`, which refuses it, except
+ * to this machine, which Chrome never sends through a proxy. WebRTC may not send UDP the proxy cannot carry, and
+ * no name is looked up except `localhost` and `*.localhost` (the loopback addresses are kept as they are). The
+ * page's own requests off the machine are also stopped and noted by src/context.ts, as before.
+ */
+export function offlineSwitches(proxy: string = OFFLINE_PROXY): string[] {
+  return [
+    `--proxy-server=${proxy}`,
+    "--force-webrtc-ip-handling-policy=disable_non_proxied_udp",
+    "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE *.localhost, EXCLUDE 127.*, EXCLUDE [::1]",
+  ];
+}
+
+/** How to launch, beyond the channel. */
+export interface LaunchChoice {
+  /** `--offline`: launch with `offlineSwitches()`. */
+  offline?: boolean | undefined;
+}
+
 export function isBrowserChannel(value: string): value is BrowserChannel {
   return (BROWSER_CHANNELS as readonly string[]).includes(value);
 }
@@ -147,6 +171,7 @@ export async function withBrowser<T>(
   channel: BrowserChannel,
   use: (browser: Browser) => Promise<T>,
   launcher: Launcher = (options) => chromium.launch(options),
+  launch: LaunchChoice = {},
 ): Promise<T> {
   if (process.env[NO_BROWSER_ENV] === "1") throw noBrowserRefusal(channel);
 
@@ -158,6 +183,7 @@ export async function withBrowser<T>(
       // No channel and headless is playwright-core's headless shell (checked at 1.65.1); only tests ask for it.
       ...(shell ? {} : { channel }),
       headless: true,
+      ...(launch.offline === true ? { args: offlineSwitches() } : {}),
       handleSIGINT: false,
       handleSIGTERM: false,
       handleSIGHUP: false,
