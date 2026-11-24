@@ -36,6 +36,16 @@ export const ALLOWED_IN_DOCS = [
  */
 export const PROMPT_WORD_LIST = 'Never call the site "accessible", "compliant" or "conformant".';
 
+/**
+ * Allowed in the shipped deck's own text (`web/src/deck/decks/` and its voices' scripts), and nowhere else. Each
+ * is an exact phrase the owner approved for the deck (2026-11-24), with why it is not a claim. Any other use of a
+ * forbidden word in the deck still fails, so a later ship that makes a claim is caught here.
+ */
+export const ALLOWED_IN_DECK: readonly { phrase: string; reason: string }[] = [
+  { phrase: "Wish One, Accessible HTML", reason: "the first wish's title: the wish, not a verdict" },
+  { phrase: "part of the journey to accessible HTML", reason: "the journey, not a claim" },
+];
+
 /** A phrase as a case-insensitive pattern, every character literal, bounded by a word edge where it has one. */
 function phrasePattern(phrase: string): RegExp {
   const literal = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -48,16 +58,24 @@ function phrasePattern(phrase: string): RegExp {
  * Every forbidden phrase found in `text`, once per match, after the allowed phrases are set aside. `docs` is
  * for the README, the docs and the prompt file, which may also use the phrases in `ALLOWED_IN_DOCS`.
  * `promptFile` is for `agentic/fix-loop.prompt.md` alone: the docs phrases, and the first exact copy of
- * `PROMPT_WORD_LIST`.
+ * `PROMPT_WORD_LIST`. `deck` is for the shipped deck's text, which may also use the phrases in `ALLOWED_IN_DECK`.
  */
 export function neverClaimViolations(
   text: string,
-  { docs = false, promptFile = false }: { docs?: boolean; promptFile?: boolean } = {},
+  {
+    docs = false,
+    promptFile = false,
+    deck = false,
+  }: { docs?: boolean; promptFile?: boolean; deck?: boolean } = {},
 ): string[] {
   let rest = text;
   if (promptFile) rest = rest.replace(PROMPT_WORD_LIST, " ");
-  for (const phrase of docs || promptFile ? [...ALLOWED, ...ALLOWED_IN_DOCS] : ALLOWED)
-    rest = rest.replace(phrasePattern(phrase), " ");
+  const allowed = [
+    ...ALLOWED,
+    ...(docs || promptFile ? ALLOWED_IN_DOCS : []),
+    ...(deck ? ALLOWED_IN_DECK.map((entry) => entry.phrase) : []),
+  ];
+  for (const phrase of allowed) rest = rest.replace(phrasePattern(phrase), " ");
   const found: string[] = [];
   for (const phrase of FORBIDDEN) {
     for (const match of rest.matchAll(new RegExp(`\\b${phrase}\\b`, "gi"))) found.push(match[0]);
