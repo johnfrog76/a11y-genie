@@ -641,6 +641,11 @@ the fixtures. The share is of the padded box's pixels that changed by more than 
 | `focus-marked.html` `#bare`, right after `#marked-second` | `outline: none` and nothing else | 0, and 0 against the witness with the previous stop left out | none | finding |
 | `focus-marked-scroll.html` `#marked-low` | as `#marked-first`, far down the page: the Tab press scrolls | 0; no witness, the press scrolled | none | finding (a limit, below) |
 | `focus-marked-scroll.html` `#native` | the browser's own outline, down the page | 13% | outline | visible |
+| `focus-witness-edges.html` `#after-wide`, right after `#wide-ring`'s 8 px outline | `outline: none` and nothing else | 0; 0 against the witness, the previous stop left out 16 px past its padded box (4.4% with only its padded box left out) | none | finding |
+| `focus-witness-edges.html` `#beside-spinner`, beside a shadow root that pulses for ever | `outline: none` and nothing else | 0, the pulse held in both shots (4.2% with it running) | none | finding |
+| `focus-witness-edges.html` `#small-field`, a 24 px text field | `outline: none` and nothing else | 0, the caret hidden in every shot (1.4% against the witness with it shown) | none | finding |
+| `focus-witness-scrolled.html` `#fixed-marked`, a fixed toolbar on a page scrolled 3,000 px | a ring drawn on a mark, as `focus-marked.html` | 0 after the blur; visible against the witness, taken of the window | none | visible, by the witness |
+| `focus-witness-scrolled.html` `#fixed-bare` | `outline: none` and nothing else | 0 | none | finding |
 | The deck page's player bar (Fluent UI v9 buttons: Exit deck, Next slide, Settings, Fullscreen, Stop narration) | Fluent's ring on `data-fui-focus-visible` | 0 after the blur; 15% to 25% against the witness | none | visible, by the witness |
 
 The smallest visible change measured was 14% of the padded box, and every unchanged element changed no pixel at
@@ -670,7 +675,24 @@ as this stop's ring arriving (`#bare` in `focus-marked.html` sits right after a 
 only when the press scrolled nothing: the window's offsets and a count of `scroll` events, heard by the isolated
 world's own listener and read after the next frame, must be the same before and after the press. A witness can
 only show focus visible; it never makes a finding. Nothing about it reaches the page: no event is stopped or sent,
-no focus moves, and its screenshots are taken through the DevTools Protocol (`optimizeForSpeed`).
+no focus moves, and its screenshots are taken through the DevTools Protocol (`optimizeForSpeed`), whose clip is in
+the page's coordinates, so the window's own offset in the page is added (`focus-witness-scrolled.html`, where the
+toolbar sits 3,000 px down the page).
+
+What else it holds to, each from a review of its first version:
+
+- **No witness without the frame.** The scroll mark waits for the next frame, so a scroll the press caused has
+  fired its event; a page that draws no frame (a hidden or throttled one) gives up after `WITNESS_FRAME_MS`
+  (1 s) and has no witness, rather than holding the scan for ever (held by a test that stops the page's frames).
+  Each same-origin frame's window is in the mark too, its offsets and its scroll events.
+- **Only the stop just left is left out.** The check counts presses, and leaves out the padded box of the stop it
+  measured at the press just before, 16 px wider on each side (`MASK_PX`), so a ring drawn further out than the
+  padding is left out too (`#after-wide`). When the press before did not reach a stop it measured (a lap, a stop
+  outside the window or in another origin's frame), the stop focus left is not known, and there is no witness.
+- **Still in every root.** Its animations are held in every open shadow root and same-origin frame, as above.
+- **No caret.** The same style that hides the caret and turns transitions off is adopted, for each shot, in every
+  root, as a constructed style sheet (`adoptedStyleSheets`), which the page's mutation observers do not hear, then
+  taken away (`#small-field`).
 
 **Where a scan can be wrong.** An indicator drawn by something else, and more than 4 px away, changes nothing the
 check reads: focus shown only on a sibling (`#save` in `focus-elsewhere.html`, whose status line 40 px below fills
@@ -685,10 +707,13 @@ change, and is a finding though a person sees the ring (`#marked-low` in `focus-
 is by the test).
 
 **Animations (V4).** A ring that comes in by a transition or an animation is judged as it ends. Before each
-screenshot, every running animation and transition of the page, its same-origin frames and the shadow roots the
-element is in is paused, its `currentTime` kept, and a finite one is set to its end while paused; a style turns
+screenshot, every running animation and transition of the page, its same-origin frames, every open shadow root
+(a document's `getAnimations()` does not reach into them, checked at Chrome 158) and the shadow roots the element
+is in is paused, its `currentTime` kept, and a finite one is set to its end while paused; a style turns
 transitions off for as long as the screenshot takes (Playwright's `style` option, which reaches shadow roots and
-frames). An infinite animation is paused where it is. After the screenshot each one is put back at the time it
+frames). An infinite animation on the element, an ancestor or a descendant is paused where it is, since it may be
+the ring; one anywhere else is set to its start, the same in both screenshots, so a spinner beside the element is
+not read as its focus (`#beside-spinner` in `focus-witness-edges.html`). After the screenshot each one is put back at the time it
 was paused at plus the time that has passed since, and played on, so it ends where it would have without the
 check, not early and not late. Nothing is finished, so no `finish` event fires; setting a paused CSS animation or
 transition to its end does queue its `animationend` or `transitionend`, so the guard (`src/focus-guard.ts`)
@@ -724,7 +749,8 @@ guard, behind whatever the page added (`runScan` installs early, and if that ins
 the element Tab put it on, so the walk's next Tab goes on from there, and the trap check reads the same walk and
 the same trap with the check as without it (`trap.html`, `trap-stuck.html`, `walk-order.html`, `walk-shadow.html`,
 `walk-frame.html`). If focus cannot be given back, the check takes no more screenshots on that walk, and the rest
-of its stops are *needs review*. What the page can still notice: the screenshot style is a `style` element added and removed.
+of its stops are *needs review*. What the page can still notice: the screenshot style is a `style` element added and removed, and the witness's
+style is in `adoptedStyleSheets` while it shoots.
 
 **The screenshots stay in memory.** Each pair is decoded in Node (`src/png.ts`, a small reader of Chrome's 8-bit
 RGB and RGBA PNGs, on Node's own zlib), compared, and dropped. No screenshot is written to disk, to `scan.json`
@@ -740,7 +766,7 @@ most `MAX_SCREENSHOT_STOPS` (100) stops of each walk get screenshots, about 10 s
 *needs review* item saying it was not looked at, and why. With the default `--max-tabs` of 200 that is at most 100
 such items a state. Fixtures: `focus-custom-ok.html`, `focus-hidden.html`, `focus-faint.html`,
 `focus-animated.html`, `focus-watched.html`, `focus-listening.html`, `focus-elsewhere.html`, `focus-marked.html`,
-`focus-marked-scroll.html`; tests: `test/browser/focus-visible.test.ts`,
+`focus-marked-scroll.html`, `focus-witness-edges.html`, `focus-witness-scrolled.html`; tests: `test/browser/focus-visible.test.ts`,
 `test/unit/focus-visible.test.ts`.
 
 ### Reading the accessibility tree (`src/a11y-tree.ts`)
