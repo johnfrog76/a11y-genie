@@ -37,7 +37,8 @@ web/src/deck/
 
 A deck imports the player's pieces from `../deck-engine/` (`makeSlide`, `PresenterNoteKit`,
 `useCompactLayout`, `ComponentFrame`, `CopyLinkButton` and the rest) and its types from `./types`.
-`CopyLinkButton` with no `url` copies this repository's address.
+`CopyLinkButton` with no `url` copies the address of Connected Deck, the presentation engine the deck plays
+on: the deck's closing button offers the engine, not A11y Genie.
 
 ## Registering a deck
 
