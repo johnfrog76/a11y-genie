@@ -197,9 +197,9 @@ Every error, with an example of what causes it:
 The person's text in an `Error:` line is made safe to print first (no terminal escapes or control characters, as
 everywhere else the command prints) and cut short past 60 characters.
 
-## Choices the spec left open
+## Choices made around the steps
 
-The spec (section 4.1) gives the steps but not every rule around them. Where it was silent, the simplest reading
+The steps above do not settle every rule around them. Where they were silent, the simplest reading
 was taken:
 
 - **Escaping.** A `'` inside quotes is written twice (`'Don''t'`), and there is no backslash escape, so a CSS
@@ -211,10 +211,10 @@ was taken:
   string.
 - **`css '<selector>'` names an element anywhere one is named:** in `Tab to` and `wait` as well as in `click`,
   following the config section's "by CSS selector where it cannot".
-- **The name is needed in `Tab to` and `click`,** and may be left out only in `wait`, as the spec's table writes
+- **The name is needed in `Tab to` and `click`,** and may be left out only in `wait`, as the table above writes
   them.
-- **The media steps are applied before the page loads,** in the order written, as the spec's "apply the state's
-  options, load, run its steps" has it (5.2): a page that reads its colour scheme or width while it loads sees
+- **The media steps are applied before the page loads,** in the order written, so that a state applies its
+  options, loads, then runs its steps: a page that reads its colour scheme or width while it loads sees
   them. Only a flow refuses them. A state may set them more than once, and the last of each kind holds. The other
   steps run after the load, in order, so a media step written after a click still takes effect first.
 - **`click` and `type` are allowed in a flow.** Only the media steps are marked "states only".
