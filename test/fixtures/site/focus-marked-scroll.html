@@ -1,0 +1,46 @@
+<!doctype html>
+<!--
+  Fixture: the witness's fallback. As focus-marked.html, a ring drawn from a mark the page's focus handlers set,
+  but on a button far down the page, so the Tab press that reaches it scrolls the window. The shot before the
+  press is of another part of the page, so the check does not use it, and reads the stop as it always has: the
+  mark stays through the guarded blur, and the stop reads as no change (a limit, docs/ARCHITECTURE.md, *Focus
+  visible*). #native, also down the page, keeps the browser's own outline and is seen by the blur
+  (test/browser/focus-visible.test.ts).
+  Must fire:     genie/focus-visible on #marked-low only
+  Must not fire: genie/focus-visible on #top or #native; any axe-core rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>A ring from a mark, down the page</title>
+    <style>
+      button { margin: 0; padding: 6px 12px; border: 1px solid #555555; background: #ffffff; color: #000000; }
+      #marked-low:focus { outline: none; }
+      #marked-low[data-focus-mark] { box-shadow: 0 0 0 3px #000000; }
+      .spacer { height: 3000px; }
+    </style>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <main>
+      <h1>A ring from a mark, down the page</h1>
+      <button id="top" type="button">Top</button>
+      <div class="spacer"></div>
+      <button id="marked-low" type="button">Marked, low</button>
+      <div class="spacer"></div>
+      <button id="native" type="button">Native</button>
+    </main>
+    <script>
+      let keyboard = false;
+      document.addEventListener("keydown", () => { keyboard = true; }, true);
+      document.addEventListener("focusin", (event) => {
+        if (keyboard && event.target instanceof HTMLElement && event.target.id === "marked-low") {
+          event.target.setAttribute("data-focus-mark", "");
+        }
+      });
+      document.addEventListener("focusout", (event) => {
+        if (event.target instanceof HTMLElement) event.target.removeAttribute("data-focus-mark");
+      });
+    </script>
+  </body>
+</html>

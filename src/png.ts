@@ -115,3 +115,40 @@ export function changedPixels(a: Rgba, b: Rgba, tolerance: number): number {
   }
   return changed;
 }
+
+/**
+ * The part of `image` inside `clip` (whole pixels, inside the image), as an image of its own. Throws when the
+ * clip does not fit.
+ */
+export function cropImage(image: Rgba, clip: { x: number; y: number; width: number; height: number }): Rgba {
+  const { x, y, width, height } = clip;
+  if (x < 0 || y < 0 || width < 1 || height < 1 || x + width > image.width || y + height > image.height) {
+    throw new Error("a crop outside the image");
+  }
+  const data = new Uint8Array(width * height * 4);
+  for (let row = 0; row < height; row += 1) {
+    const from = ((y + row) * image.width + x) * 4;
+    data.set(image.data.subarray(from, from + width * 4), row * width * 4);
+  }
+  return { width, height, data };
+}
+
+/**
+ * Copies the pixels of `from` into `into` where `area` (in the same coordinates as both, which are the same
+ * size) covers them, so a comparison of the two ignores that area.
+ */
+export function maskArea(
+  into: Rgba,
+  from: Rgba,
+  area: { x: number; y: number; width: number; height: number },
+): void {
+  const left = Math.max(0, area.x);
+  const top = Math.max(0, area.y);
+  const right = Math.min(into.width, area.x + area.width);
+  const bottom = Math.min(into.height, area.y + area.height);
+  for (let row = top; row < bottom; row += 1) {
+    const start = (row * into.width + left) * 4;
+    const end = (row * into.width + right) * 4;
+    if (end > start) into.data.set(from.data.subarray(start, end), start);
+  }
+}

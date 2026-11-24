@@ -66,6 +66,19 @@ describe.skipIf(!hasBrowser)("focus visible (skipped where the test browser is n
     expect(review).toBeUndefined();
   });
 
+  it("focus-marked.html: a ring drawn from a mark the page's focus handlers set is seen; a bare one beside it is not", async () => {
+    const { result, finding } = await scan("focus-marked.html");
+    expect(result.walk?.stops.map((s) => s.selector)).toEqual(["#marked-first", "#marked-second", "#bare"]);
+    expect(finding?.elements.map((e) => e.selector)).toEqual(["#bare"]);
+  });
+
+  it("focus-marked-scroll.html: a Tab press that scrolls leaves the witness unused, and the stop reads as before", async () => {
+    const { result, finding, review } = await scan("focus-marked-scroll.html");
+    expect(result.walk?.stops.map((s) => s.selector)).toEqual(["#top", "#marked-low", "#native"]);
+    expect(finding?.elements.map((e) => e.selector)).toEqual(["#marked-low"]);
+    expect(review).toBeUndefined();
+  });
+
   it("focus-hidden.html: outline: none with nothing in its place is a serious WCAG 2.4.7 finding", async () => {
     const { finding, review } = await scan("focus-hidden.html");
     expect(finding).toMatchObject({

@@ -327,6 +327,8 @@ export class FocusReader {
       executionContextId: this.contextId,
       arguments: args.map((value) => ({ value })),
       returnByValue: true,
+      // A function may wait for the next frame (the focus check's scroll mark); one that returns at once is unchanged.
+      awaitPromise: true,
     });
     if (answer.exceptionDetails !== undefined) throw new Error("a check could not read the page");
     return answer.result.value as unknown;
@@ -372,6 +374,8 @@ export interface WalkOptions {
   maxTabs?: number;
   /** Called after each stop is read, while focus is still on it, so a check can look at it there. */
   onStop?: (stop: WalkStop) => Promise<void>;
+  /** Called just before each Tab press, so a check can see the page as it was before focus moved. */
+  beforePress?: () => Promise<void>;
 }
 
 /**
@@ -390,6 +394,7 @@ export async function walkPage(page: Page, options: WalkOptions = {}): Promise<W
     // While focus goes round stops already recorded: where the cycle starts, and the stop the next press must reach.
     let lap: { from: number; next: number } | undefined;
     while (tabs < maxTabs) {
+      await options.beforePress?.();
       await page.keyboard.press("Tab");
       tabs += 1;
       const focused = await reader.read();

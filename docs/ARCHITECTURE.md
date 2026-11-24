@@ -637,6 +637,11 @@ the fixtures. The share is of the padded box's pixels that changed by more than 
 | `focus-faint.html` `#faint-fill` | white background to `#f4f4f4` | 0 (854 pixels changed by 8 levels or more, none by more than 16) | background-color | needs review |
 | `focus-faint.html` `#faint-ring` | a 2 px outline in `#f6f6f6` on white | 0 (364 pixels by 8 or more) | outline | needs review |
 | `focus-animated.html` `#slide`, `#grow`, `#pulse` | a ring by a transition, by an animation, by an endless pulse | 25%, 25%, 24% | box-shadow | visible |
+| `focus-marked.html` `#marked-first`, `#marked-second` | `outline: none`, a ring drawn on a mark the page's focus handlers set (as Fluent UI's `data-fui-focus-visible`) | 0 after the blur; 19% and 14% against the witness | none | visible, by the witness |
+| `focus-marked.html` `#bare`, right after `#marked-second` | `outline: none` and nothing else | 0, and 0 against the witness with the previous stop left out | none | finding |
+| `focus-marked-scroll.html` `#marked-low` | as `#marked-first`, far down the page: the Tab press scrolls | 0; no witness, the press scrolled | none | finding (a limit, below) |
+| `focus-marked-scroll.html` `#native` | the browser's own outline, down the page | 13% | outline | visible |
+| The deck page's player bar (Fluent UI v9 buttons: Exit deck, Next slide, Settings, Fullscreen, Stop narration) | Fluent's ring on `data-fui-focus-visible` | 0 after the blur; 15% to 25% against the witness | none | visible, by the witness |
 
 The smallest visible change measured was 14% of the padded box, and every unchanged element changed no pixel at
 all, at any tolerance: the two screenshots are taken in the same run, of the same layout, so nothing but focus
@@ -652,6 +657,21 @@ of its two nearest ancestors: an outline with a large `outline-offset` changes `
 element out of the findings, and at most it is *needs review*: the check is never wrong about an indicator drawn
 that way.
 
+**The witness.** Some pages draw their ring from a mark their own focus handlers set and remove: Fluent UI sets
+`data-fui-focus-visible` when a key moves focus to an element and takes it off in its `focusout` handler, and the
+focus-visible polyfill does the same with a class. The guard (below) keeps the page from hearing the check's blur,
+so the mark stays, the ring is still drawn in the unfocused screenshot, and the two match: before the witness, the
+deck page's player bar was five false serious findings. So just before each Tab press, while the check still takes
+screenshots, the walk's `beforePress` takes one more: the window, held still (finite animations at their end,
+infinite ones at their start), as the page drew it before focus moved. When the blur shows no visible change, the
+check photographs the element focused again, held the same way, and compares it with the same padded box cut from
+the witness. The previous stop's padded box is left out of that comparison, so its own ring going away is not read
+as this stop's ring arriving (`#bare` in `focus-marked.html` sits right after a ringed button). The witness is used
+only when the press scrolled nothing: the window's offsets and a count of `scroll` events, heard by the isolated
+world's own listener and read after the next frame, must be the same before and after the press. A witness can
+only show focus visible; it never makes a finding. Nothing about it reaches the page: no event is stopped or sent,
+no focus moves, and its screenshots are taken through the DevTools Protocol (`optimizeForSpeed`).
+
 **Where a scan can be wrong.** An indicator drawn by something else, and more than 4 px away, changes nothing the
 check reads: focus shown only on a sibling (`#save` in `focus-elsewhere.html`, whose status line 40 px below fills
 in), or only by a pseudo-element (`#help`, whose `::after` bar sits 12 px below it; pseudo-elements' styles are not
@@ -659,6 +679,10 @@ read). Both are read as no visible change, and are findings, though a person can
 holds this limit as it is, and *What this scan cannot see* has a fixed line for it, in every record: "A focus
 indicator drawn away from the element (outside it, its two nearest ancestors' styles, and a few pixels around it)
 is not seen; check focus by hand where a design draws it elsewhere (WCAG 2.4.7)."
+A ring drawn from a mark the page's focus handlers set, on an element the Tab press scrolls into view, has no
+witness: the shot before the press is of another part of the page. It reads as the blur reads it, no visible
+change, and is a finding though a person sees the ring (`#marked-low` in `focus-marked-scroll.html`, held as it
+is by the test).
 
 **Animations (V4).** A ring that comes in by a transition or an animation is judged as it ends. Before each
 screenshot, every running animation and transition of the page, its same-origin frames and the shadow roots the
@@ -707,12 +731,16 @@ RGB and RGBA PNGs, on Node's own zlib), compared, and dropped. No screenshot is 
 or to the report; the record holds only the finding or the *needs review* item, with the element's selector and
 HTML excerpt, as any other check's.
 
-**The cost, and the cap.** Two screenshots and about a dozen DevTools Protocol calls a stop: about 65 ms a stop
-on a laptop (a page of 30 buttons, 2.2 s with the check and 0.3 s without; 100 buttons, 6.9 s and 0.3 s). So at
-most `MAX_SCREENSHOT_STOPS` (100) stops of each walk get screenshots, about 7 s; each stop after them is a
+**The cost, and the cap.** Two screenshots and about a dozen DevTools Protocol calls a stop, and the witness's
+window shot before each press (with one more shot of the element when the blur shows nothing): about 100 ms a
+stop. A page of 30 buttons (`walk-long.html`) took 3.5 s with the check and 0.5 s without on a desktop, against 2.5 s
+before the witness; with Playwright's own screenshot for the witness it took 4.8 s, so the witness's shots are taken
+straight through the DevTools Protocol, encoded for speed, and decoded only when a stop needs them. So at
+most `MAX_SCREENSHOT_STOPS` (100) stops of each walk get screenshots, about 10 s; each stop after them is a
 *needs review* item saying it was not looked at, and why. With the default `--max-tabs` of 200 that is at most 100
 such items a state. Fixtures: `focus-custom-ok.html`, `focus-hidden.html`, `focus-faint.html`,
-`focus-animated.html`, `focus-watched.html`, `focus-listening.html`, `focus-elsewhere.html`; tests: `test/browser/focus-visible.test.ts`,
+`focus-animated.html`, `focus-watched.html`, `focus-listening.html`, `focus-elsewhere.html`, `focus-marked.html`,
+`focus-marked-scroll.html`; tests: `test/browser/focus-visible.test.ts`,
 `test/unit/focus-visible.test.ts`.
 
 ### Reading the accessibility tree (`src/a11y-tree.ts`)
