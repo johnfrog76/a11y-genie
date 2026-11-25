@@ -104,6 +104,11 @@ the folder is deleted) and exits 130, 143 or 129. It waits at most five seconds 
 (`CLEANUP_CAP_MS`), then exits anyway, so a browser that will not close never keeps the run alive or leaves its
 private temp folder behind (`test/cli/interrupt-cap.test.ts`, with a cleanup that never settles); the launch sets `handleSIGINT: false`, `handleSIGTERM: false`
 and `handleSIGHUP: false`, so playwright-core's own handlers (all on by default) do not race it or change the code.
+Closing the browser makes whatever the scan was waiting on fail (`page.evaluate: Target page, context or browser
+has been closed`), often before the browser has finished closing, so that failure reaches the command's catch
+before the exit. `interrupting()` says a signal is being handled, and `reportFailure()` (src/refusal.ts), which the
+catch calls, then prints nothing and sets no exit code (`test/cli/interrupt-failure.test.ts`, with a cleanup that
+makes the wait fail every time).
 
 ### A browser that is not installed
 
@@ -158,7 +163,10 @@ another browser.` With `--browser-channel chromium` and nothing in the cache, th
 Playwright's Chromium is read as installed only when its executable exists **and** playwright-core's
 `INSTALLATION_COMPLETE` marker is in the build's folder. playwright-core writes the marker after unpacking, so
 a download stopped part-way (Ctrl-C, a lost connection) reads as not installed, and the next run downloads it
-again. Ctrl-C during the download stops the installer and exits 130.
+again. Ctrl-C during the download sends SIGINT on to the installer and waits for it to exit, at most
+`INSTALLER_STOP_MS` (three seconds, below the five-second cap), then sends SIGKILL, and exits 130. Without the
+wait the run would remove its private temp folder while the installer was still writing into it
+(`test/cli/interrupt-download.test.ts`, with a fake installer that is slow to stop and one that never does).
 
 The installer's output (its "Downloading ..." lines, and a progress bar at a terminal) goes to stderr, never
 stdout, so `--json` keeps stdout for the one document. A download that fails is a refusal:
