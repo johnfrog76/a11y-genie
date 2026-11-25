@@ -8,7 +8,7 @@ import { TEST_LAP_END } from "./test-browser.js";
 /** `test/goldens/<fixture page, without .html>/scan.json` and `report.md`. */
 export const GOLDEN_DIR = fileURLToPath(new URL("../goldens/", import.meta.url));
 
-/** The pages the goldens cover: the four first ones in the order the spec lists them, then `no-landmarks`. */
+/** The pages the goldens cover: the four first ones in a fixed order, then `no-landmarks`. */
 export const GOLDEN_PAGES = [
   "clean",
   "contrast",

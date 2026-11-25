@@ -18,7 +18,7 @@ import { CANNOT_SEE } from "../../src/scan-record.js";
 import { testBrowserIsInstalled, guardContext } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 
-// Claim C8: genie/focus-visible (spec 6.3) flags `outline: none` with nothing in its place; a custom box-shadow
+// genie/focus-visible (docs/ARCHITECTURE.md, *Focus visible*) flags `outline: none` with nothing in its place; a custom box-shadow
 // ring is not flagged. Each fixture page names, in its comment, what must fire. Skipped, and says so, where
 // Chrome is not installed.
 const hasBrowser = await testBrowserIsInstalled();

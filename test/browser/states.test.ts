@@ -10,7 +10,7 @@ import { testBrowserIsInstalled, guardContext } from "../helpers/browser-guard.j
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 import { validate } from "../helpers/json-schema.js";
 
-// States, in the machine's real Chrome (spec 5.2): each state is a fresh load with its own steps, a bug that
+// States, in the machine's real Chrome (docs/STEPS.md, *State names*): each state is a fresh load with its own steps, a bug that
 // shows only in a state is found only in it, and a step that fails reads *not scanned*. Skipped, and says so,
 // where Chrome is not installed.
 const hasBrowser = await testBrowserIsInstalled();

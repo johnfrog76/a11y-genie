@@ -13,7 +13,7 @@ import { expectTextGolden, normalise } from "../helpers/goldens.js";
 import { validate } from "../helpers/json-schema.js";
 import { neverClaimViolations } from "../helpers/never-claim.js";
 
-// Narrated workflows (spec 6.6, C10) in the machine's real Chrome: the transcript of workflow.html against its
+// Narrated workflows (docs/ARCHITECTURE.md, *Narration*) in the machine's real Chrome: the transcript of workflow.html against its
 // golden, what a press of Enter, Space or a click produced (a live region, a dialog, focus), a step with no
 // name, a step that fails, and page text that is hostile. Skipped, and says so, where Chrome is not installed.
 const hasBrowser = await testBrowserIsInstalled();

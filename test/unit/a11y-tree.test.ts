@@ -3,8 +3,8 @@ import { accessibleOf, roleWordsOf, statesOf } from "../../src/a11y-tree.js";
 import { LIMITS } from "../../src/context.js";
 import { controlsIn } from "../helpers/controls.js";
 
-// The spoken line built from a node of the DevTools Protocol's accessibility tree (spec 6.6,
-// src/a11y-tree.ts), with no browser: the order of the parts, the words for roles and states, the unnamed
+// The spoken line built from a node of the DevTools Protocol's accessibility tree (docs/ARCHITECTURE.md,
+// *Reading the accessibility tree*), with no browser: the order of the parts, the words for roles and states, the unnamed
 // form, and page text kept as data. The escape characters are built from their codes, so this file holds
 // none of them itself.
 const ESC = String.fromCharCode(0x1b);

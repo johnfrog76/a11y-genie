@@ -7,7 +7,7 @@ import { LIMITS } from "../../src/context.js";
 import { testBrowserIsInstalled, guardContext } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 
-// Reading the accessibility tree for narration (spec 6.6, src/a11y-tree.ts): for each control of
+// Reading the accessibility tree for narration (docs/ARCHITECTURE.md, *Reading the accessibility tree*): for each control of
 // workflow.html, focused, the properties read and the exact spoken line; then what the reader works out for
 // itself (a place in a set, aria-activedescendant, aria-valuetext), a control in a shadow root and one in a
 // same-origin frame, a page that lies about focus, and names kept as data. Skipped, and says so, where Chrome

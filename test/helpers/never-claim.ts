@@ -1,9 +1,9 @@
 /**
- * The never-claim phrase list (spec C16): no report, in any format, calls a site accessible, compliant or
+ * The never-claim phrase list: no report, in any format, calls a site accessible, compliant or
  * conformant, or says it passes WCAG. The match is case-insensitive and by whole word. The allowed phrases
  * are exactly "accessible name" and "accessible names", and, in the README, the docs and the prompt file only,
  * the five in `ALLOWED_IN_DOCS`; and, in the prompt file only, once, `PROMPT_WORD_LIST`. A new allowed phrase
- * is a change to these lists and to the spec's.
+ * is a change to these lists, and to the words in AGENTS.md rule 1.
  */
 export const FORBIDDEN = [
   "accessible",
@@ -16,7 +16,7 @@ export const FORBIDDEN = [
 ];
 export const ALLOWED = ["accessible name", "accessible names"];
 /**
- * Allowed in the README, `docs/` and the prompt file as well, and nowhere else (spec C16). "`passes`", with its
+ * Allowed in the README, `docs/` and the prompt file as well, and nowhere else. "`passes`", with its
  * backticks, is axe-core's own result key, which docs/JSON.md documents by name (decided 2026-11-20); the word in
  * prose still fails.
  */

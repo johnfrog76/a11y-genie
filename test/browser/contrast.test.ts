@@ -5,7 +5,7 @@ import { runScan } from "../../src/run-scan.js";
 import { testBrowserIsInstalled, guardContext } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 
-// C15: for contrast, the report names the exact pair of colours that failed. Run in the machine's real
+// For contrast, the report names the exact pair of colours that failed. Run in the machine's real
 // Chrome on contrast.html; skipped, and says so, where Chrome is not installed. The ratio is whatever
 // axe-core measured, which the test reads from the record rather than typing.
 const hasBrowser = await testBrowserIsInstalled();

@@ -13,7 +13,7 @@ import { testBrowserIsInstalled } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 import { builtCli } from "../helpers/built-cli.js";
 
-// Runs the built command (npm test builds first) and checks every exit code and every refusal M1 can reach.
+// Runs the built command (npm test builds first) and checks every exit code and every refusal the command can reach (docs/EXIT-CODES.md).
 // A refusal exits 2, prints exactly one `Error:` line and one `Hint:` line on stderr, prints nothing on
 // stdout, and writes nothing: the scans folder and `--out` are left as they were.
 const cli = builtCli();
