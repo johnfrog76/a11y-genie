@@ -112,14 +112,31 @@ export function downloadFailedRefusal(reason: string): Refusal {
 }
 
 /**
+ * How long Ctrl-C waits for the installer to stop after sending it SIGINT, in milliseconds, before it sends
+ * SIGKILL. It is below `CLEANUP_CAP_MS`, so the kill comes before src/interrupt.ts exits anyway.
+ */
+export const INSTALLER_STOP_MS = 3_000;
+
+/** How long the installer may take to go after SIGKILL, which it cannot catch. */
+const KILLED_MS = 1_000;
+
+/**
  * Runs playwright-core's installer as a child and waits for it. Its output goes to our stderr, never stdout,
- * so `--json` keeps stdout for the one document. Ctrl-C stops it.
+ * so `--json` keeps stdout for the one document. Ctrl-C stops it: SIGINT, then a wait for it to exit (it is
+ * writing into this run's private temp folder, which goes when this process exits), then SIGKILL after
+ * `INSTALLER_STOP_MS` if it is still there.
  */
 export function runInstaller(args: string[] = installerArgs()): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, args, { stdio: ["ignore", 2, 2] });
+    const exited = new Promise<void>((done) => child.once("exit", () => done()));
+    const gone = () => child.pid === undefined || child.exitCode !== null || child.signalCode !== null;
     const forget = onInterrupted(async () => {
+      if (gone()) return;
       child.kill("SIGINT");
+      if (await exitsWithin(exited, INSTALLER_STOP_MS)) return;
+      child.kill("SIGKILL");
+      await exitsWithin(exited, KILLED_MS);
     });
     child.on("error", (error) => {
       forget();
@@ -138,4 +155,17 @@ export function runInstaller(args: string[] = installerArgs()): Promise<void> {
         );
     });
   });
+}
+
+/** Whether `exited` settles within `ms`. */
+async function exitsWithin(exited: Promise<void>, ms: number): Promise<boolean> {
+  let timer: NodeJS.Timeout | undefined;
+  const late = new Promise<boolean>((done) => {
+    timer = setTimeout(() => done(false), ms);
+  });
+  try {
+    return await Promise.race([exited.then(() => true), late]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
