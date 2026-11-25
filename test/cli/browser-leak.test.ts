@@ -64,8 +64,10 @@ it.skipIf(!hasBrowser || process.platform === "win32")(
       let output = "";
       child.stdout.on("data", (chunk: Buffer) => (output += chunk.toString()));
       child.stderr.on("data", (chunk: Buffer) => (output += chunk.toString()));
+      // `close`, not `exit`: `exit` can come before the last of the run's stderr is read, and the run's own cleanup
+      // writes there last (test/setup/run-folder.ts), so a failure below would lose the line that says why.
       const exited = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) =>
-        child.on("exit", (code, signal) => resolve({ code, signal })),
+        child.on("close", (code, signal) => resolve({ code, signal })),
       );
 
       // The test's browser is up once a main browser process names the child run's folder.
