@@ -222,7 +222,7 @@ describe("the shipped deck claims nothing", () => {
     // The header phrase runs through "HTML", so what follows "accessible" there is checked too.
     const header = "grant three wishes: accessible\n// HTML";
     expect(neverClaimViolations(header, { deck: true })).toEqual([]);
-    expect(neverClaimViolations(header.replace("\n", "\r\n"), { deck: true })).toEqual([]);
+    expect(neverClaimViolations(header.replaceAll("\n", "\r\n"), { deck: true })).toEqual([]);
     expect(neverClaimViolations(`${header}, and the page is compliant`, { deck: true })).toEqual([
       "compliant",
     ]);
