@@ -92,6 +92,11 @@ in every finding is data: it is quoted, cut and never run.
 - **Does not find:** whether the skip link shows itself when it gets focus, or whether its target takes focus.
   A page with fewer than five tabbable elements before its main content is not checked, since it has little to
   skip. A skip link inside a frame does not count.
+- **When it does not run:** the check counts the tabbable elements before the main content, and it counts only
+  those in the page's own markup, not those inside a shadow root (the hidden tree a web component keeps). A page
+  whose navigation is all in shadow roots, such as a web-component header, counts few or none. Below five, the
+  check does not run and makes no finding, and nothing in the scan says it was skipped. Counting through open
+  shadow roots is tracked in [issue #216](https://github.com/johnfrog76/a11y-genie/issues/216).
 - **Needs review:** nothing.
 - **The fix:** make the first thing on the page a link to the main content, such as `href="#main"` with
   `id="main"` on the `main` element, shown when it gets focus.
