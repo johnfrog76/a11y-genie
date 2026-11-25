@@ -1,5 +1,5 @@
 /**
- * `genie/click-on-non-control` (spec 6.2): an element that does something on a click, but that a keyboard
+ * `genie/click-on-non-control` (docs/CHECKS.md, *`genie/click-on-non-control`*): an element that does something on a click, but that a keyboard
  * cannot reach and a screen reader does not name as a control. axe-core has no rule for a `div` with an
  * `onclick`.
  *
@@ -12,7 +12,7 @@
  *
  * A candidate that sets a pointer cursor but has no handler of its own goes to *needs review*, never to the
  * findings: a framework such as React attaches one listener at the root, and from the element alone that
- * cannot be told from a pointer cursor that does nothing (spec 13, G3).
+ * cannot be told from a pointer cursor that does nothing (docs/KNOWN-GAPS.md, G3).
  *
  * The page is hostile. The script that finds candidates runs in an isolated world of its own, so a page that
  * replaces `getComputedStyle` or `Element.prototype.matches` cannot change what it reads, and what it gives
@@ -32,7 +32,7 @@ export const CLICK_ON_NON_CONTROL_RULE = {
   wcag: ["2.1.1", "4.1.2"],
 } as const;
 
-/** `serious`, as spec 6.2 sets it. */
+/** `serious`, as docs/CHECKS.md says for this rule. */
 const IMPACT = "serious";
 
 /** The tags it runs under: a `--tags` list with none of them leaves it out, as axe-core's rules are. */
@@ -56,7 +56,7 @@ export const MAX_CANDIDATES = 5000;
 /** How many characters of an element's HTML the page script hands back; the record cuts it further. */
 const HTML_CHARS = 500;
 
-/** The controls of spec 6.2, by tag. `a` only with an `href`. */
+/** The controls docs/CHECKS.md names for this rule, by tag. `a` only with an `href`. */
 export const CONTROL_SELECTOR = "a[href], button, input, select, textarea, summary, label, option";
 
 /** ARIA's widget roles, the composite ones among them (WAI-ARIA 1.2, 5.3.2). An element given one is a control. */

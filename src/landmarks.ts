@@ -1,5 +1,5 @@
 /**
- * `genie/no-landmarks` (spec 6.1.1): one finding for a page that has no landmark at all.
+ * `genie/no-landmarks` (docs/CHECKS.md, *`genie/no-landmarks`*): one finding for a page that has no landmark at all.
  *
  * axe-core's `region` reports content outside landmarks one element at a time, and `landmark-one-main`
  * reports a missing main. A page with nothing at all gets both, plus every element `region` can reach.

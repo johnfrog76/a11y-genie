@@ -1,9 +1,9 @@
 /**
  * Which addresses are the machine's own or its network's: the address classifier behind the private-network
- * rule (spec 8A.1, `armContext` in src/context.ts). It reads the host as written in the address and never
- * looks a name up, so a public name that resolves to a private address reads public (gap G7).
+ * rule (docs/ARCHITECTURE.md, *The private-network rule*, and `armContext` in src/context.ts). It reads the host as written in the address and never
+ * looks a name up, so a public name that resolves to a private address reads public (docs/KNOWN-GAPS.md, G7).
  *
- * The ranges are the spec's:
+ * The ranges:
  * - loopback: `127.0.0.0/8`, `::1`, and the name `localhost` (with any name under `.localhost`, which
  *   browsers send to loopback too);
  * - private: `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, and IPv6 unique local `fc00::/7`;
@@ -14,8 +14,8 @@
  * - so are IPv4-translated `::ffff:0:0:0/96` and the deprecated IPv4-compatible `::/96` (beyond `::` and `::1`);
  * - the local-use NAT64 prefix, `64:ff9b:1::/48` (RFC 8215), reads private (see `kindOfIpv6`).
  *
- * Anything else reads public, `100.64.0.0/10` (shared address space) among them, since the spec does not
- * list it.
+ * Anything else reads public, `100.64.0.0/10` (shared address space) among them, since it is not one of the
+ * ranges above.
  */
 
 export type AddressKind = "loopback" | "private" | "link-local" | "unspecified" | "public";

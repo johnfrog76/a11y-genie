@@ -1,7 +1,7 @@
 /**
- * Narrated workflows (spec 6.6): drive a flow of steps by the keyboard, and after each step write down what a
+ * Narrated workflows (docs/ARCHITECTURE.md, *Narration*): drive a flow of steps by the keyboard, and after each step write down what a
  * screen reader would say, from the browser's accessibility tree (src/a11y-tree.ts). The transcript is text
- * (`narration/<flow>.txt`); speaking it is a later milestone (D4).
+ * (`narration/<flow>.txt`); speaking it aloud is not built yet.
  *
  * After each step the focused element is read: its role, name and states, and `spoken`, the line with the name
  * first. After a press of Enter or Space, or a click, the step also reports what the press produced, in the
@@ -135,7 +135,7 @@ function lastKeyOf(key: string): string {
 
 const ACTION_KEYS: ReadonlySet<string> = new Set(["Enter", "NumpadEnter", "Space", " "]);
 
-/** Whether a step is read for what it produced: a press of Enter or Space, or a click (spec 6.6). */
+/** Whether a step is read for what it produced: a press of Enter or Space, or a click. */
 export function producesResult(step: Step): boolean {
   return step.kind === "click" || (step.kind === "press" && ACTION_KEYS.has(lastKeyOf(step.key)));
 }
@@ -552,7 +552,7 @@ function producedLine(entry: Produced): string {
 }
 
 /**
- * The transcript, in the spec's format: a heading line, then one line a step with its number, the step and what
+ * The transcript, in the format docs/ARCHITECTURE.md, *Narration*, describes: a heading line, then one line a step with its number, the step and what
  * a screen reader would say, and under a step with no name a line that says so. A press that produced nothing
  * reads "(nothing is said)"; one that produced several lines continues them under the first.
  *

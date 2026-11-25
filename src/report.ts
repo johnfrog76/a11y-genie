@@ -1,6 +1,6 @@
 /**
  * `report.md`: the Markdown report, made from a scan record and nothing else. It never says a site is
- * accessible, compliant or conformant, or that it passes WCAG (spec 2.1); a scan with no findings says how
+ * accessible, compliant or conformant, or that it passes WCAG (AGENTS.md, rule 1); a scan with no findings says how
  * much it checked. Each finding's words, and each WCAG criterion's, come from src/plain.ts. Text from the page is quoted in a fence, cut at 160 characters, and labelled as quoted,
  * and every piece of text in it, the page's and axe-core's, has its terminal escapes and control characters
  * stripped first (src/printable.ts).
@@ -207,7 +207,7 @@ function ruleLine(rule: RecordFinding["rule"]): string {
 
 /**
  * The WCAG criteria a rule bears on, each named in plain words (src/plain.ts); none for a best-practice rule.
- * Advice is never a WCAG failure (spec 6.4), so its criteria are given as context and said to be so.
+ * Advice is never a WCAG failure (docs/CHECKS.md, *Findings, advice and needs review*), so its criteria are given as context and said to be so.
  */
 export function wcagLines(rule: RecordFinding["rule"], kind?: RecordFinding["kind"]): string[] {
   if (rule.wcag.length === 0) return [];

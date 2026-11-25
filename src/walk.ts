@@ -1,5 +1,5 @@
 /**
- * The keyboard walk (spec 6.5): from the top of the page, press Tab up to `--max-tabs` times and record where
+ * The keyboard walk (docs/CHECKS.md, *The keyboard walk*): from the top of the page, press Tab up to `--max-tabs` times and record where
  * focus lands after each press, through open shadow roots and same-origin frames. It ends when focus returns
  * to the first stop, when it leaves the document, or at the limit. The walk is data, not a finding: the skip
  * link (6.4) reads its first stops, and the trap (6.5) and focus-visible (6.3) checks read the same walk.
@@ -27,7 +27,7 @@ import type { AxeTarget } from "./finding.js";
 import { selectorOf } from "./map-axe.js";
 import { printableLine } from "./printable.js";
 
-/** The walk's limit when `--max-tabs` is not given (spec 4.2); `Tab to` steps give up after it too. */
+/** The walk's limit when `--max-tabs` is not given; `Tab to` steps give up after it too. */
 export const DEFAULT_MAX_TABS = 200;
 
 /** The largest `--max-tabs` taken. Past a thousand presses a page has something else wrong. */

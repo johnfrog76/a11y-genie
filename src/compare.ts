@@ -1,5 +1,5 @@
 /**
- * Scan, fix, rescan (spec 4.6): a scan compared with an earlier one, by finding `id` and then by element
+ * Scan, fix, rescan (docs/ARCHITECTURE.md, *Scan, fix, rescan*): a scan compared with an earlier one, by finding `id` and then by element
  * `selector` within a finding. `check` compares with the baseline it is given and lists what is fixed; plain
  * `scan` compares with the site's previous scan for one line and `summary.sincePrevious`, and lists nothing fixed.
  * Everything here is a pure function of two records; src/baseline.ts reads and validates the earlier one first.
@@ -183,7 +183,7 @@ export interface Comparison {
 }
 
 /**
- * Compares `now` with `earlier`, finding by finding (spec 4.6):
+ * Compares `now` with `earlier`, finding by finding:
  *
  * - a finding found now and not open in `earlier` is **new**, and so is one `earlier` had that now has an element
  *   it did not have;
@@ -193,7 +193,7 @@ export interface Comparison {
  *   (`fixedIn`); a finding `earlier` already had as fixed and that is still gone keeps the `fixedIn` it had.
  *
  * Elements are matched by `selector`. When the elements left unmatched on each side are as many as each other,
- * they are read as the same elements under selectors that moved (spec R11), so the finding reads `still`, never
+ * they are read as the same elements under selectors that moved, so the finding reads `still`, never
  * fixed plus new. An earlier element whose page or state was not scanned now is never read as fixed: it stays,
  * as `still` with `unverified: true`, and so does its finding.
  *
@@ -343,7 +343,7 @@ export interface BaselineInfo {
  * `check`'s record: the scan just run, compared with the baseline. It lists every finding with its status, the
  * fixed ones last, and counts violations by impact over the findings still open (new and still). It exits 1 on
  * a new violation at or above `--fail-on`, or on a page or state not scanned; a finding still open from the
- * baseline never fails it (spec 4.3).
+ * baseline never fails it (docs/EXIT-CODES.md).
  */
 export function checkRecord(now: ScanRecord, baseline: BaselineInfo): ScanRecord {
   const compared = compareScans(baseline.record, now);
@@ -381,7 +381,7 @@ export function checkRecord(now: ScanRecord, baseline: BaselineInfo): ScanRecord
   return fitToSize(record, now.limits?.scanJsonBytes ?? LIMITS.scanJsonBytes);
 }
 
-/** The words for a plain `scan` whose previous scan cannot be compared with it (spec 4.6). */
+/** The words for a plain `scan` whose previous scan cannot be compared with it. */
 export const NOT_COMPARABLE_REASON = "different pages, states or tags";
 
 /**

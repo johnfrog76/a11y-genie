@@ -43,7 +43,7 @@ export function selectorOf(target: AxeTarget): string {
 }
 
 /**
- * A page's key from its URL (D6: a page is a URL). The path without its slashes: `/settings` is
+ * A page's key from its URL (a page is a URL). The path without its slashes: `/settings` is
  * `settings`, `/` is `home`. A config file can name the key instead, later.
  */
 export function pageKeyOf(url: string): string {
@@ -102,7 +102,7 @@ function checkMessages(node: Record<string, unknown>): string {
   return messages.join(" ");
 }
 
-/** The rules whose checks carry the colours (spec 4.5: `colorPair` is on these only). */
+/** The rules whose checks carry the colours (`colorPair` is on these only; docs/JSON.md). */
 const COLOR_RULES: readonly string[] = ["color-contrast", "color-contrast-enhanced"];
 
 /** `4.5` from axe-core's `"4.5:1"` (or from a number); undefined for anything else. */

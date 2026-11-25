@@ -1,6 +1,6 @@
 /**
- * `scan.json`: the record every report is made from, and what `--json` prints. The shape is the spec's
- * (4.5) and is versioned: `schema` is `"<major>.<minor>"`. docs/JSON.md documents each field and
+ * `scan.json`: the record every report is made from, and what `--json` prints. The shape is documented in docs/JSON.md
+ * and is versioned: `schema` is `"<major>.<minor>"`. docs/JSON.md documents each field and
  * `schema/scan-1.json` is its JSON Schema.
  */
 
@@ -42,7 +42,7 @@ export const SCHEMA_VERSION = "1.10";
 /**
  * What a scan cannot see: the questions a person has to answer, because automated rules cannot. Fixed
  * text, the same in every report, with any number of findings or none. It is the guided checklist's seed
- * list (spec 6.7), in the checklist's order, with one line of the product's own after the focus indicator's: where
+ * list (not built yet), in the checklist's order, with one line of the product's own after the focus indicator's: where
  * `genie/focus-visible` cannot see an indicator (src/focus-visible.ts). A record's `cannotSee` is this list, then a line for each page
  * where a native modal dialog was open (`nativeModalLine`, src/keyboard-trap.ts).
  */
@@ -74,7 +74,7 @@ export interface RecordElement extends FindingElement {
 }
 
 /**
- * A finding against an earlier scan (spec 4.5, 4.6). `new`: not in it, or with an element it did not have. `still`:
+ * A finding against an earlier scan (docs/JSON.md). `new`: not in it, or with an element it did not have. `still`:
  * in both. `fixed`: in it, and not found now; only a `check` lists fixed findings.
  */
 export type FindingStatus = "new" | "still" | "fixed";

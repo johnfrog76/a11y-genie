@@ -1,9 +1,9 @@
 /**
- * The plain words of a finding (spec 4.5, 6): a short heading (`title`, for the report), what is wrong and who
+ * The plain words of a finding: a short heading (`title`, for the report), what is wrong and who
  * it hurts (`plain`), and the concrete fix (`fix`), written for a reader who knows no WCAG. The tables here are
  * data, written by hand, and nothing else: no text from a page and nothing axe-core said goes into them, and a
- * finding's words are taken from them as they stand. The voice is plain facts, never the genie's (D7), and the words never call a site accessible,
- * compliant or conformant, or say it passes (C16).
+ * finding's words are taken from them as they stand. The voice is plain facts, never the genie's, and the words never call a site accessible,
+ * compliant or conformant, or say it passes (AGENTS.md, rule 1).
  *
  * A rule with no entry keeps axe-core's own words: `help` for `plain`, `failureSummary` for `fix`
  * (src/scan-record.ts). A criterion with no entry is named by its number alone. docs/ARCHITECTURE.md (*Plain
@@ -33,7 +33,7 @@ export interface RuleWording extends Wording {
 
 /**
  * The words of each rule, by `<source>/<id>`. Every `genie/*` rule has an entry (a test reads the registry), and
- * so does every axe-core rule a fixture page hits, and `link-name`, which the spec names beside `button-name`.
+ * so does every axe-core rule a fixture page hits, and `link-name`, which has an entry beside `button-name`.
  */
 export const RULE_WORDING: Readonly<Record<string, RuleWording>> = Object.freeze({
   "axe/button-name": {

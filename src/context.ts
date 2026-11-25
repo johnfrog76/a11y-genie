@@ -1,6 +1,6 @@
 /**
  * Hostile pages: the browser context. Every page is assumed to be written by someone who wants the tool to
- * misbehave (spec 8A.1), so every defence the browser context holds is set here, in one place, for a
+ * misbehave (docs/ARCHITECTURE.md, *Hostile pages*), so every defence the browser context holds is set here, in one place, for a
  * reviewer to read together. docs/ARCHITECTURE.md ("Hostile pages") lists each one with the test that
  * proves it, and test/browser/hostile.test.ts holds those tests.
  *
@@ -19,23 +19,23 @@
 import type { BrowserContext, BrowserContextOptions, CDPSession, Page, Request } from "playwright-core";
 import { addressKindOfUrl } from "./private-address.js";
 
-/** The limits a scan holds a page to. The spec's numbers (8A.1) where it gives one. */
+/** The limits a scan holds a page to. Their numbers are in docs/JSON.md (`limits`). */
 export interface Limits {
   /**
-   * How long one page may take, from the first request to the end of axe-core, in milliseconds. The spec's
-   * per-state limit: 60 s, and `--timeout` will set it (M3). Past it, the page reads *not scanned*.
+   * How long one page may take, from the first request to the end of axe-core, in milliseconds. The
+   * per-state limit: 60 s by default, and `--timeout` sets it. Past it, the page reads *not scanned*.
    */
   pageMs: number;
   /**
-   * How many redirects are followed for the page asked for. The spec gives no number; Chrome's own limit
+   * How many redirects are followed for the page asked for. No number is set by a rule; Chrome's own limit
    * is 20. Ten is the conservative choice, and past it the page reads *not scanned*.
    */
   redirects: number;
-  /** The most elements kept per finding; the rest are counted (`elementsCut`). The spec's 500. */
+  /** The most elements kept per finding; the rest are counted (`elementsCut`). 500. */
   elementsPerFinding: number;
-  /** The longest an element's quoted HTML may be, in characters. The spec's 160. */
+  /** The longest an element's quoted HTML may be, in characters. 160. */
   excerptChars: number;
-  /** The largest `scan.json` may be, in bytes. The spec's 50 MB. Past it, elements are cut and counted. */
+  /** The largest `scan.json` may be, in bytes. 50 MB. Past it, elements are cut and counted. */
   scanJsonBytes: number;
   /** How many examples are kept of each kind of thing a page tried and was stopped from doing. */
   stoppedExamples: number;
@@ -144,9 +144,9 @@ function originOf(url: string): string | undefined {
 }
 
 /**
- * The private-network rule (spec 8A.1): when the address scanned is public, a request to a loopback,
+ * The private-network rule: when the address scanned is public, a request to a loopback,
  * link-local, private or unspecified address (src/private-address.ts) is aborted. The host is judged as
- * written, never looked up (gap G7).
+ * written, never looked up (docs/KNOWN-GAPS.md, G7).
  */
 export interface PrivateNetworkRule {
   /** Whether a request to `url` is stopped. */

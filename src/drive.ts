@@ -1,5 +1,5 @@
 /**
- * Runs a state's steps in the browser (spec 5.2: apply the state's options, load, run its steps). Each step
+ * Runs a state's steps in the browser: apply the state's options, load, run its steps (docs/ARCHITECTURE.md, *One scan, end to end*). Each step
  * of src/steps.ts becomes Playwright calls here, and only here:
  *
  * - a key is `keyboard.press`; `Tab to` presses Tab until focus is on the element, up to `--max-tabs` times;
@@ -25,7 +25,7 @@ import type { Locator, Page } from "playwright-core";
 import { formatStep, type Step, type Target } from "./steps.js";
 import { DEFAULT_MAX_TABS } from "./walk.js";
 
-/** How long the page is given to settle after a state's steps, in milliseconds (spec 5.2). */
+/** How long the page is given to settle after a state's steps, in milliseconds. */
 export const SETTLE_MS = 500;
 
 /** The longest one step waits for its element, in milliseconds, within what is left of the state's time. */

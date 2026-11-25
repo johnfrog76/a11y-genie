@@ -1,5 +1,5 @@
 /**
- * `genie/focus-visible` (spec 6.3): an element the keyboard moves focus to, and nothing changes on screen.
+ * `genie/focus-visible` (docs/CHECKS.md, *`genie/focus-visible`*): an element the keyboard moves focus to, and nothing changes on screen.
  *
  * axe-core has no rule for it. The check looks at the keyboard walk's stops (src/walk.ts), at each one while
  * focus is still on it (the walk's `onStop`), and compares the element focused and unfocused in two ways:
@@ -77,17 +77,17 @@ export const MASK_PX = 16;
 /**
  * How much one of a pixel's red, green and blue must differ, out of 255, for the pixel to count as changed.
  * Below it a change is too faint for many people to notice: `focus-faint.html` changes a white background to
- * `#f4f4f4` (11 levels), and is not counted. Tuned in M8 (docs/ARCHITECTURE.md, V4).
+ * `#f4f4f4` (11 levels), and is not counted. Tuned against a real browser (docs/ARCHITECTURE.md, V4).
  */
 export const PIXEL_TOLERANCE = 16;
 
-/** The share of the padded box's pixels that must change for focus to count as visible: the spec's 1%. */
+/** The share of the padded box's pixels that must change for focus to count as visible: 1%. */
 export const VISIBLE_SHARE = 0.01;
 
 /** How many stops of one walk get the screenshot pair; the stops after them are *needs review*. */
 export const MAX_SCREENSHOT_STOPS = 100;
 
-/** The style properties compared, on the element and its first two ancestors (spec 6.3). */
+/** The style properties compared, on the element and its first two ancestors. */
 export const COMPARED_STYLES = [
   "outline-style",
   "outline-width",
