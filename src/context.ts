@@ -23,7 +23,7 @@ import { addressKindOfUrl } from "./private-address.js";
 export interface Limits {
   /**
    * How long one page may take, from the first request to the end of axe-core, in milliseconds. The spec's
-   * per-state limit: 60 s, and `--timeout` will set it (M3). Past it, the page reads *not scanned*.
+   * per-state limit: 60 s, and `--timeout` sets it. Past it, the page reads *not scanned*.
    */
   pageMs: number;
   /**
@@ -35,7 +35,10 @@ export interface Limits {
   elementsPerFinding: number;
   /** The longest an element's quoted HTML may be, in characters. The spec's 160. */
   excerptChars: number;
-  /** The largest `scan.json` may be, in bytes. The spec's 50 MB. Past it, elements are cut and counted. */
+  /**
+   * The largest `scan.json` may be, in bytes. The spec's 50 MB. Past it, walks lose stops first, then elements
+   * are cut and counted (`fitToSize` in src/scan-record.ts).
+   */
   scanJsonBytes: number;
   /** How many examples are kept of each kind of thing a page tried and was stopped from doing. */
   stoppedExamples: number;
