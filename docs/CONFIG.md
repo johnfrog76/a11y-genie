@@ -44,7 +44,7 @@ Only these are read. An unknown key is a refusal, not ignored.
 | a page | `states` | a list of states, beside the `default` state every page is scanned in first |
 | a state | `name` | required. The state-name rule in `docs/STEPS.md`: lower case, digits, `-` and `_`, never `default`. Once per page |
 | a state | `steps` | required: a list of at least one step, one string each, in the grammar of `docs/STEPS.md`. A `;` in one string is refused |
-| a workflow | `name`, `page`, `steps` | all required. `page` is a page's key in this file. Steps may not set media (`colorScheme`, `viewport`, `reducedMotion`), and a workflow has at most 200. The transcript is `narration/<name>.txt` in the scan folder, the name made one safe path part (letters, digits, `.`, `_`, `-`; two names that come to the same one get `-2`, `-3`) |
+| a workflow | `name`, `page`, `steps` | all required. `page` is a page's key in this file. Steps may not set media (`colorScheme`, `viewport`, `reducedMotion`), and a workflow has at most 200 (a longer one is refused with the file and the line its steps start on). The transcript is `narration/<name>.txt` in the scan folder, the name made one safe path part (letters, digits, `.`, `_`, `-`; two names that come to the same one get `-2`, `-3`) |
 
 A step that does not parse is a refusal that names the file, the line and the step's column, for example
 `a11y-genie.yaml line 6 "clik", column 1: "clik" is not a step.` Each state starts from a fresh load of its page,
