@@ -25,7 +25,7 @@ export const DECK_URL: string = "";
 export const DECK_MARKER = "<!-- deck-cta -->";
 
 /** The deck button's words. */
-export const DECK_LABEL = "Watch the deck";
+export const DECK_LABEL = "Watch the video";
 
 export const SITE_DIR = fileURLToPath(new URL("../site/", import.meta.url));
 
