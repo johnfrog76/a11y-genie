@@ -163,8 +163,8 @@ function removeFoldersLeftBy(before: Set<string>): void {
  * downloading are `withChosenBrowser()` in src/browser-choice.ts.
  *
  * Every launch is `chromium.launch()`, never `launchPersistentContext()`: playwright-core makes a
- * new, empty profile folder in the system temp folder for each launch and deletes it when the
- * browser closes. The person's own browser profile, cookies, extensions and sign-ins are never
+ * new, empty profile folder in this run's private temp folder (src/private-temp.ts) for each launch
+ * and deletes it when the browser closes. The person's own browser profile, cookies, extensions and sign-ins are never
  * opened. See docs/ARCHITECTURE.md.
  */
 export async function withBrowser<T>(
