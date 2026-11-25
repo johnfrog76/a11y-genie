@@ -1,4 +1,4 @@
-import { mkdtempSync } from "node:fs";
+import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { stopProcessesIn } from "../helpers/processes-in.js";
@@ -22,13 +22,21 @@ export default function setup(): () => void {
   const shared = process.env.A11Y_GENIE_TEST_SHARED_TMP ?? tmpdir();
   const run = mkdtempSync(join(shared, "a11y-genie-run-"));
   process.env[RUN_TMP_ENV] = run;
-  const stop = () => {
+  // Each step on its own, so a failure to stop the browsers never skips the removal. A failure is said on stderr,
+  // which test/cli/browser-leak.test.ts prints when it finds the folder left (issue 160), and never thrown: cleanup
+  // must never hide the run's own result.
+  const step = (name: string, action: () => void) => {
     try {
-      stopProcessesIn(run);
-      removeFolder(run);
-    } catch {
-      // Cleanup must never hide the run's own result.
+      action();
+    } catch (error) {
+      process.stderr.write(`The test run's cleanup could not ${name}: ${String(error)}\n`);
     }
+  };
+  const stop = () => {
+    step("stop its processes", () => stopProcessesIn(run));
+    step("remove its folder", () => removeFolder(run));
+    if (existsSync(run))
+      process.stderr.write(`The test run's folder is still there after its cleanup: ${run}\n`);
   };
   process.on("exit", stop);
   return () => {
