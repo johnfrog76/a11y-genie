@@ -194,6 +194,20 @@ const DIALOG_STILL_OPEN = `function (target) {
  * and not a radio button (only one of a group is a Tab stop). Leaving the doubtful ones out can only make a
  * trap read as no trap, never the other way round.
  */
+/** The longest `AFTER_FRAMES` waits for frames that do not come (a hidden page), in milliseconds. */
+const FRAME_CAP_MS = 1000;
+
+/**
+ * Waits two frames, or `FRAME_CAP_MS` when they do not come. A dialog that gives focus back a moment after it
+ * closes, in a `setTimeout(0)` or a `requestAnimationFrame`, has done so by then.
+ */
+const AFTER_FRAMES = `function () {
+  return new Promise((done) => {
+    setTimeout(done, ${FRAME_CAP_MS.toString()});
+    requestAnimationFrame(() => requestAnimationFrame(() => done()));
+  });
+}`;
+
 const TABBABLE_OUTSIDE = `function (targets) {
   ${HELPERS}
   const known = new Set(targets);
@@ -338,8 +352,10 @@ export async function checkKeyboardTrap(
     }
 
     // Escape, then Tab once more. A dialog Escape hid can leave focus on its hidden element until the browser
-    // moves it to the page itself; an element that is no longer shown counts as focus on no element.
+    // moves it to the page itself; an element that is no longer shown counts as focus on no element. Focus is
+    // read two frames after the key, so a dialog that gives it back a moment after it closes is read as it does.
     const where = async (): Promise<Focused> => {
+      await reader.call(AFTER_FRAMES);
       const focused = await reader.read();
       return focused !== null && (await reader.callOnFocused(FOCUSED_SHOWN)) === false ? null : focused;
     };
