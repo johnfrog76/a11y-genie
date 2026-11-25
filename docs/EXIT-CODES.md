@@ -184,7 +184,10 @@ and state, and the exit is 1.
 Ctrl-C closes the browser, which deletes its temporary profile folder, and exits 130. A plain `kill`
 (`SIGTERM`) and a closed terminal (`SIGHUP`) do the same and exit 143 and 129. A second signal while the browser
 is closing exits at once, and a browser that has not closed after five seconds is left to the system: the run exits
-with the signal's code anyway, and its temporary folder goes with it. On Windows `SIGTERM` is not delivered, and `SIGHUP` arrives when the console window is
+with the signal's code anyway, and its temporary folder goes with it. Ctrl-C prints no `Error:` line of its own: closing the browser
+makes whatever the run was waiting on in it fail, and that failure is not reported (no "something unexpected",
+no exit 3). During the download of Playwright's Chromium, Ctrl-C stops the installer and waits for it, at most
+three seconds, then kills it, so it is never left writing into the temporary folder the run removes. On Windows `SIGTERM` is not delivered, and `SIGHUP` arrives when the console window is
 closed. Nothing is left in the
 scans folder: a scan's folder is made and written, whole, only after the page has been scanned, and in one
 unbroken step, so Ctrl-C comes before it or after it.

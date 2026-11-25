@@ -2,13 +2,12 @@
 import { shouldShowBanner, withBanner } from "./banner.js";
 import { checkCommand } from "./check-command.js";
 import { packageInfo } from "./package-info.js";
-import { EXIT } from "./exit-codes.js";
 import { installInterruptHandler } from "./interrupt.js";
 import { printableLine } from "./printable.js";
 import { usePrivateTemp } from "./private-temp.js";
 import { narrateCommand } from "./narrate-command.js";
 import { promptCommand } from "./prompt-command.js";
-import { Refusal } from "./refusal.js";
+import { Refusal, reportFailure } from "./refusal.js";
 import { rulesCommand } from "./rules-command.js";
 import { scanCommand } from "./scan-command.js";
 
@@ -150,17 +149,5 @@ try {
   installInterruptHandler();
   await main(process.argv.slice(2));
 } catch (error) {
-  // A refusal or an error can quote what it was given or what the browser said: print it stripped too.
-  if (error instanceof Refusal) {
-    // One line each, so that an argument with a newline in it cannot add an Error: or Hint: line of its own.
-    console.error(printableLine(`Error: ${error.message}`));
-    console.error(printableLine(`Hint: ${error.hint}`));
-    process.exitCode = EXIT.refusal;
-  } else {
-    const message = error instanceof Error ? error.message.split("\n")[0] : String(error);
-    console.error(printableLine(`Error: something unexpected went wrong: ${message}`));
-    console.error("Hint: please report it at https://github.com/johnfrog76/a11y-genie/issues.");
-    if (process.env.A11Y_GENIE_DEBUG) console.error(error);
-    process.exitCode = EXIT.unexpected;
-  }
+  reportFailure(error);
 }

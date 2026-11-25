@@ -297,6 +297,8 @@ describe.skipIf(!hasBrowser)(
       const result = await done;
       expect(result.status).toBe(130);
       expect(result.stdout).toBe("");
+      // Closing the browser makes the scan's wait fail; that is not news (issue #159).
+      expect(result.stderr).not.toMatch(/^Error:/m);
       expect(readdirSync(scans)).toEqual([]);
       expect(readdirSync(privateTmp)).toEqual([]);
     });
