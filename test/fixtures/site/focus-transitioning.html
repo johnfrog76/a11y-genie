@@ -1,11 +1,13 @@
 <!doctype html>
 <!--
-  Fixture: a focus ring that comes in by a transition, on a page that counts every transition event it hears. The
-  focus-visible check takes focus off each stop and gives it back; with transitions on, that would start the ring's
-  transition twice more, and the page would hear transitionrun, transitionstart, transitioncancel and transitionend
-  of the check's making. Each count must be no higher with the check than without it (test/browser/focus-visible.test.ts):
-  the check adds none, while a screenshot's hold can keep back one of the page's own, named while it runs. The ring
-  takes 10 s, so no transition ends during a run, and timing cannot change the counts.
+  Fixture: a focus ring that comes in by a transition, on a page that writes down, in order, every focus change and
+  every transition event it hears. The focus-visible check takes focus off each stop and gives it back; with the
+  ring's transition running, its blur would cancel it, and with transitions on, its refocus would start it again.
+  The page must hear no transition event of the check's making: every one it hears follows a focus change it heard
+  itself (test/browser/focus-visible.test.ts holds three rules). How many it hears depends on the walk's pace, not
+  only on the check: a Tab away from a ring that has been drawn for one frame starts it back, one that has not
+  been drawn yet only cancels it, and the check makes the walk wait on each stop. So the counts are not compared.
+  The ring takes 10 s, so no transition of the page's own ends during a run.
   Must fire:     nothing: the ring is seen
   Must not fire: genie/focus-visible; any axe-core rule
 -->
@@ -15,8 +17,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>A ring by a transition, heard</title>
     <script>
-      const heard = { transitionrun: 0, transitionstart: 0, transitioncancel: 0, transitionend: 0 };
-      for (const type of Object.keys(heard)) window.addEventListener(type, () => (heard[type] += 1), true);
+      // Each entry is [event type, the id of its element]; a focus change on the window itself is not written.
+      const heard = [];
+      const types = ["focus", "blur", "transitionrun", "transitionstart", "transitioncancel", "transitionend"];
+      for (const type of types) {
+        window.addEventListener(type, (event) => {
+          if (event.target instanceof Element) heard.push([type, event.target.id || event.target.nodeName]);
+        }, true);
+      }
       window.report = () => new Promise((done) => setTimeout(() => done(JSON.stringify(heard)), 300));
     </script>
     <style>

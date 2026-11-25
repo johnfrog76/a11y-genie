@@ -742,10 +742,21 @@ there, empty, which changed the HTML the trap check quotes.
 `focusout`, `focus` and `focusin` events, and the older `DOMFocusIn` and `DOMFocusOut` that Chrome still fires beside
 them (checked at Chrome 159; `focus-listening.html` counts all six), so the page's own handlers never see them.
 From just before the blur until the refocus has been styled, a constructed style sheet in every root turns
-transitions off, so the blur and the refocus start none, and the page hears no transition event of the check's
-making (`focus-transitioning.html`, whose ring comes in by a 10 s transition and whose counts are no higher with
-the check than without it); the sheet is taken away only after each document's styles are worked out, so taking
-it away starts nothing either. A menu that closes when
+transitions off, so the blur and the refocus start none; the sheet is taken away only after each document's styles
+are worked out, so taking it away starts nothing either. Turning transitions off does not stop one that is already
+running from being cancelled: the blur changes the focus style under the ring's own transition, and the browser
+cancels it a frame later, a `transitioncancel` the page did not cause. So just before the blur the check names,
+with the guard, every animation and transition that is running, and the guard holds their events through the
+blur, the unfocused screenshot and the refocus, until three frames have been drawn after focus is back (`keep` and
+`release` in `src/focus-guard.ts`). The page hears no transition event of the check's making
+(`focus-transitioning.html`, whose ring comes in by a 10 s transition and which writes down, in order, every focus
+change and transition event it hears: each one follows a focus change the page heard itself, an element runs,
+starts or ends at most once for each of its own, and is cancelled only after the page heard it lose focus; the
+same test runs again with the CPU six times slower). How many events it hears is not compared with a scan
+without the check, because that depends on the walk's pace: a Tab away from a ring that has been drawn for a frame
+starts it back, and the check makes the walk wait on each stop, as a person would. Until this was found, the test
+compared those counts, and passed on a fast machine only because a screenshot's hold happened to keep back two of
+the page's own events. A menu that closes when
 focus leaves it stays open (`focus-watched.html`, whose counts of focus and blur events, and whose walk, are the
 same with the check as without it). The guard is first in line: `runScan` installs it before the page navigates
 (`FocusGuard.install`, `Page.addScriptToEvaluateOnNewDocument` into an isolated world of its own, in every
