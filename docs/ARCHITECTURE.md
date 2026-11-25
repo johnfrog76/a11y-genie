@@ -29,7 +29,12 @@ suffix) and set `TMPDIR` to it in `process.env`, and `TEMP` and `TMP` too on Win
 temp folder each time it launches, not once at import, so its profile and artifacts folders, and everything the
 browser and the browser installer (a child process) make, land in it. The folder is removed when the process
 exits, however it exits: a normal end, a refusal (exit 2), an unexpected error (exit 3), and Ctrl-C, a plain kill and a closed terminal (130, 143 and 129,
-through `process.exit()` in `src/interrupt.ts`), all of which run the `exit` handler.
+through `process.exit()` in `src/interrupt.ts`), all of which run the `exit` handler. The handler removes the folder and
+looks again until it is gone (`removeUntilGone`, about a second at most), because one `rmSync` is not enough: after
+Ctrl-C, Playwright may still be removing the browser's profile inside the folder, and on Linux `rmSync` then returns
+with no error and the folder still there (libstdc++'s `std::filesystem::remove_all`, which Node uses, stops at the
+first entry already gone, and Node takes that as done). CI's Linux left the folder so after Ctrl-C (issue 223);
+`test/unit/private-temp-remove.test.ts` races the removal against a worker thread removing a profile inside it.
 
 Why: the system temp folder is shared by every process on the machine. Cleaning up after a failed launch there,
 as this code once did, can remove another run's brand-new, still-empty profile folder, and that browser then
