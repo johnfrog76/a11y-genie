@@ -18,6 +18,7 @@ import {
   type NeedsReviewElement,
   type Rule,
 } from "./finding.js";
+import { createRequire } from "node:module";
 import { orderFindings } from "./order.js";
 
 /**
@@ -184,12 +185,41 @@ function mapResult(result: unknown, withPair: boolean): Mapped | undefined {
       source: "axe",
       id,
       help: str(result.help),
-      helpUrl: str(result.helpUrl),
+      helpUrl: axeHelpUrl(id),
       wcag: wcagCriteria(tags),
     },
     impact,
     elements,
   };
+}
+
+/** axe-core at the version installed: its rules' ids, and its version as `major.minor`. Read once. */
+let installedAxe: { ids: Set<string>; version: string } | undefined;
+function axeRules(): { ids: Set<string>; version: string } {
+  if (installedAxe === undefined) {
+    const axe = createRequire(import.meta.url)("axe-core") as {
+      version: string;
+      getRules(): { ruleId: string }[];
+    };
+    installedAxe = {
+      ids: new Set(axe.getRules().map((rule) => rule.ruleId)),
+      version: axe.version.split(".").slice(0, 2).join("."),
+    };
+  }
+  return installedAxe;
+}
+
+/**
+ * The address of the page about an axe-core rule, built from the rule's id and the installed axe-core's version,
+ * in the form axe-core itself gives under @axe-core/playwright, or an empty string for an id the installed axe-core
+ * does not have. The `helpUrl` in a result is never used: axe-core runs in the page's own world, and a page can
+ * hand back results of its own making (docs/ARCHITECTURE.md, *Hostile pages*), so an address it gave could send a
+ * reader of the report anywhere.
+ */
+export function axeHelpUrl(ruleId: string): string {
+  const axe = axeRules();
+  if (!axe.ids.has(ruleId)) return "";
+  return `https://dequeuniversity.com/rules/axe/${axe.version}/${encodeURIComponent(ruleId)}?application=playwright`;
 }
 
 function findingId(rule: Rule, page: string): string {

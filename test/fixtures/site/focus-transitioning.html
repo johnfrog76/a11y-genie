@@ -3,8 +3,9 @@
   Fixture: a focus ring that comes in by a transition, on a page that counts every transition event it hears. The
   focus-visible check takes focus off each stop and gives it back; with transitions on, that would start the ring's
   transition twice more, and the page would hear transitionrun, transitionstart, transitioncancel and transitionend
-  of the check's making. The counts must be the same with the check as without it
-  (test/browser/focus-visible.test.ts). The ring takes 10 s, so no transition ends during a run, and timing cannot change the counts.
+  of the check's making. Each count must be no higher with the check than without it (test/browser/focus-visible.test.ts):
+  the check adds none, while a screenshot's hold can keep back one of the page's own, named while it runs. The ring
+  takes 10 s, so no transition ends during a run, and timing cannot change the counts.
   Must fire:     nothing: the ring is seen
   Must not fire: genie/focus-visible; any axe-core rule
 -->

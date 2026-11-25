@@ -1245,4 +1245,7 @@ the rule never looks a name up at all.
 
 **What a scan does not defend against.** A page shares its document with axe-core, and can change what
 axe-core reads (gap G6 in [KNOWN-GAPS.md](KNOWN-GAPS.md)): a scan describes the page as the page presents itself, and is never a
-security boundary. `SECURITY.md` lists this and every other known gap.
+security boundary. `SECURITY.md` lists this and every other known gap. What a page can make up stays data: every text from axe-core's
+results is quoted and escaped in the report, and the one link the report draws, to the page about a rule, is
+built from the rule's id and the installed axe-core's version (`axeHelpUrl` in `src/map-axe.ts`), never taken from
+the result, which a page that replaces `window.axe` can fill in.
