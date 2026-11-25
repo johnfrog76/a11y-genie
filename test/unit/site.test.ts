@@ -1,4 +1,5 @@
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
@@ -9,12 +10,14 @@ import {
   DECK_PAGE,
   DECK_URL,
   renderIndex,
+  REPO_ROOT,
   SHARE_IMAGE,
   SHARE_IMAGE_ALT,
   SHARE_MARKER,
   shareTags,
   SITE_DIR,
   SITE_URL,
+  unsafeOutFolder,
 } from "../../scripts/build-site.js";
 import { neverClaimViolations } from "../helpers/never-claim.js";
 
@@ -203,5 +206,60 @@ describe("the link preview (Open Graph and Twitter tags)", () => {
       .map(([, values]) => values.join(" "))
       .join("\n");
     expect(neverClaimViolations(words)).toEqual([]);
+  });
+});
+
+describe("the build's output folder", () => {
+  const scratch: string[] = [];
+  afterAll(() => {
+    for (const dir of scratch) rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("refuses the repository root, site/, a folder inside site/ and a parent of the repository", () => {
+    for (const out of [
+      REPO_ROOT,
+      SITE_DIR,
+      join(SITE_DIR, "nested"),
+      join(REPO_ROOT, ".."),
+      join(REPO_ROOT, "x", ".."),
+    ]) {
+      expect(unsafeOutFolder(out), out).toMatch(/^Refusing /);
+      expect(() => buildSite(out), out).toThrow(/^Refusing /);
+    }
+    expect(readFileSync(join(SITE_DIR, "index.html"), "utf8")).toBe(source);
+  });
+
+  it("refuses any folder of the repository but _site", () => {
+    for (const out of [join(REPO_ROOT, "src"), join(REPO_ROOT, "docs"), join(REPO_ROOT, "_site2")]) {
+      expect(unsafeOutFolder(out), out).toMatch(/^Refusing .*only _site may be emptied/);
+    }
+    expect(unsafeOutFolder(join(REPO_ROOT, "_site", "inner"))).toBeUndefined();
+  });
+
+  it("refuses a link that leads to site/", () => {
+    const dir = mkdtempSync(join(tmpdir(), "a11y-genie-site-"));
+    scratch.push(dir);
+    const link = join(dir, "link");
+    symlinkSync(SITE_DIR, link, "dir");
+    expect(unsafeOutFolder(link)).toMatch(/^Refusing /);
+    expect(unsafeOutFolder(join(link, "deeper"))).toMatch(/^Refusing /);
+  });
+
+  it("exits non-zero from the command before deleting anything", () => {
+    const result = spawnSync(process.execPath, [join(REPO_ROOT, "scripts", "build-site.ts"), SITE_DIR], {
+      encoding: "utf8",
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toMatch(/^Refusing /);
+    expect(readFileSync(join(SITE_DIR, "index.html"), "utf8")).toBe(source);
+  });
+
+  it("still builds into a fresh folder, and into one that does not exist yet", () => {
+    const dir = mkdtempSync(join(tmpdir(), "a11y-genie-site-"));
+    scratch.push(dir);
+    expect(unsafeOutFolder(dir)).toBeUndefined();
+    expect(unsafeOutFolder(join(REPO_ROOT, "_site"))).toBeUndefined();
+    buildSite(join(dir, "later"));
+    expect(readFileSync(join(dir, "later", "index.html"), "utf8")).toContain(DECK_LABEL);
   });
 });
