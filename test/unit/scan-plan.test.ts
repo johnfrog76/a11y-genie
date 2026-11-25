@@ -146,11 +146,18 @@ describe("--timeout and --storage-state", () => {
   it("reads seconds, whole or decimal, as milliseconds", () => {
     expect(parseTimeout("30")).toBe(30_000);
     expect(parseTimeout("0.5")).toBe(500);
+    expect(parseTimeout("0.001")).toBe(1);
   });
 
   it.each(["0", "-1", "abc", "", "1e3", "3601", "NaN", " 5"])("refuses --timeout %j", (text) => {
     expect(refusal(() => parseTimeout(text)).message).toMatch(
       /^--timeout takes a number of seconds above 0 and up to 3600/,
+    );
+  });
+
+  it("refuses a --timeout that rounds to 0 milliseconds", () => {
+    expect(refusal(() => parseTimeout("0.0004")).message).toMatch(
+      /^--timeout takes a number of seconds above 0 and up to 3600, not "0\.0004": that is under one millisecond\.$/,
     );
   });
 
