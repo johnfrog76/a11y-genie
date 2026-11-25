@@ -53,7 +53,12 @@ SIGKILL as soon as vitest's own process exits, so no handler in a worker is sure
 made inside one folder for the run (`test/setup/run-folder.ts`, a global setup, `A11Y_GENIE_TEST_RUN_TMP`), and
 vitest's own process, which does run its `exit` handlers when it is stopped, stops every process that names the
 run's folder, synchronously, before the workers go. Only that run's folder is named, so another run on the same
-machine is never touched.
+machine is never touched. Then it removes the folder, and looks again until it is gone (a few tries, a second at
+most). One removal is not enough: when a browser is stopped, the Playwright that launched it removes the browser's
+profile at the same moment. On Linux, Node's `rmSync` then returns early, with no error and the folder still there:
+it uses `std::filesystem::remove_all`, libstdc++'s version stops at the first entry already gone, and Node takes
+that error as done, even with `maxRetries`. macOS's libc++ skips such an entry and goes on, so only Linux saw it:
+the run's folder left holding one empty worker folder (issue 160).
 `test/cli/browser-leak.test.ts` holds this: it runs `test/fixtures/leak/leak.fixture.ts`, tests built to fail and
 to time out with a browser open (the main run never includes that file), and looks for any process left; and it
 runs `test/fixtures/leak/signal.fixture.ts`, stops that run with SIGTERM while a process the test started has a
