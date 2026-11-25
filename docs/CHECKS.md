@@ -63,7 +63,8 @@ in every finding is data: it is quoted, cut and never run.
   page, where axe-core would report every element outside a landmark one at a time. It reads the accessibility
   roles, not the tag names, so `<div role="main">` counts, and a `header` inside an `article` is not a banner.
 - **Does not find:** a page that has some landmarks but the wrong ones, or two of one kind. axe-core's own
-  landmark rules cover those. It does not read inside a frame.
+  landmark rules cover those. It does not read inside a frame. A document with no `body` element, such as an
+  SVG image or an XML file, is not checked and makes no finding.
 - **Needs review:** nothing. It is a finding or it is silent.
 - **The fix:** put the page's own content in a `main` element, and use `header`, `nav` and `footer` for its
   banner, its navigation and its footer, so a person using a screen reader can jump between them.
@@ -92,7 +93,8 @@ in every finding is data: it is quoted, cut and never run.
   (moderate, WCAG 2.4.1) when the page has neither.
 - **Does not find:** whether the skip link shows itself when it gets focus, or whether its target takes focus.
   A page with fewer than five tabbable elements before its main content is not checked, since it has little to
-  skip. A skip link inside a frame does not count.
+  skip. A skip link inside a frame does not count. A document with no `body` element, such as an SVG image
+  or an XML file, is not checked and makes no finding.
 - **Needs review:** nothing.
 - **The fix:** make the first thing on the page a link to the main content, such as `href="#main"` with
   `id="main"` on the `main` element, shown when it gets focus.

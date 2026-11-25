@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Fixture: an SVG document, which has no body element, with five focusable shapes so the skip-link check
+  would run if it did not find the body missing.
+  Served as image/svg+xml. Must fire: no genie/no-landmarks and no genie/skip-link; the scan completes.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="60" viewBox="0 0 200 60">
+  <title>No body fixture</title>
+  <rect x="0" y="0" width="30" height="30" fill="#000000" tabindex="0"/>
+  <rect x="40" y="0" width="30" height="30" fill="#000000" tabindex="0"/>
+  <rect x="80" y="0" width="30" height="30" fill="#000000" tabindex="0"/>
+  <rect x="120" y="0" width="30" height="30" fill="#000000" tabindex="0"/>
+  <rect x="160" y="0" width="30" height="30" fill="#000000" tabindex="0"/>
+</svg>

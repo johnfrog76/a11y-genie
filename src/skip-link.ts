@@ -84,8 +84,9 @@ const FOCUSED_IS_SKIP_LINK = `function () {
   return main !== null && main.contains(target);
 }`;
 
-/** Runs in the isolated world: the body's opening tag, for the finding's snippet. */
+/** Runs in the isolated world: the body's opening tag, for the finding's snippet; null for a document with no body. */
 const BODY_OPENING_TAG = `function () {
+  if (!document.body) return null;
   return document.body.cloneNode(false).outerHTML.replace(/<\\/body>$/, "");
 }`;
 
@@ -117,6 +118,8 @@ export async function checkSkipLink(
   const found = await readStructure(reader);
   const structure = found.landmark || found.heading;
   const html: unknown = await reader.call(BODY_OPENING_TAG);
+  // A document with no body (an SVG or an XML file) has no page to put a skip link on.
+  if (html === null) return undefined;
   return {
     id: `genie/skip-link@${pageKey}`,
     rule: { ...SKIP_LINK_RULE, wcag: [...SKIP_LINK_RULE.wcag] },
