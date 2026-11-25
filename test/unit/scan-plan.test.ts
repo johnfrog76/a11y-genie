@@ -92,6 +92,16 @@ describe("--config", () => {
     );
   });
 
+  it("refuses a workflow of more than 200 steps, naming the file and the line its steps start on", () => {
+    const steps = Array.from({ length: 201 }, () => "    - Tab").join("\n");
+    const text = `baseUrl: http://127.0.0.1:5173\npages:\n  - path: /\nworkflows:\n  - name: long\n    page: home\n    steps:\n${steps}\n`;
+    const path = file("long.yaml", text);
+    const error = refusal(() => planScan({ url: undefined, states: [], config: path }));
+    expect(error.message).toBe(
+      `${path}, line 7: the workflow "long" has 201 steps, and a flow may have at most 200.`,
+    );
+  });
+
   it("refuses --states beside --config", () => {
     const error = refusal(() =>
       planScan({ url: undefined, states: ["a: Tab"], config: file("d.yaml", yaml) }),

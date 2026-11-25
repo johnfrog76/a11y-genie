@@ -68,6 +68,16 @@ export function emptyScanSentence(record: ScanRecord): string {
   );
 }
 
+/** The sentence a scan with advice and no violations reads: it found no violations, and says what it did find. */
+export function adviceOnlySentence(record: ScanRecord): string {
+  const pages = record.pages.length;
+  const where = pages === 1 ? "this page" : `these ${pages} pages`;
+  return (
+    `No violations found by these ${record.engine.rulesRun} rules on ${where}, only ${plural(record.summary.advice, "advice finding", "advice findings")}. ` +
+    "Advice never changes the exit. Automated rules find only some problems; the checklist covers what they cannot see."
+  );
+}
+
 /** The sentence a narration with no findings reads, with its counts taken from the record. */
 export function emptyNarrationSentence(record: ScanRecord): string {
   const steps = record.workflows.reduce((count, flow) => count + flow.steps.length, 0);
@@ -339,7 +349,7 @@ export function renderReport(record: ScanRecord): string {
 
   out.push("## Summary", "");
   const found = summary.critical + summary.serious + summary.moderate + summary.minor;
-  if (found === 0 && summary.notScanned === 0) {
+  if (found === 0 && summary.notScanned === 0 && (summary.advice === 0 || record.command === "narrate")) {
     out.push(record.command === "narrate" ? emptyNarrationSentence(record) : emptyScanSentence(record), "");
   } else {
     out.push("| Impact | Findings |", "| --- | ---: |");
@@ -347,6 +357,7 @@ export function renderReport(record: ScanRecord): string {
       out.push(`| ${IMPACT_LABEL[impact]} | ${summary[impact]} |`);
     }
     out.push("");
+    if (found === 0 && summary.advice > 0) out.push(adviceOnlySentence(record), "");
     if (summary.notScanned > 0) {
       const flows = record.workflows.some((flow) => flow.notScanned !== undefined);
       out.push(
