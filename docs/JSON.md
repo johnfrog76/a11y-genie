@@ -293,7 +293,8 @@ check, unless the baseline is itself a `check` that already had the finding as f
 otherwise: a finding still open from the baseline never fails a check.
 
 **Plain `scan`'s `summary.sincePrevious`** is `{ new, fixed, startedAt }`: how many findings are new since the
-site's previous scan, how many of its findings are not found now, and when it began. Each finding's `status` is
+site's previous scan, how many of its open findings are not found now (a `check` record's findings already marked
+fixed are not counted again), and when it began. Each finding's `status` is
 `new` or `still` against it, and no fixed finding is listed. It is compared only when the two scans covered the
 same pages (by key), each in the same states, with the same `engine.tags`; otherwise `sincePrevious` is `null` and
 `sincePreviousReason` says why: `different pages, states or tags`, or `it cannot be read as a scan.json of this
