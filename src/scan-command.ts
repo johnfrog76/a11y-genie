@@ -10,7 +10,7 @@ import { parseArgs } from "node:util";
 import { printRunBanner } from "./banner.js";
 import { previousScan } from "./baseline.js";
 import { BROWSER_CHANNELS, DEFAULT_CHANNEL, isBrowserChannel } from "./browser.js";
-import { sincePreviousLine, withPrevious } from "./compare.js";
+import { notCheckedNow, sincePreviousLine, unverifiedOf, withPrevious } from "./compare.js";
 import type { Impact } from "./finding.js";
 import { narrationLines, NARRATION_DIR, renderTranscript } from "./narrate.js";
 import { checkOutFolder } from "./out-folder.js";
@@ -272,8 +272,12 @@ export function writeScan(prepared: PreparedScan, record: ScanRecord): string {
  */
 export function scanLines(record: ScanRecord, prepared: PreparedScan, folder: string): string[] {
   const lines: string[] = [];
-  const found =
-    record.summary.critical + record.summary.serious + record.summary.moderate + record.summary.minor;
+  // On a `check`, the impact counts include the baseline's findings carried over unchecked, in a state not scanned
+  // now. This run did not find them, so *Found* leaves them out and a line of their own says them (issue 157).
+  const carried = notCheckedNow(record).filter((f) => f.kind === "violation");
+  const count = (impact: Impact): number =>
+    record.summary[impact] - carried.filter((f) => f.impact === impact).length;
+  const found = count("critical") + count("serious") + count("moderate") + count("minor");
   const first = record.pages[0];
   // `narrate` prints each flow's transcript, which is what it is asked for; a scan only says where they went.
   if (record.command === "narrate") {
@@ -299,9 +303,12 @@ export function scanLines(record: ScanRecord, prepared: PreparedScan, folder: st
           ? emptyNarrationSentence(record)
           : emptyScanSentence(record)
         : `Found ${found} ${found === 1 ? "problem" : "problems"} on ${pages === 1 ? (first?.url ?? prepared.plan.url) : `${pages} pages`}, worst first: ` +
-            `${record.summary.critical} critical, ${record.summary.serious} serious, ` +
-            `${record.summary.moderate} moderate, ${record.summary.minor} minor.`,
+            `${count("critical")} critical, ${count("serious")} serious, ` +
+            `${count("moderate")} moderate, ${count("minor")} minor.`,
     );
+  }
+  if (carried.length > 0) {
+    lines.push(`${carried.length} ${found > 0 ? "more " : ""}still open, not checked this time.`);
   }
   for (const page of record.pages) {
     if (page.requestedUrl !== undefined && page.url !== page.requestedUrl) {
@@ -319,7 +326,9 @@ export function scanLines(record: ScanRecord, prepared: PreparedScan, folder: st
   if (found > 0 && record.summary.notScanned === 0 && record.exit === 0) {
     lines.push(
       record.command === "check"
-        ? `None of them is new${prepared.failOn === "minor" ? "" : ` at ${prepared.failOn} or worse`}, so the exit is 0: the ones still open were in the baseline.`
+        ? `None of them is new${prepared.failOn === "minor" ? "" : ` at ${prepared.failOn} or worse`}, so the exit is 0: the ones still open were in the baseline` +
+            // A finding found only in states the baseline did not scan reads still open, and was never in it (issue 158).
+            (unverifiedOf(record).neverScanned > 0 ? ", or were found only in states it did not scan." : ".")
         : `None is ${prepared.failOn} or worse, so the exit is 0 (--fail-on ${prepared.failOn}).`,
     );
   }
