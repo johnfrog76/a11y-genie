@@ -119,10 +119,15 @@ page built by `scripts/build-site.ts`, with `web/dist` at `deck/`.
 The smoke test builds `web/`, assembles the two pages, serves them on `127.0.0.1` and drives Playwright's
 headless shell, never the Google Chrome app. It holds that the deck page plays the registered deck ("1 / N" in
 its bar, slide 1's title on screen) and that Escape leaves it for the project's page; that every baked clip is
-in the build and answers as audio; that the project's page shows "Watch the video" and that it opens `deck/`; that
+in the build and answers as audio; that for every slide and every voice the player finds a clip, and that clip is
+served (it asks the player's own resolver, `web/src/deck/bakedVoices.ts`, loaded through Vite, so a slide renamed
+away from its clip fails instead of playing silent); that the project's page shows "Watch the video" and that it opens `deck/`; that
 on a 390 px phone the deck page plays slide 1 and does not scroll sideways; that neither page logs an error;
 and that A11y Genie's own scan of the deck page, on the deck's first slide, finds nothing critical or serious. `--shots <dir>` saves
-screenshots, and `--host` and `--port` choose where it listens.
+screenshots, and `--host` and `--port` choose where it listens. Under `--serve` the exit code still says whether
+the checks held. Its scratch folder goes on every way out: a failed step or check, a browser that will not start,
+and Ctrl+C or SIGTERM. Its server answers a malformed `%` escape with 400 and a file it cannot read with 404 or
+500, and keeps serving.
 
 The root's `npm run lint` checks the page's own files (`web/src/*.tsx`, `web/index.html`, `web/tests/`, its
 config) with ESLint and Prettier, and leaves `web/src/deck/` alone: it holds the copied player and the
