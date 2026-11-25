@@ -138,7 +138,12 @@ const CANDIDATES_SCRIPT = `(() => {
     if (el.matches(CONTROL)) return true;
     const role = (el.getAttribute("role") || "").trim().toLowerCase().split(/\\s+/);
     if (role.some((r) => WIDGET.has(r))) return true;
-    return el.hasAttribute("tabindex") && el.tabIndex >= 0;
+    // Ask the browser: tabIndex is 0 or more for what it puts in the tab order by itself (a summary, an iframe,
+    // audio with controls) and for an element given a tabindex of 0 or more. Chrome reports -1 for a
+    // contenteditable element that has no tabindex, though Tab reaches it, so that one is asked on its own.
+    if (el.tabIndex >= 0) return true;
+    const editable = el.getAttribute("contenteditable");
+    return editable !== null && editable.trim().toLowerCase() !== "false" && el.isContentEditable;
   };
   const pointer = (el) => el instanceof Element && getComputedStyle(el).cursor === "pointer";
   // Each id counted once, and each parent's children numbered once, so a selector costs the element's depth.

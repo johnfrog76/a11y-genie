@@ -158,6 +158,17 @@ const SURVEY = `
     if (role === "status" || role === "alert" || role === "log") return role;
     return el.localName === "output" ? "status" : null;
   };
+  const REGION_ROLES = ["status", "alert", "log", "marquee", "timer"];
+  // A region inside another is read once, as part of the outer one, so it is not surveyed on its own.
+  const insideRegion = (el) => {
+    for (let node = el.parentElement || (el.getRootNode().host ?? null); node; node = node.parentElement || (node.getRootNode().host ?? null)) {
+      const live = node.getAttribute("aria-live");
+      if (live !== null && live !== "off") return true;
+      if (REGION_ROLES.includes(node.getAttribute("role")) && live === null) return true;
+      if (node.localName === "output" && live === null && node.getAttribute("role") === null) return true;
+    }
+    return false;
+  };
   const isDialog = (el) => {
     const role = el.getAttribute("role");
     return (el.localName === "dialog" || role === "dialog" || role === "alertdialog") && shown(el);
@@ -176,7 +187,7 @@ const SURVEY = `
     const dialogs = new Set();
     for (const el of all) {
       const role = liveRole(el);
-      if (role !== null && shown(el)) live.set(el, { text: textOf(el), role });
+      if (role !== null && shown(el) && !insideRegion(el)) live.set(el, { text: textOf(el), role });
       if (isDialog(el)) dialogs.add(el);
     }
     return { live, dialogs };
