@@ -99,7 +99,7 @@ browser opens, too.
 | An empty part of `--tags` (`--tags wcag2a,` or `--tags ""`) | `--tags needs one or more axe-core tags, separated by commas, and one is empty.` | `use axe-core tags separated by commas, such as wcag2a,wcag2aa,best-practice.` |
 | `--offline` with a target that is not loopback (`127.0.0.0/8`, `::1`, `localhost`, `*.localhost`) | `--offline allows only a page on this machine, and http://example.com is not one.` | `serve the page on localhost, 127.0.0.1 or [::1], or run without --offline.` |
 | A target that is not an address | `not a web address: "example"` | the same hint |
-| A target that does not answer | `http://127.0.0.1:5173 did not answer: the connection was refused.`, `... the host name was not found.`, `... no answer within 30 seconds.`, or `... the browser reported ERR_<NAME>.` | `check the address, and that the server is running.` |
+| A target that does not answer | `http://127.0.0.1:5173 did not answer: the connection was refused.`, `... the host name was not found.`, `... no answer within 30 seconds.` (or the page time limit, `--timeout`, when that is shorter: the number is always the limit that bound), or `... the browser reported ERR_<NAME>.` | `check the address, and that the server is running.` |
 | No Chrome, with `--no-download` | `Chrome was not found on this machine, and --no-download stops A11y Genie from downloading Playwright's Chromium.` | `Install Chrome, or run with --browser-channel msedge if that one is installed, or download Playwright's Chromium yourself: npx playwright-core@1.65.1 install --no-shell chromium` |
 | No Chrome, with `--offline` (and no `--no-download`) | `Chrome was not found on this machine, and --offline stops A11y Genie from downloading Playwright's Chromium.` | the same hint as `--no-download` |
 | `--browser-channel chromium --offline`, with no Chromium in Playwright's cache | `Playwright's Chromium is not installed on this machine, and --offline stops A11y Genie from downloading it.` | the same hint as `--no-download` |
@@ -159,7 +159,7 @@ page nobody saw never exits 0. The reasons, in the scan's own words:
 | more than 10 redirects | `it redirected more than 10 times, so the scan stopped following it` |
 | the page answers with a file to download | `it answered with a file to download, and downloads are refused` |
 | the page moves itself to a scheme that is not `http:` or `https:`, such as `about:blank` | `it went to an about: address, which is not http: or https:` |
-| a page after the first, or a state, does not answer (connection refused, host not found, no answer in time) | `it did not answer: the connection was refused`, `... the host name was not found`, `... no answer within 30 seconds`, or `... the browser reported ERR_<NAME>` |
+| a page after the first, or a state, does not answer (connection refused, host not found, no answer in time) | `it did not answer: the connection was refused`, `... the host name was not found`, `... no answer within 30 seconds` (or `--timeout`, when that is shorter), or `... the browser reported ERR_<NAME>` |
 | a step of a state fails | `step 2 (click button 'Menu') failed: <why>`; the reasons are in `docs/STEPS.md` |
 | the steps of a state have not finished by its limit | `its steps did not finish within 60 seconds` |
 | the page has not finished loading 60 seconds after the first request | `it did not finish loading within 60 seconds` |
