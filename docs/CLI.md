@@ -10,8 +10,9 @@ a11y-genie --version
 a11y-genie <command> [<url>] [flags]
 ```
 
-`--version` prints the version and exits 0, wherever it is on the line. `--help`, or no arguments at all, prints
-the help.
+`--version` prints the version and exits 0, wherever it is on the line. So does `--help`: with no arguments at all,
+or anywhere on the line (`a11y-genie scan --help`), it prints the same help. There is no help of its own for a
+command.
 
 A flag takes its value after a space or an equals sign (`--timeout 30` or `--timeout=30`). A flag that is not in
 the table below, or a flag a command does not take, is a refusal (exit 2): one `Error:` line, one `Hint:` line,
@@ -200,8 +201,8 @@ It is never in a file, in a pipe, or in `--json` output. `NO_COLOR` does not hid
 
 | Code | Meaning |
 | --- | --- |
-| 0 | No findings (for `check`, no new ones) |
-| 1 | Findings (for `check`, new ones), or a page or state that was not scanned |
+| 0 | No finding at or above `--fail-on` (for `check`, no new one). Findings below it are still listed |
+| 1 | A finding at or above `--fail-on` (for `check`, a new one), or a page or state that was not scanned |
 | 2 | A refusal: one `Error:` line, one `Hint:` line, nothing written |
 | 3 | Something unexpected |
 | 129, 130, 143 | The terminal was closed, Ctrl-C, or a plain `kill`, after the browser is closed |
