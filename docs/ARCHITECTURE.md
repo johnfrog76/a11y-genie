@@ -1043,7 +1043,9 @@ The comparison is a pure function of two records, so the browser tests and the u
 
 - **Match by id, then by selector.** A finding's id names its rule and page; within a finding, elements are
   matched by `selector`. Unmatched elements, as many on each side, are read as the same elements under selectors
-  that moved, so a list that only reordered reads `still`, never fixed plus new. docs/JSON.md has the
+  that moved, so a list that only reordered reads `still`, never fixed plus new. Only elements both runs could see
+  are paired so: an earlier one in a state not scanned now, or one found now in a state the earlier run did not scan,
+  is never counted on a side. docs/JSON.md has the
   rest of the rule.
 - **Not scanned is never fixed.** A baseline element found in a state that was not scanned this time stays still
   open, marked `unverified`, and the run exits 1 for the state not scanned anyway.

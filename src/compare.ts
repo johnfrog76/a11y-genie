@@ -244,23 +244,24 @@ export function compareScans(earlier: ScanRecord, now: ScanRecord): Comparison {
     const nowSelectors = new Set(finding.elements.map((element) => element.selector));
     const unmatchedNow = finding.elements.filter((element) => !earlierBySelector.has(element.selector));
     const unmatchedBefore = was.elements.filter((element) => !nowSelectors.has(element.selector));
-    // As many on each side: the same elements, read under selectors that moved (R11).
-    const moved = unmatchedNow.length === unmatchedBefore.length;
+    // Only elements both runs could see are paired as moved: an earlier one in a state not scanned now is still
+    // open, unverified, whatever else happened; one found now in a state the earlier run did not scan is judged
+    // on its own (judgedNew).
+    const pairableNow = unmatchedNow.filter((element) => !unproven(finding.page, element));
+    const pairableBefore = unmatchedBefore.filter((element) => !unseen(finding.page, element));
+    // As many on each side: the same elements, read under selectors that moved.
+    const moved = pairableNow.length === pairableBefore.length;
+    const pairedNow = new Set(moved ? pairableNow : []);
     // An element found now is this run's own: kept whole, with its status.
     const elements: RecordElement[] = finding.elements.map((element) =>
-      moved || earlierBySelector.has(element.selector)
+      pairedNow.has(element) || earlierBySelector.has(element.selector)
         ? { ...element, status: "still" as const }
         : judgedNew(finding.page, element),
     );
     const anyUnproven = elements.some((e) => e.unverified === true);
     if (anyUnproven) unproved += 1;
-    const gone = moved ? [] : unmatchedBefore;
-    const stillUnseen = gone.filter((element) => unseen(finding.page, element));
-    const fixedCarried = carryAll(
-      gone.filter((element) => !unseen(finding.page, element)),
-      "fixed",
-      perFinding,
-    );
+    const stillUnseen = unmatchedBefore.filter((element) => unseen(finding.page, element));
+    const fixedCarried = carryAll(moved ? [] : pairableBefore, "fixed", perFinding);
     const fixedElements = fixedCarried.kept;
     const stillCarried = carryAll(stillUnseen, "still", perFinding - elements.length, true);
     elements.push(...stillCarried.kept);
@@ -402,11 +403,15 @@ export function withPrevious(
   }
   const compared = compareScans(earlier, now);
   const status = new Map(compared.findings.map((finding) => [finding.id, finding.status]));
+  // Fixed since the previous scan: open in it, and not found now. A `check` record also carries findings it already
+  // had as fixed; they were fixed before it, not since.
+  const fixedBefore = new Set(earlier.findings.filter((f) => f.status === "fixed").map((f) => f.id));
+  const fixedSince = compared.findings.filter((f) => f.status === "fixed" && !fixedBefore.has(f.id)).length;
   return {
     ...now,
     summary: {
       ...now.summary,
-      sincePrevious: { new: compared.new, fixed: compared.fixed, startedAt: earlier.startedAt },
+      sincePrevious: { new: compared.new, fixed: fixedSince, startedAt: earlier.startedAt },
     },
     findings: now.findings.map((finding) => ({
       ...finding,
