@@ -15,15 +15,27 @@ const SIGNALS = [
   ["SIGHUP", EXIT.hangUp],
 ] as const;
 
+/**
+ * The longest the cleanups may take after a signal, in milliseconds. A browser that does not close would
+ * otherwise keep the process alive until something sends SIGKILL, and then the private temp folder, removed on
+ * exit, would be left behind. After the cap the run exits anyway, with the signal's code.
+ */
+export const CLEANUP_CAP_MS = 5_000;
+
 const cleanups = new Set<Cleanup>();
 let installed = false;
 let interrupting = false;
 
-/** Runs every registered cleanup, then exits with the signal's code. A second signal exits at once. */
+/**
+ * Runs every registered cleanup, then exits with the signal's code: when they have all settled, or after
+ * `CLEANUP_CAP_MS`, whichever comes first. A second signal exits at once.
+ */
 function onSignal(code: number): void {
   if (interrupting) process.exit(code);
   interrupting = true;
-  void Promise.allSettled([...cleanups].map((cleanup) => cleanup())).then(() => process.exit(code));
+  const capped = new Promise<void>((done) => setTimeout(done, CLEANUP_CAP_MS));
+  const settled = Promise.allSettled([...cleanups].map((cleanup) => cleanup()));
+  void Promise.race([settled, capped]).then(() => process.exit(code));
 }
 
 /**

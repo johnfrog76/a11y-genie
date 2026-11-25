@@ -100,7 +100,9 @@ folder from its own `chrome://version` page, and checks that the folder is in th
 this run, differs between two runs, and is gone after the run, including a run that throws.
 
 On Ctrl-C, a plain `kill` (`SIGTERM`) or a closed terminal (`SIGHUP`), `src/interrupt.ts` closes the browser (so
-the folder is deleted) and exits 130, 143 or 129; the launch sets `handleSIGINT: false`, `handleSIGTERM: false`
+the folder is deleted) and exits 130, 143 or 129. It waits at most five seconds for the browser to close
+(`CLEANUP_CAP_MS`), then exits anyway, so a browser that will not close never keeps the run alive or leaves its
+private temp folder behind (`test/cli/interrupt-cap.test.ts`, with a cleanup that never settles); the launch sets `handleSIGINT: false`, `handleSIGTERM: false`
 and `handleSIGHUP: false`, so playwright-core's own handlers (all on by default) do not race it or change the code.
 
 ### A browser that is not installed
