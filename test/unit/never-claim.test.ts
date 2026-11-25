@@ -219,6 +219,17 @@ describe("the shipped deck claims nothing", () => {
     expect(neverClaimViolations("The page passed WCAG.", { deck: true })).toEqual(["passed WCAG"]);
     expect(neverClaimViolations("the dust lifts as the duster passes", { deck: true })).toEqual([]);
     expect(neverClaimViolations("the dust lifts as the duster passes")).toEqual(["passes"]);
+    // The header phrase runs through "HTML", so what follows "accessible" there is checked too.
+    const header = "grant three wishes: accessible\n// HTML";
+    expect(neverClaimViolations(header, { deck: true })).toEqual([]);
+    expect(neverClaimViolations(header.replaceAll("\n", "\r\n"), { deck: true })).toEqual([]);
+    expect(neverClaimViolations(`${header}, and the page is compliant`, { deck: true })).toEqual([
+      "compliant",
+    ]);
+    expect(
+      neverClaimViolations("grant three wishes: accessible, and the page passes", { deck: true }),
+    ).toEqual(["accessible", "passes"]);
+
     // Only the deck's own motion phrases are allowed: "passes" said of a page still fails in the deck.
     expect(neverClaimViolations("Your page passes every check.", { deck: true })).toEqual(["passes"]);
     expect(neverClaimViolations("The site passes WCAG.", { deck: true })).toEqual(["passes"]);
