@@ -11,7 +11,7 @@ const REMOVE_PAUSE_MS = 20;
  * still there: Node's rmSync uses std::filesystem::remove_all, libstdc++'s version stops at the first entry that
  * is already gone (ENOENT), and Node takes ENOENT as done, even with `maxRetries`. libc++ (macOS) skips such an
  * entry and goes on, so this was never seen on macOS. A file made in the folder while it is removed is caught too.
- * test/setup/run-folder.ts uses it; test/unit/remove-folder.test.ts holds it to that race.
+ * test/setup/run-folder.ts and test/setup/private-temp.ts use it; test/unit/remove-folder.test.ts holds it to that race.
  */
 export function removeFolder(folder: string): void {
   for (let tries = 0; tries < REMOVE_TRIES && existsSync(folder); tries++) {
