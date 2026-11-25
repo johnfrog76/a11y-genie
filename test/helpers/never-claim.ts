@@ -45,7 +45,7 @@ export const ALLOWED_IN_DECK: readonly { phrase: string; reason: string }[] = [
   { phrase: "Wish One, Accessible HTML", reason: "the first wish's title: the wish, not a verdict" },
   { phrase: "wish-one-accessible-html", reason: "the first wish's slide id: the wish, not a verdict" },
   {
-    phrase: "grant three wishes: accessible",
+    phrase: "grant three wishes: accessible\n// HTML",
     reason: "the file's header naming the wishes: the wish, not a verdict",
   },
   { phrase: "part of the journey to accessible HTML", reason: "the journey, not a claim" },
@@ -57,9 +57,12 @@ export const ALLOWED_IN_DECK: readonly { phrase: string; reason: string }[] = [
   { phrase: "the band passes", reason: "motion in the art: the band of light stamping the cards" },
 ];
 
-/** A phrase as a case-insensitive pattern, every character literal, bounded by a word edge where it has one. */
+/**
+ * A phrase as a case-insensitive pattern, every character literal, bounded by a word edge where it has one. A line
+ * break in a phrase also matches a Windows one, so a checkout with CRLF endings reads the same.
+ */
 function phrasePattern(phrase: string): RegExp {
-  const literal = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const literal = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\n/g, "\\r?\\n");
   const start = /^\w/.test(phrase) ? "\\b" : "";
   const end = /\w$/.test(phrase) ? "\\b" : "";
   return new RegExp(`${start}${literal}${end}`, "gi");
