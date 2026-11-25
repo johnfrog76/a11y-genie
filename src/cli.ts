@@ -4,7 +4,7 @@ import { checkCommand } from "./check-command.js";
 import { packageInfo } from "./package-info.js";
 import { EXIT } from "./exit-codes.js";
 import { installInterruptHandler } from "./interrupt.js";
-import { printable } from "./printable.js";
+import { printableLine } from "./printable.js";
 import { usePrivateTemp } from "./private-temp.js";
 import { narrateCommand } from "./narrate-command.js";
 import { promptCommand } from "./prompt-command.js";
@@ -142,7 +142,7 @@ async function main(args: string[]): Promise<void> {
   if (args[0] === "narrate") return narrateCommand(args.slice(1), HELP_HINT);
   if (args[0] === "rules") return rulesCommand(args.slice(1), HELP_HINT);
   if (args[0] === "prompt") return promptCommand(args.slice(1), HELP_HINT);
-  throw new Refusal(`unknown command or flag: ${args[0]}`, HELP_HINT);
+  throw new Refusal(`unknown command or flag: ${printableLine(args[0] ?? "").slice(0, 80)}`, HELP_HINT);
 }
 
 try {
@@ -152,12 +152,13 @@ try {
 } catch (error) {
   // A refusal or an error can quote what it was given or what the browser said: print it stripped too.
   if (error instanceof Refusal) {
-    console.error(printable(`Error: ${error.message}`));
-    console.error(printable(`Hint: ${error.hint}`));
+    // One line each, so that an argument with a newline in it cannot add an Error: or Hint: line of its own.
+    console.error(printableLine(`Error: ${error.message}`));
+    console.error(printableLine(`Hint: ${error.hint}`));
     process.exitCode = EXIT.refusal;
   } else {
     const message = error instanceof Error ? error.message.split("\n")[0] : String(error);
-    console.error(printable(`Error: something unexpected went wrong: ${message}`));
+    console.error(printableLine(`Error: something unexpected went wrong: ${message}`));
     console.error("Hint: please report it at https://github.com/johnfrog76/a11y-genie/issues.");
     if (process.env.A11Y_GENIE_DEBUG) console.error(error);
     process.exitCode = EXIT.unexpected;
