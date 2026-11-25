@@ -1,8 +1,9 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll } from "vitest";
 import { stopProcessesIn } from "../helpers/processes-in.js";
+import { removeFolder } from "../helpers/remove-folder.js";
 
 /**
  * Each test file runs with a temp folder of its own, as each a11y-genie process does (src/private-temp.ts).
@@ -44,11 +45,8 @@ process.on("exit", stopBrowsers);
 function onSignal(signal: NodeJS.Signals): void {
   process.off(signal, onSignal);
   stopBrowsers();
-  try {
-    rmSync(own, { recursive: true, force: true });
-  } catch {
-    // Cleanup must never hide the signal.
-  }
+  // Until it is gone: a browser just stopped may have its profile removed by Playwright at the same time.
+  removeFolder(own);
   if (process.listenerCount(signal) === 0) process.kill(process.pid, signal);
 }
 process.on("SIGTERM", onSignal);
@@ -56,5 +54,5 @@ process.on("SIGINT", onSignal);
 
 afterAll(() => {
   stopBrowsers();
-  rmSync(own, { recursive: true, force: true });
+  removeFolder(own);
 });
