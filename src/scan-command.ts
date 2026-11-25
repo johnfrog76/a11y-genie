@@ -101,7 +101,7 @@ function parseFormats(values: string[] | undefined): Set<Format> {
     for (const name of value.split(",")) {
       if (!(FORMATS as readonly string[]).includes(name)) {
         throw new Refusal(
-          `unknown --format: ${name || "(empty)"}`,
+          `unknown --format: ${printableLine(name).slice(0, 80) || "(empty)"}`,
           `use ${FORMATS.join(" or ")}, or both, separated by a comma.`,
         );
       }
@@ -183,11 +183,18 @@ export function prepareScan(
       `${command} needs a page address to ${command === "narrate" ? "narrate" : "scan"}.`,
       `run: a11y-genie ${command} <url>${command === "narrate" ? ' --flow "<steps>"' : ""}`,
     );
-  if (extra.length > 0) throw new Refusal(`${command} takes one page, and got more: ${extra[0]}`, helpHint);
+  if (extra.length > 0)
+    throw new Refusal(
+      `${command} takes one page, and got more: ${printableLine(extra[0] ?? "").slice(0, 80)}`,
+      helpHint,
+    );
 
   const channel = values["browser-channel"] ?? DEFAULT_CHANNEL;
   if (!isBrowserChannel(channel)) {
-    throw new Refusal(`unknown --browser-channel: ${channel}`, `use one of: ${BROWSER_CHANNELS.join(", ")}.`);
+    throw new Refusal(
+      `unknown --browser-channel: ${printableLine(String(channel)).slice(0, 80)}`,
+      `use one of: ${BROWSER_CHANNELS.join(", ")}.`,
+    );
   }
   const formats = parseFormats(values.format);
   const tags = values.tags === undefined ? undefined : parseTags(values.tags);

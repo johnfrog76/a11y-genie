@@ -25,6 +25,12 @@ function writable(folder: string): boolean {
  * until a scan is ready to be written, and a new one is removed again if the write fails (src/scans-folder.ts).
  */
 export function checkOutFolder(out: string): void {
+  if (out === "") {
+    throw new Refusal(
+      "--out is empty.",
+      "give a folder, or leave --out off to use the per-user scans folder.",
+    );
+  }
   const folder = resolve(out);
   const kind = kindOf(folder);
   if (kind === "other") {
