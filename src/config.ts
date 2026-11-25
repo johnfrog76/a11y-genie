@@ -34,6 +34,8 @@ export interface ConfigWorkflow {
   /** A page `key` of this file. */
   page: string;
   steps: Step[];
+  /** The line the workflow's steps start on, for refusals that come after the file is read. */
+  line: number;
 }
 
 export interface Config {
@@ -209,8 +211,9 @@ export function parseConfig(source: string, file: string): Config {
           `the workflow's page "${page.slice(0, 40)}" is not a page key in this file.`,
         );
       }
-      const steps = read.steps(read.required(found, "steps", "a workflow", node.line), "a workflow", "flow");
-      workflows.push({ name, page, steps });
+      const stepsEntry = read.required(found, "steps", "a workflow", node.line);
+      const steps = read.steps(stepsEntry, "a workflow", "flow");
+      workflows.push({ name, page, steps, line: stepsEntry.line });
     }
   }
   return { baseUrl, pages, workflows };

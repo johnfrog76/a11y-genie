@@ -72,6 +72,15 @@ export function locate(page: Page, target: Target): Locator {
     : page.getByRole(target.role, { name: target.name, exact: true });
 }
 
+/**
+ * Whether Playwright refused the selector itself. It words that as `Unexpected token "x" while parsing css selector
+ * "...". Did you mean to CSS.escape it?`; any other failure on a CSS target (a navigation, a closed frame) is not
+ * the selector's fault.
+ */
+export function isSelectorSyntaxError(message: string): boolean {
+  return /\bwhile parsing css selector\b/.test(message);
+}
+
 /** Why a step failed, in this tool's words. */
 function reasonOf(error: unknown, step: Step, timeoutMs: number, page: Page): string {
   const seconds = Math.max(1, Math.round(timeoutMs / 1000));
@@ -88,7 +97,7 @@ function reasonOf(error: unknown, step: Step, timeoutMs: number, page: Page): st
       : `no such element was found, or it could not be clicked, within ${seconds} seconds`;
   }
   const target = "target" in step ? step.target : undefined;
-  if (target?.by === "css") return "the selector is not valid CSS";
+  if (target?.by === "css" && isSelectorSyntaxError(message)) return "the selector is not valid CSS";
   return "the browser could not do it";
 }
 

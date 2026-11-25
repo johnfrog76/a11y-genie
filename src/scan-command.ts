@@ -17,7 +17,7 @@ import { checkOutFolder } from "./out-folder.js";
 import { printable, printableLine } from "./printable.js";
 import { addressKindOfUrl } from "./private-address.js";
 import { Refusal } from "./refusal.js";
-import { emptyNarrationSentence, emptyScanSentence, renderReport } from "./report.js";
+import { adviceOnlySentence, emptyNarrationSentence, emptyScanSentence, renderReport } from "./report.js";
 import { DEFAULT_FAIL_ON, parseFailOn, parseTags } from "./rule-flags.js";
 import { runScan, type RunScanOptions } from "./run-scan.js";
 import { checkStorageState, parseMaxTabs, parseTimeout } from "./scan-options.js";
@@ -297,7 +297,9 @@ export function scanLines(record: ScanRecord, prepared: PreparedScan, folder: st
       found === 0
         ? record.command === "narrate"
           ? emptyNarrationSentence(record)
-          : emptyScanSentence(record)
+          : record.summary.advice > 0
+            ? adviceOnlySentence(record)
+            : emptyScanSentence(record)
         : `Found ${found} ${found === 1 ? "problem" : "problems"} on ${pages === 1 ? (first?.url ?? prepared.plan.url) : `${pages} pages`}, worst first: ` +
             `${record.summary.critical} critical, ${record.summary.serious} serious, ` +
             `${record.summary.moderate} moderate, ${record.summary.minor} minor.`,
