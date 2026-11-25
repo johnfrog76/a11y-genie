@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Refusal } from "./refusal.js";
@@ -46,9 +46,28 @@ export function removePrivateTemp(): void {
   if (!folder) return;
   const gone = folder;
   folder = undefined;
-  try {
-    rmSync(gone, { recursive: true, force: true, maxRetries: 3 });
-  } catch {
-    // Nothing useful to do while exiting.
+  removeUntilGone(gone);
+}
+
+/** How many times the folder is removed at most, and the pause between tries: about a second in all. */
+const REMOVE_TRIES = 50;
+const REMOVE_PAUSE_MS = 20;
+
+/**
+ * Removes `path`, and looks again until it is gone (about a second at most). Synchronous, because it runs in an
+ * `exit` handler. One rmSync is not enough: after Ctrl-C, the Playwright that launched the browser can still be
+ * removing the browser's profile inside this folder. On Linux rmSync then returns with no error and the folder still
+ * there: Node uses std::filesystem::remove_all, libstdc++'s version stops at the first entry already gone (ENOENT),
+ * and Node takes that as done, even with `maxRetries`. macOS's libc++ skips such an entry and goes on. A file made
+ * during the removal (ENOTEMPTY) is caught by the next try. Errors are swallowed: nothing useful can be done while exiting.
+ */
+export function removeUntilGone(path: string): void {
+  for (let tries = 0; tries < REMOVE_TRIES && existsSync(path); tries++) {
+    if (tries > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, REMOVE_PAUSE_MS);
+    try {
+      rmSync(path, { recursive: true, force: true });
+    } catch {
+      // The next try removes what is left.
+    }
   }
 }
