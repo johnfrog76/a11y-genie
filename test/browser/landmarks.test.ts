@@ -111,5 +111,24 @@ describe.skipIf(!hasBrowser)(
       expect(report).toContain("`genie/no-landmarks`");
       expect(report).toContain("The page has no landmarks");
     });
+
+    // A document with no body element (issue 172): the scan completes and neither body-reading check speaks.
+    it.each(["no-body.svg", "no-body.xhtml"])(
+      "%s has no body: the scan completes with no landmark or skip-link finding",
+      async (page) => {
+        const record = await runScan({
+          url: server.url(page),
+          channel: TEST_CHANNEL,
+          onContext: async (context) => {
+            await guardContext(context, server.origin);
+          },
+        });
+        const ids = record.findings.map((f) => f.id);
+        expect(ids).not.toContain(`genie/no-landmarks@${page}`);
+        expect(ids).not.toContain(`genie/skip-link@${page}`);
+        expect(record.needsReview.map((f) => f.rule.id)).not.toContain("genie/no-landmarks");
+        expect(JSON.stringify(record)).not.toContain("could not read the page");
+      },
+    );
   },
 );
