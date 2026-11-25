@@ -4,8 +4,8 @@ A11y Genie will have a short product deck: the genie's story, narrated, played i
 own beside the project's page. This page says where the deck is made, where it lives here, how a deck is
 registered, and how its page is built, checked and served.
 
-The deck has arrived, and the deck page plays it. Nothing links to it yet: the project's page shows its
-"Watch the video" button only once `DECK_URL` is set in `scripts/build-site.ts`, which is the owner's own step.
+The deck has arrived, and the deck page plays it. The project's page opens it with its "Watch the video"
+button: `DECK_URL` in `scripts/build-site.ts` is `deck/`, the deck page beside it. Emptied, the button goes.
 With the registry empty, the page says the deck is not here and links back to the project's page.
 
 ## Where the deck is made
@@ -113,7 +113,7 @@ page built by `scripts/build-site.ts`, with `web/dist` at `deck/`.
 The smoke test builds `web/`, assembles the two pages, serves them on `127.0.0.1` and drives Playwright's
 headless shell, never the Google Chrome app. It holds that the deck page plays the registered deck ("1 / N" in
 its bar, slide 1's title on screen) and that Escape leaves it for the project's page; that every baked clip is
-in the build and answers as audio; that the project's page has no deck button while `DECK_URL` is empty; that
+in the build and answers as audio; that the project's page shows "Watch the video" and that it opens `deck/`; that
 on a 390 px phone the deck page plays slide 1 and does not scroll sideways; that neither page logs an error;
 and that A11y Genie's own scan of the deck page, on the deck's first slide, finds nothing critical or serious. `--shots <dir>` saves
 screenshots, and `--host` and `--port` choose where it listens.

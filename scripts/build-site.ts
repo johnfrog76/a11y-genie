@@ -5,8 +5,8 @@
  * `site/index.html` holds one marker, `<!-- deck-cta -->`, where the deck's button goes. With `DECK_URL` set,
  * the button to watch the deck goes there, before the repository's. Emptied, the marker is taken out and the
  * page has no deck button at all, so there is never a link to nowhere. The page is published only once the
- * repository is public (pages.yml, which also puts the deck page beside it at deck/); `DECK_URL` stays empty
- * until the deck is published too.
+ * repository is public (pages.yml, which also puts the deck page beside it at deck/, the address the button
+ * opens).
  *
  * Run it with `npm run site` (or `node scripts/build-site.ts [folder]`); it writes `_site/` by default.
  * test/unit/site.test.ts checks both cases.
@@ -16,10 +16,13 @@ import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 /**
- * The product-intro deck's address, set here and only here. It stays empty, and the page has no deck button,
- * until the deck is published. Then this one line becomes `"https://css-wasteland.com/decks/a11y-genie"`.
+ * The product deck's address, set here and only here: the deck page `web/` builds, which Pages serves at `deck/`
+ * beside this page (docs/DECK.md). Emptied, the page has no deck button at all.
  */
-export const DECK_URL: string = "";
+export const DECK_URL: string = "deck/";
+
+/** The one address that is not an https: one: the deck page beside this one. */
+export const DECK_PAGE = "deck/";
 
 /** The marker in `site/index.html` the deck's button replaces. */
 export const DECK_MARKER = "<!-- deck-cta -->";
@@ -38,9 +41,9 @@ export function renderIndex(html: string, deckUrl: string = DECK_URL): string {
     // Take out the marker's whole line, so the built page has no trace of it.
     return html.replace(new RegExp(`^[ \\t]*${DECK_MARKER}\\r?\\n`, "m"), "").replace(DECK_MARKER, "");
   }
-  if (!/^https:\/\/[^\s"'<>]+$/.test(deckUrl)) {
+  if (deckUrl !== DECK_PAGE && !/^https:\/\/[^\s"'<>]+$/.test(deckUrl)) {
     throw new Error(
-      `DECK_URL must be an https: address with no spaces, quotes or angle brackets: ${deckUrl}`,
+      `DECK_URL must be ${DECK_PAGE}, or an https: address with no spaces, quotes or angle brackets: ${deckUrl}`,
     );
   }
   const button = `<a class="lp-cta-button" data-cta="deck" href="${deckUrl.replaceAll("&", "&amp;")}">${DECK_LABEL}</a>`;
