@@ -6,7 +6,7 @@
  * This is the merge the record needs to be valid at all (a finding id is unique), so it is here from the
  * first state. Choices made where the spec is silent: a merged finding keeps the first state's wording
  * (`help`, `fix`, the element's `html` and `failure`), takes the worst impact any state gave it, and lists its
- * elements in the order they were first seen, default state first.
+ * elements by the first state each was found in (`default` first), then by target.
  */
 
 import { IMPACTS, type AxeTarget, type Impact } from "./finding.js";
