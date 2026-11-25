@@ -83,7 +83,7 @@ export function planScan(input: PlanInput): ScanPlan {
   const workflows = config.workflows.map((flow): WorkflowSpec => {
     if (flow.steps.length > MAX_FLOW_STEPS) {
       throw new Refusal(
-        `${printableLine(input.config ?? "")}: the workflow "${printableLine(flow.name).slice(0, 40)}" has ${flow.steps.length} steps, and a flow may have at most ${MAX_FLOW_STEPS}.`,
+        `${printableLine(input.config ?? "")}, line ${flow.line}: the workflow "${printableLine(flow.name).slice(0, 40)}" has ${flow.steps.length} steps, and a flow may have at most ${MAX_FLOW_STEPS}.`,
         "split it into workflows of their own.",
       );
     }
