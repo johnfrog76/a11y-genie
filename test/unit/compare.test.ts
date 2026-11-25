@@ -11,7 +11,14 @@ import {
 } from "../../src/compare.js";
 import type { AxeScan, Finding, Impact } from "../../src/finding.js";
 import { renderReport } from "../../src/report.js";
-import { buildPagesRecord, type ScanRecord, type StateResult } from "../../src/scan-record.js";
+import {
+  buildPagesRecord,
+  fitToSize,
+  scanJson,
+  type ScanRecord,
+  type StateResult,
+} from "../../src/scan-record.js";
+import { scanLines, type PreparedScan } from "../../src/scan-command.js";
 import { CARRIED_ITEMS, CARRIED_TEXT_CHARS } from "../../src/compare.js";
 import { axeHelpUrl } from "../../src/map-axe.js";
 import { scanSchema, validate } from "../../src/json-schema.js";
@@ -597,5 +604,116 @@ describe("fixed since the previous scan", () => {
     expect(checked.summary).toMatchObject({ fixed: 2 });
     const next = withPrevious(scanOf(only()), { record: checked });
     expect(next.summary.sincePrevious).toMatchObject({ new: 0, fixed: 0 });
+  });
+});
+
+describe("check's lines and counts over states not scanned", () => {
+  const prepared = { plan: { url: "http://127.0.0.1:1/page" }, failOn: "minor" } as unknown as PreparedScan;
+  const twoStates = (defaultAxe: AxeScan | null, menuAxe: AxeScan | null): StateResult[] => [
+    defaultAxe === null
+      ? { name: "default", axe: null, notScanned: "it did not answer" }
+      : { name: "default", axe: defaultAxe },
+    menuAxe === null
+      ? { name: "menu", axe: null, notScanned: "step 1 (click button 'Menu') failed" }
+      : { name: "menu", axe: menuAxe },
+  ];
+
+  it("counts in Found only what this run found, and says the rest are still open, not checked (issue 157)", () => {
+    const baseline = scanOf(
+      twoStates(axe(finding("button-name", ["#save"])), axe(finding("label", ["#email"]))),
+    );
+    const record = check(baseline, scanOf(twoStates(axe(finding("button-name", ["#save"])), null)));
+    expect(record.summary.critical).toBe(2);
+    const lines = scanLines(record, prepared, "out");
+    expect(lines).toContain(
+      "Found 1 problem on http://127.0.0.1:1/page, worst first: 1 critical, 0 serious, 0 moderate, 0 minor.",
+    );
+    expect(lines).toContain("1 more still open, not checked this time.");
+  });
+
+  it("says nothing was found when every open finding was carried over unchecked (issue 157)", () => {
+    const baseline = scanOf(
+      twoStates(axe(), axe(finding("button-name", ["#save"]), finding("label", ["#email"]))),
+    );
+    const record = check(baseline, scanOf(twoStates(axe(), null)));
+    const lines = scanLines(record, prepared, "out");
+    expect(lines.some((line) => line.startsWith("Found "))).toBe(false);
+    expect(lines).toContain("2 still open, not checked this time.");
+  });
+
+  it("does not say the ones still open were in the baseline when one was found only where it did not scan (issue 158)", () => {
+    const baseline = scanOf(twoStates(axe(finding("button-name", ["#save"])), null));
+    const record = check(
+      baseline,
+      scanOf(twoStates(axe(finding("button-name", ["#save"])), axe(finding("label", ["#email"])))),
+    );
+    expect(record.exit).toBe(0);
+    expect(scanLines(record, prepared, "out")).toContain(
+      "None of them is new, so the exit is 0: the ones still open were in the baseline, or were found only in states it did not scan.",
+    );
+    // With every one in the baseline, the line is as it was.
+    const plain = check(baseline, scanOf(twoStates(axe(finding("button-name", ["#save"])), axe())));
+    expect(scanLines(plain, prepared, "out")).toContain(
+      "None of them is new, so the exit is 0: the ones still open were in the baseline.",
+    );
+  });
+
+  it("counts a finding unverified this time when the element cap cut all its unseen elements (issue 184)", () => {
+    const baseline = scanOf(
+      twoStates(axe(finding("button-name", ["#save"])), axe(finding("button-name", ["#menu"]))),
+    );
+    const now = scanOf(twoStates(axe(finding("button-name", ["#save"])), null));
+    now.limits = { ...now.limits!, elementsPerFinding: 1 };
+    const record = check(baseline, now);
+    const [button] = record.findings;
+    expect(button).toMatchObject({ status: "still", unverified: true, elementsCut: 1 });
+    expect(button!.elements.some((e) => e.unverified === true)).toBe(false);
+    expect(unverifiedOf(record).thisTime).toBe(1);
+  });
+});
+
+describe("an oversized check record keeps true counts (issue 183)", () => {
+  const many = (count: number) => Array.from({ length: count }, (_, i) => `#f${i}`);
+
+  it("cuts fixed elements under a finding still open, counted in fixedCut, before it gives up the findings", () => {
+    const record = check(
+      scanOf(only(finding("image-alt", ["#open", ...many(300)]))),
+      scanOf(only(finding("image-alt", ["#open"]))),
+    );
+    expect(record.findings[0]!.fixedElements).toHaveLength(300);
+    const limit = Buffer.byteLength(scanJson(record)) - 5000;
+    const fitted = fitToSize(record, limit);
+    expect(Buffer.byteLength(scanJson(fitted))).toBeLessThanOrEqual(limit);
+    expect(validate(schema, fitted)).toEqual([]);
+    const [open] = fitted.findings;
+    expect(open!.status).toBe("still");
+    expect(open!.fixedElements!.length).toBeLessThan(300);
+    expect(open!.fixedElements!.length + open!.fixedCut!).toBe(300);
+    expect(fitted.summary).toMatchObject({ new: 0, still: 1, fixed: 0 });
+  });
+
+  it("counts nothing new, still or fixed once nothing of the findings is kept", () => {
+    const record = check(
+      scanOf(only(finding("image-alt", ["#gone"]), finding("label", ["#still"]))),
+      scanOf(only(finding("label", ["#still"]), finding("button-name", ["#new"]))),
+    );
+    expect(record.summary).toMatchObject({ new: 1, still: 1, fixed: 1 });
+    const fitted = fitToSize(record, 1000);
+    expect(validate(schema, fitted)).toEqual([]);
+    expect(fitted.findings).toEqual([]);
+    expect(fitted.summary).toMatchObject({ new: 0, still: 0, fixed: 0 });
+    expect(checkLine(fitted)).toBe("0 fixed, 0 new, 0 still open");
+  });
+
+  it("reads a plain scan as not comparable with the last once nothing of its findings is kept", () => {
+    const previous = scanOf(only(finding("image-alt", ["img"])));
+    const record = withPrevious(scanOf(only(finding("label", ["#email"]))), { record: previous });
+    expect(record.summary.sincePrevious).toMatchObject({ new: 1, fixed: 1 });
+    const fitted = fitToSize(record, 1000);
+    expect(validate(schema, fitted)).toEqual([]);
+    expect(fitted.summary.sincePrevious).toBeNull();
+    expect(sincePreviousLine(fitted)).toBe(
+      "Not comparable with the last scan: nothing of this scan was kept, since its results were larger than the 1000 byte limit on scan.json.",
+    );
   });
 });
