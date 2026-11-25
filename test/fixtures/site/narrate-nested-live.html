@@ -1,0 +1,33 @@
+<!doctype html>
+<!--
+  Fixture: live regions inside one another, for narrated flows (test/browser/narrate.test.ts). The first button
+  adds text to a status inside an aria-live div: a screen reader says it once, so the narration must too. The
+  second adds text to two separate sibling regions: those are two announcements.
+  Must fire: nothing
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Nested live regions</title>
+  </head>
+  <body>
+    <main>
+      <h1>Nested live regions</h1>
+      <p><button id="nested" type="button">Save nested</button></p>
+      <p><button id="siblings" type="button">Save siblings</button></p>
+      <div aria-live="polite"><p id="inner" role="status"></p></div>
+      <p id="one" role="status"></p>
+      <p id="two" role="status"></p>
+    </main>
+    <script>
+      document.getElementById("nested").addEventListener("click", () => {
+        document.getElementById("inner").textContent = "Saved";
+      });
+      document.getElementById("siblings").addEventListener("click", () => {
+        document.getElementById("one").textContent = "First saved";
+        document.getElementById("two").textContent = "Second saved";
+      });
+    </script>
+  </body>
+</html>
