@@ -782,6 +782,11 @@ export class FocusVisibleCheck {
         }
       };
       const focused = await shot();
+      // What runs now, the blur can cancel: the guard holds those events until focus is back (`giveBack`).
+      const running = await this.reader.call(STILL, null);
+      await this.guard.keep(
+        Array.isArray(running) ? running.filter((n): n is string => typeof n === "string") : [],
+      );
       // From here until the refocus is styled, the check's own focus changes start no transition (TRANSITIONS_OFF).
       await this.reader.call(TRANSITIONS_OFF);
       await this.guard.hold(true);
@@ -821,6 +826,8 @@ export class FocusVisibleCheck {
     await this.reader.call(TRANSITIONS_ON).catch(() => undefined);
     // Last: the events the refocus fired have been stopped before the guard is let go.
     await this.guard.hold(false).catch(() => undefined);
+    // And the cancels the blur queued have been dispatched, held, before their names are let go.
+    await this.guard.release().catch(() => undefined);
     if (back !== true) this.stopped = true;
   }
 
