@@ -197,8 +197,9 @@ export async function hasLandmark(reader: FocusReader): Promise<boolean> {
   return (await readStructure(reader)).landmark;
 }
 
-/** Runs in the isolated world: the body's opening tag, for the finding's snippet. */
+/** Runs in the isolated world: the body's opening tag, for the finding's snippet; null for a document with no body. */
 const BODY_OPENING_TAG = `function () {
+  if (!document.body) return null;
   return document.body.cloneNode(false).outerHTML.replace(/<\\/body>$/, "");
 }`;
 
@@ -213,6 +214,8 @@ export async function checkLandmarks(page: Page, pageKey: string): Promise<Findi
   } finally {
     await reader.close();
   }
+  // A document with no body (an SVG or an XML file) is not a page of content to ask for landmarks.
+  if (html === null) return undefined;
   return {
     id: `genie/no-landmarks@${pageKey}`,
     rule: { ...NO_LANDMARKS_RULE, wcag: [...NO_LANDMARKS_RULE.wcag] },
