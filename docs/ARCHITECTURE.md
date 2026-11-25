@@ -715,7 +715,10 @@ frames). An infinite animation on the element, an ancestor or a descendant is pa
 the ring; one anywhere else is set to its start, the same in both screenshots, so a spinner beside the element is
 not read as its focus (`#beside-spinner` in `focus-witness-edges.html`). After the screenshot each one is put back at the time it
 was paused at plus the time that has passed since, and played on, so it ends where it would have without the
-check, not early and not late. Nothing is finished, so no `finish` event fires; setting a paused CSS animation or
+check, not early and not late. One whose time ran out while it was held is finished, as it would have been by
+then: played instead, from its end, it would start again from the beginning (the Web Animations auto-rewind; a
+test holds a 150 ms animation past its end and reads it finished, at 150, once). Nothing else is finished, so no
+other `finish` event fires; setting a paused CSS animation or
 transition to its end does queue its `animationend` or `transitionend`, so the guard (`src/focus-guard.ts`)
 also stops those two kinds of event, and `animationstart`, `animationiteration`, `animationcancel`,
 `transitionrun`, `transitionstart` and `transitioncancel`, for the animations the check named (it names them, with the guard, before it sets any of them to its end, so no
@@ -734,7 +737,13 @@ there, empty, which changed the HTML the trap check quotes.
 
 **The page is left as it was.** Focus is taken off the element with `blur()` and given back with `focus()`
 (`preventScroll`) in the isolated world. For that moment, a guard (`src/focus-guard.ts`) stops the `blur`,
-`focusout`, `focus` and `focusin` events, so the page's own handlers never see them: a menu that closes when
+`focusout`, `focus` and `focusin` events, and the older `DOMFocusIn` and `DOMFocusOut` that Chrome still fires beside
+them (checked at Chrome 159; `focus-listening.html` counts all six), so the page's own handlers never see them.
+From just before the blur until the refocus has been styled, a constructed style sheet in every root turns
+transitions off, so the blur and the refocus start none, and the page hears no transition event of the check's
+making (`focus-transitioning.html`, whose ring comes in by a 10 s transition and whose counts are no higher with
+the check than without it); the sheet is taken away only after each document's styles are worked out, so taking
+it away starts nothing either. A menu that closes when
 focus leaves it stays open (`focus-watched.html`, whose counts of focus and blur events, and whose walk, are the
 same with the check as without it). The guard is first in line: `runScan` installs it before the page navigates
 (`FocusGuard.install`, `Page.addScriptToEvaluateOnNewDocument` into an isolated world of its own, in every
@@ -750,7 +759,7 @@ the element Tab put it on, so the walk's next Tab goes on from there, and the tr
 the same trap with the check as without it (`trap.html`, `trap-stuck.html`, `walk-order.html`, `walk-shadow.html`,
 `walk-frame.html`). If focus cannot be given back, the check takes no more screenshots on that walk, and the rest
 of its stops are *needs review*. What the page can still notice: the screenshot style is a `style` element added and removed, and the witness's
-style is in `adoptedStyleSheets` while it shoots.
+style is in `adoptedStyleSheets` while it shoots, and so is the sheet that turns transitions off from the blur to the refocus.
 
 **The screenshots stay in memory.** Each pair is decoded in Node (`src/png.ts`, a small reader of Chrome's 8-bit
 RGB and RGBA PNGs, on Node's own zlib), compared, and dropped. No screenshot is written to disk, to `scan.json`
@@ -765,7 +774,7 @@ straight through the DevTools Protocol, encoded for speed, and decoded only when
 most `MAX_SCREENSHOT_STOPS` (100) stops of each walk get screenshots, about 10 s; each stop after them is a
 *needs review* item saying it was not looked at, and why. With the default `--max-tabs` of 200 that is at most 100
 such items a state. Fixtures: `focus-custom-ok.html`, `focus-hidden.html`, `focus-faint.html`,
-`focus-animated.html`, `focus-watched.html`, `focus-listening.html`, `focus-elsewhere.html`, `focus-marked.html`,
+`focus-animated.html`, `focus-watched.html`, `focus-listening.html`, `focus-transitioning.html`, `focus-elsewhere.html`, `focus-marked.html`,
 `focus-marked-scroll.html`, `focus-witness-edges.html`, `focus-witness-scrolled.html`; tests: `test/browser/focus-visible.test.ts`,
 `test/unit/focus-visible.test.ts`.
 

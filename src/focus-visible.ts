@@ -290,7 +290,14 @@ const RESUME = `function () {
         // Put back at the time it was paused at, plus the time that has passed since, as it would have run.
         const end = animation.effect ? animation.effect.getComputedTiming().endTime : 0;
         const now = time + (performance.now() - at) * rate;
-        animation.currentTime = typeof end === "number" ? Math.max(0, Math.min(now, end)) : now;
+        const finite = typeof end === "number" && end !== Infinity;
+        // Its time ran out while it was held: it ends, as it would have. play() on a paused animation at its end
+        // would start it again from the beginning (the Web Animations auto-rewind).
+        if (finite && (rate >= 0 ? now >= end : now <= 0)) {
+          animation.finish();
+          continue;
+        }
+        animation.currentTime = finite ? Math.max(0, Math.min(now, end)) : now;
       }
       animation.play();
     } catch (e) {}
@@ -412,12 +419,65 @@ const WITNESS_RESUME = `function () {
       if (animation.playbackRate === rate) {
         const end = animation.effect ? animation.effect.getComputedTiming().endTime : 0;
         const now = time + (performance.now() - at) * rate;
-        animation.currentTime = typeof end === "number" && end !== Infinity ? Math.max(0, Math.min(now, end)) : now;
+        const finite = typeof end === "number" && end !== Infinity;
+        // Its time ran out while it was held: it ends, as it would have. play() on a paused animation at its end
+        // would start it again from the beginning (the Web Animations auto-rewind).
+        if (finite && (rate >= 0 ? now >= end : now <= 0)) {
+          animation.finish();
+          continue;
+        }
+        animation.currentTime = finite ? Math.max(0, Math.min(now, end)) : now;
       }
       animation.play();
     } catch (e) {}
   }
 }`;
+
+/**
+ * Turns transitions off in every root (the page, its open shadow roots and same-origin frames) from just before
+ * the check's blur until just after its refocus, with a constructed style sheet the page's observers do not hear:
+ * a transition whose duration and delay are 0 never starts, so the blur and the refocus start none, and the page
+ * hears no `transitionrun`, `transitionstart`, `transitioncancel` or `transitionend` of the check's making. A
+ * transition already running when it is adopted runs on.
+ */
+const TRANSITIONS_OFF = `function () {
+  ${WITNESS_ROOTS}
+  if (!globalThis.${WITNESS}) globalThis.${WITNESS} = { scrolls: 0, paused: [], sheets: [], heard: new WeakSet() };
+  const witness = globalThis.${WITNESS};
+  witness.still = witness.still || [];
+  for (const root of roots) {
+    try {
+      const view = (root.ownerDocument || root).defaultView;
+      const sheet = new view.CSSStyleSheet();
+      sheet.replaceSync("*, *::before, *::after { transition-duration: 0s !important; transition-delay: 0s !important; }");
+      root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet];
+      witness.still.push({ root, sheet });
+    } catch (e) {}
+  }
+  return true;
+}`;
+
+/**
+ * Takes the sheet `TRANSITIONS_OFF` adopted away, once the refocus has been styled under it: each document's styles
+ * are worked out first, so the focus style lands with no transition, and taking the sheet away then changes
+ * nothing but the transition properties, which starts none.
+ */
+const TRANSITIONS_ON = `function () {
+  const witness = globalThis.${WITNESS};
+  if (!witness || !witness.still) return true;
+  for (const { root } of witness.still) {
+    try { (root.ownerDocument || root).documentElement.getBoundingClientRect(); } catch (e) {}
+  }
+  for (const { root, sheet } of witness.still.splice(0)) {
+    try { root.adoptedStyleSheets = root.adoptedStyleSheets.filter((s) => s !== sheet); } catch (e) {}
+  }
+  return true;
+}`;
+
+/** For tests: the hold and the put-back as the check runs them, and the global they keep their state under. */
+export const HELD_FOR_TESTS = HELD;
+export const STILL_FOR_TESTS = STILL;
+export const RESUME_FOR_TESTS = RESUME;
 
 /** The element's box in the top page's window, and the window's size, as read and checked. */
 interface Box {
@@ -722,6 +782,8 @@ export class FocusVisibleCheck {
         }
       };
       const focused = await shot();
+      // From here until the refocus is styled, the check's own focus changes start no transition (TRANSITIONS_OFF).
+      await this.reader.call(TRANSITIONS_OFF);
       await this.guard.hold(true);
       if ((await this.reader.call(BLUR)) !== true) throw new Error("focus did not leave the element");
       const unfocused = await shot();
@@ -756,6 +818,7 @@ export class FocusVisibleCheck {
   /** Puts focus back on the kept element, if it is kept; when that fails, the check stops taking screenshots. */
   private async giveBack(): Promise<void> {
     const back = await this.reader.call(REFOCUS).catch(() => false);
+    await this.reader.call(TRANSITIONS_ON).catch(() => undefined);
     // Last: the events the refocus fired have been stopped before the guard is let go.
     await this.guard.hold(false).catch(() => undefined);
     if (back !== true) this.stopped = true;

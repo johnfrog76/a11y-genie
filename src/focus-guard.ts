@@ -44,7 +44,10 @@ const SOURCE = `(() => {
   const state = { held: false, names: [] };
   Object.defineProperty(globalThis, ${JSON.stringify(STATE)}, { value: state });
   const stop = (event) => { if (state.held) event.stopImmediatePropagation(); };
-  for (const type of ["blur", "focusout", "focus", "focusin"]) window.addEventListener(type, stop, true);
+  // DOMFocusIn and DOMFocusOut too: Chrome still fires them, beside focusin and focusout (checked at Chrome 159).
+  for (const type of ["blur", "focusout", "focus", "focusin", "DOMFocusIn", "DOMFocusOut"]) {
+    window.addEventListener(type, stop, true);
+  }
   // The animation and transition events the check provokes by holding the page still: only those of the
   // animations it named, and only while it names them.
   const stopNamed = (event) => {

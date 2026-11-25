@@ -4,7 +4,14 @@ import { scanPage } from "../../src/axe.js";
 import { withBrowser } from "../../src/browser.js";
 import type { AxeScan, Finding, NeedsReview } from "../../src/finding.js";
 import { FocusGuard } from "../../src/focus-guard.js";
-import { MAX_SCREENSHOT_STOPS, SCROLL_MARK, WITNESS_FRAME_MS } from "../../src/focus-visible.js";
+import {
+  HELD_FOR_TESTS,
+  MAX_SCREENSHOT_STOPS,
+  RESUME_FOR_TESTS,
+  SCROLL_MARK,
+  STILL_FOR_TESTS,
+  WITNESS_FRAME_MS,
+} from "../../src/focus-visible.js";
 import { wordingOf } from "../../src/plain.js";
 import { runScan } from "../../src/run-scan.js";
 import { CANNOT_SEE } from "../../src/scan-record.js";
@@ -228,6 +235,46 @@ describe.skipIf(!hasBrowser)("focus visible (skipped where the test browser is n
       expect(withIt.data[name], name).toBeUndefined();
     }
     expect(withIt.data).toEqual(without.data);
+  });
+
+  it("focus-transitioning.html: a ring by a transition is seen, and the page hears no transition event of the check's making", async () => {
+    const without = await scan("focus-transitioning.html", ["wcag2a", "best-practice"]);
+    const withIt = await scan("focus-transitioning.html", ["wcag2a", "best-practice", "wcag2aa"]);
+    expect(withIt.finding).toBeUndefined();
+    const heard = (s: Scanned) => JSON.parse(s.report ?? "null") as Record<string, number>;
+    // The walk's own Tabs start the ring's transitions, and the page hears those. The check's blur and refocus
+    // start none, so it hears no more with the check than without it. (A shot's hold can keep back one of the
+    // page's own, named while it runs, so the count is held as at most, not equal.)
+    expect(heard(without).transitionrun).toBeGreaterThan(0);
+    for (const type of ["transitionrun", "transitionstart", "transitioncancel", "transitionend"]) {
+      expect(heard(withIt)[type] ?? 0, type).toBeLessThanOrEqual(heard(without)[type] ?? 0);
+    }
+  });
+
+  it("a held animation whose time ran out ends where it would have, and does not start again", async () => {
+    await withBrowser(TEST_CHANNEL, async (browser) => {
+      const context = await browser.newContext();
+      const tab = await context.newPage();
+      await tab.goto(server.url("focus-hidden.html"));
+      const result = (await tab.evaluate(`(async () => {
+        const el = document.body;
+        const animation = el.animate([{ opacity: 1 }, { opacity: 0.5 }], { duration: 150 });
+        let finished = 0;
+        animation.onfinish = () => (finished += 1);
+        await new Promise((done) => setTimeout(done, 50));
+        // The check's own hold and put-back, as it runs them, held past the animation's end.
+        globalThis[${JSON.stringify(HELD_FOR_TESTS)}] = { el, paused: [] };
+        (${STILL_FOR_TESTS})([""]);
+        await new Promise((done) => setTimeout(done, 300));
+        (${RESUME_FOR_TESTS})();
+        const right = { state: animation.playState, time: animation.currentTime };
+        await new Promise((done) => setTimeout(done, 300));
+        return { ...right, finished };
+      })()`)) as { state: string; time: number; finished: number };
+      expect(result.state).toBe("finished");
+      expect(result.time).toBe(150);
+      expect(result.finished).toBe(1);
+    });
   });
 
   it("the walk and the trap check read the same with the check as without it", async () => {
