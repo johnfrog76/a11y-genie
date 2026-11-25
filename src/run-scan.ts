@@ -45,6 +45,22 @@ function navigationTimeoutMs(env: NodeJS.ProcessEnv = process.env): number {
 }
 
 /**
+ * How long to wait for a page's answer, and the limit to name when none comes. The wait is the navigation
+ * timeout or the time left on the page's deadline, whichever is shorter. The limit named is the one that bound:
+ * the navigation timeout when it is the shorter, else the page time limit the person set (`--timeout`). Never
+ * the milliseconds left over, which a moment's passing since the deadline was set makes 2999 for a limit of 3000.
+ */
+export function answerWait(
+  navigationMs: number,
+  leftMs: number,
+  pageMs: number,
+): { timeoutMs: number; limitMs: number } {
+  return navigationMs <= leftMs
+    ? { timeoutMs: navigationMs, limitMs: navigationMs }
+    : { timeoutMs: leftMs, limitMs: pageMs };
+}
+
+/**
  * The refusal for a page that did not answer, or null when the error is something else. The browser's words
  * (checked at playwright-core 1.65.1): a `TimeoutError` when nothing came back in time, and
  * `net::ERR_<NAME>` for a failed connection: `ERR_CONNECTION_REFUSED`, `ERR_NAME_NOT_RESOLVED` and the rest.
@@ -262,7 +278,7 @@ async function loadPage(
   const failed = (reason: string, redirects = 0): PageLoad => ({ ok: false, reason, redirects });
 
   // Wait for the answer only; the load itself is held to the page time limit below.
-  const timeout = Math.min(navigationTimeoutMs(), left());
+  const { timeoutMs: timeout, limitMs } = answerWait(navigationTimeoutMs(), left(), limits.pageMs);
   let redirects: number;
   try {
     const response = await tab.goto(requested, { timeout, waitUntil: "commit" });
@@ -272,10 +288,10 @@ async function loadPage(
     if (why !== undefined) return failed(why);
     if (!unit.first) {
       // Only the first page of a run must answer; a later one that does not reads *not scanned*.
-      const reason = noAnswerReason(error, timeout);
+      const reason = noAnswerReason(error, limitMs);
       if (reason !== null) return failed(`it did not answer: ${reason}`);
     }
-    throw noAnswerRefusal(error, requested, timeout) ?? error;
+    throw noAnswerRefusal(error, requested, limitMs) ?? error;
   }
 
   try {
