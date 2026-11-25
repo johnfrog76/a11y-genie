@@ -158,7 +158,7 @@ Notes on the flags:
   Chromium once. With `--browser-channel` named, it uses that browser or refuses. `--offline` and
   `--no-download` both stop the download.
 - **`--tags`** takes the tags axe-core's own rules carry (`wcag2a`, `wcag2aa`, `wcag21aa`, `best-practice`,
-  `cat.aria` and the rest); an unknown one is a refusal that lists them. The tags go in as given: `wcag2a` alone
+  `cat.aria` and the rest); an unknown one is a refusal that gives examples. The tags go in as given: `wcag2a` alone
   does not also run `wcag2aa`. A11y Genie's own rules run under the tags they carry (`a11y-genie rules` shows
   them).
 - **`--out`** is checked before anything is scanned. Without it, a scan goes under the per-user folder:

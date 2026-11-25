@@ -5,7 +5,8 @@
  * `scan` exit `findings` (1), so a page nobody saw never exits 0.
  *
  * `partial` (4) is not used yet: it is for a run that stopped after it had already written something. Only
- * `cards --toolkit` will reach it, so it arrives with that command.
+ * the planned `cards` command, which hands findings to a team's work tracker, will reach it, so it arrives
+ * with that command.
  */
 export const EXIT = {
   /** Scanned, and nothing found. */
