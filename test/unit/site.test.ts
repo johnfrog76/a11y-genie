@@ -9,7 +9,12 @@ import {
   DECK_PAGE,
   DECK_URL,
   renderIndex,
+  SHARE_IMAGE,
+  SHARE_IMAGE_ALT,
+  SHARE_MARKER,
+  shareTags,
   SITE_DIR,
+  SITE_URL,
 } from "../../scripts/build-site.js";
 import { neverClaimViolations } from "../helpers/never-claim.js";
 
@@ -120,5 +125,83 @@ describe("the page's own words", () => {
 
   it("and the deck button's words claim nothing", () => {
     expect(neverClaimViolations(DECK_LABEL)).toEqual([]);
+  });
+});
+
+/** Each `<meta>` in the page, by its `property` or `name`, with its `content` read back from the attribute. */
+function metas(html: string): Map<string, string[]> {
+  const found = new Map<string, string[]>();
+  for (const [tag] of html.matchAll(/<meta\s[^>]*>/g)) {
+    const key = /(?:property|name)="([^"]*)"/.exec(tag)?.[1];
+    const content = /content="([^"]*)"/.exec(tag)?.[1];
+    if (key === undefined || content === undefined) continue;
+    const value = content
+      .replaceAll("&quot;", '"')
+      .replaceAll("&lt;", "<")
+      .replaceAll("&gt;", ">")
+      .replaceAll("&amp;", "&");
+    found.set(key, [...(found.get(key) ?? []), value]);
+  }
+  return found;
+}
+
+describe("the link preview (Open Graph and Twitter tags)", () => {
+  const out = mkdtempSync(join(tmpdir(), "a11y-genie-site-"));
+  afterAll(() => rmSync(out, { recursive: true, force: true }));
+
+  it("the built page holds every tag once, each address whole and built from SITE_URL", () => {
+    buildSite(out);
+    const tags = metas(readFileSync(join(out, "index.html"), "utf8"));
+    const expected: Record<string, string> = {
+      "og:title": "A11y Genie",
+      "og:description": "An accessibility scanner for agents and people.",
+      "og:type": "website",
+      "og:url": "https://johnfrog76.github.io/a11y-genie/",
+      "og:image": "https://johnfrog76.github.io/a11y-genie/a11y-genie-share-1200x630.png",
+      "og:image:alt": SHARE_IMAGE_ALT,
+      "twitter:card": "summary_large_image",
+    };
+    for (const [key, value] of Object.entries(expected)) expect(tags.get(key), key).toEqual([value]);
+    expect(SITE_URL).toBe("https://johnfrog76.github.io/a11y-genie/");
+    for (const key of ["og:url", "og:image"]) {
+      const address = new URL(tags.get(key)?.[0] ?? "");
+      expect(address.protocol, key).toBe("https:");
+      expect(address.href.startsWith(SITE_URL), key).toBe(true);
+    }
+    expect(SHARE_IMAGE_ALT).toMatch(/^The name A11y Genie .+ on the shelf below\.$/);
+  });
+
+  it("the picture it names is in the built folder, a 1200 by 630 PNG, the same bytes as in site/", () => {
+    buildSite(out);
+    const built = readFileSync(join(out, SHARE_IMAGE));
+    expect(built.equals(readFileSync(join(SITE_DIR, SHARE_IMAGE)))).toBe(true);
+    expect(built.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+    expect(built.subarray(12, 16).toString("latin1")).toBe("IHDR");
+    expect([built.readUInt32BE(16), built.readUInt32BE(20)]).toEqual([1200, 630]);
+  });
+
+  it("needs its marker in site/index.html exactly once, and leaves no marker in the built page", () => {
+    expect(source.split(SHARE_MARKER)).toHaveLength(2);
+    expect(() => renderIndex(source.replace(SHARE_MARKER, ""))).toThrow(/exactly once/);
+    expect(renderIndex(source)).not.toContain(SHARE_MARKER);
+  });
+
+  it("refuses a SITE_URL that is not a whole https: address ending in a slash", () => {
+    for (const bad of [
+      "http://example.com/",
+      "https://example.com",
+      "/a11y-genie/",
+      'https://x/"><script>/',
+    ]) {
+      expect(() => shareTags("", bad), bad).toThrow(/SITE_URL/);
+    }
+  });
+
+  it("claims nothing in the preview's words", () => {
+    const words = [...metas(renderIndex(source)).entries()]
+      .filter(([key]) => key.startsWith("og:") && key !== "og:url" && key !== "og:image")
+      .map(([, values]) => values.join(" "))
+      .join("\n");
+    expect(neverClaimViolations(words)).toEqual([]);
   });
 });

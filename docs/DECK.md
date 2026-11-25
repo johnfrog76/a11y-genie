@@ -8,6 +8,12 @@ The deck has arrived, and the deck page plays it. The project's page opens it wi
 button: `DECK_URL` in `scripts/build-site.ts` is `deck/`, the deck page beside it. Emptied, the button goes.
 With the registry empty, the page says the deck is not here and links back to the project's page.
 
+The project's page has a link preview too, made in the same studio from the deck's own stills:
+`site/a11y-genie-share-1200x630.png`, copied byte for byte. `scripts/build-site.ts` writes its Open Graph and
+Twitter tags into the page. A preview needs whole addresses, so the page's own address is set once, in
+`SITE_URL`, and the tags are built from it. `test/unit/site.test.ts` holds every tag, the addresses, and the
+picture in the built folder.
+
 ## Where the deck is made
 
 The deck is made in a separate deck studio, with its art, its notes and its narration. The studio's ship step
