@@ -52,7 +52,9 @@ describe("the deck page's player", () => {
 
   it("offers the presentation engine on the closing button: Connected Deck's repository, by default", () => {
     const button = readFileSync(new URL("web/src/deck/deck-engine/CopyLinkButton.tsx", root), "utf8");
-    expect(button).toContain('const DEFAULT_URL = "https://github.com/johnfrog76/connected-deck";');
+    // Connected Deck names its own repository in a constant and makes it the default `url`.
+    expect(button).toContain('export const CONNECTED_DECK_REPO_URL = "https://github.com/johnfrog76/connected-deck";');
+    expect(button).toContain("url = CONNECTED_DECK_REPO_URL,");
   });
 
   it("plays to an audience only: Sofa, with no Podium", () => {
