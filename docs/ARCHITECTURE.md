@@ -499,7 +499,9 @@ accessibility tree (`Accessibility.getPartialAXTree`), and `focusVisible`: wheth
 seen (that is `genie/focus-visible`, below). Each part of a selector is the element's `id` when that id is unique in
 its own root, or a path of `:nth-of-type` steps up to one, as the click check's are; an element at the top of a
 shadow root is anchored with `:host >`, which `shadowRoot.querySelector` reads in Chrome, so the part matches
-that element and nothing deeper. A part longer than 1,000 characters is cut with `…`. The same unchanged page
+that element and nothing deeper. A part longer than 1,000 characters keeps its end, which names the element
+itself, behind `…` and a short hash of the whole part, so two different deep elements never read as one stop
+(`walk-deep.html`: siblings 60 levels down, which kept the start instead read as one stop, and as a false trap). The same unchanged page
 walked twice gives the same stops.
 
 **Frames and shadow roots.** It reads into open shadow roots and frames of the same origin. A frame of another
@@ -888,8 +890,11 @@ page's reach (`PressObserver`):
   `role="status"`, `"alert"` and `"log"` element, and `output`, is remembered; after it, the page is given 250 ms
   (`ACTION_SETTLE_MS`) for its answer, and the text that was added is said, as `Saved, status`. A region that
   grew by appending says only what was added; one that was rewritten says all of it. Open shadow roots are
-  searched; frames are not. A page that goes to another address (not a jump within the page) is read again from
-  scratch, and the step says the new page's title (`kind: "page"`).
+  searched; frames are not. A page that goes to another address (not a jump within the page), or loads a new
+  document at the same address (a reload, a form that posts back to itself: the main frame's `DOMContentLoaded`
+  is counted), is read again from scratch, and the step says the new page's title (`kind: "page"`;
+  `narrate-reload.html`). A new document that commits after that check is caught when the readers' world is
+  found gone, and read again the same way, once.
 
 A press that produced none of these reads `(nothing is said)` in the transcript. Page text read here is made
 printable (`src/printable.ts`) and cut to the excerpt limit (160 characters) before it is kept, and each value read

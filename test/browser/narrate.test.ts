@@ -189,6 +189,15 @@ describe.skipIf(!hasBrowser)("narrate (skipped where the test browser is not ins
       expect(away.workflows[0]?.notScanned).toBeUndefined();
     });
 
+    it("a reload at the same address is a new page, and the flow goes on", async () => {
+      const record = await narrate("narrate-reload.html", "Tab to button 'Reload'; Enter; Tab; Tab");
+      const steps = record.workflows[0]?.steps ?? [];
+      expect(record.workflows[0]?.notScanned).toBeUndefined();
+      expect(steps).toHaveLength(4);
+      expect(steps[1]?.produced).toEqual([{ kind: "page", spoken: "Reloading page, document" }]);
+      expect(steps.slice(2).map((step) => step.spoken)).toEqual(["Reload, button", "Next, button"]);
+    });
+
     it("a menu button that opens says its new state", async () => {
       const record = await narrate("workflow.html", "Tab to button 'Actions'; Enter; Space");
       const steps = record.workflows[0]?.steps ?? [];
