@@ -35,7 +35,7 @@ flow is run one step at a time by the same driver, and after each step it is rea
 | Step | Example | Does |
 | --- | --- | --- |
 | a key | `Tab`, `Shift+Tab`, `Enter`, `Space`, `Escape`, `ArrowDown`, `Control+a` | presses it |
-| `Tab to <role> '<name>'` | `Tab to combobox 'Time zone'` | presses Tab until focus is on that element; gives up after `--max-tabs` |
+| `Tab to <role> '<name>'` | `Tab to combobox 'Time zone'` | presses Tab until focus is on that element, inside an open shadow root too (read from the browser's own focus state, which a page cannot redefine); gives up after `--max-tabs` |
 | `click <role> '<name>'` | `click button 'Menu'` | clicks it |
 | `type '<text>'` | `type 'Ada Lovelace'` | types the text into the focused element |
 | `wait <role>`, or `wait <role> '<name>'` | `wait menu`, `wait dialog 'Delete account'` | waits for it to be visible |

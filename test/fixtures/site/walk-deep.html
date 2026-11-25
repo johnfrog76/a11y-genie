@@ -1,0 +1,40 @@
+<!doctype html>
+<!--
+  Fixture: three buttons side by side, 60 levels deep, with no ids anywhere, and each level beside a sibling of the
+  same tag, so each step of a selector is written with :nth-of-type. A selector for them runs far past 1,000
+  characters; cut at its start, the three would read as one stop, and the walk would read a cycle and a keyboard trap
+  that are not there (test/browser/walk.test.ts).
+  Must fire:     nothing from the walk's own checks: no genie/keyboard-trap
+  Must not fire: genie/keyboard-trap
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Deep buttons</title>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <main>
+      <h1>Deep buttons</h1>
+      <p><a href="#before">Before</a></p>
+      <div id="deep"></div>
+      <p><a href="#after">After</a></p>
+    </main>
+    <script>
+      let parent = document.getElementById("deep");
+      parent.removeAttribute("id");
+      for (let level = 0; level < 60; level += 1) {
+        parent.appendChild(document.createElement("div"));
+        const next = document.createElement("div");
+        parent.appendChild(next);
+        parent = next;
+      }
+      for (const label of ["One", "Two", "Three"]) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = label;
+        parent.appendChild(button);
+      }
+    </script>
+  </body>
+</html>

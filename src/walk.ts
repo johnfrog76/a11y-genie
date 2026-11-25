@@ -147,7 +147,15 @@ const FROM_THE_TOP = `(() => {
  */
 export const DESCRIBE = `function () {
   const MAX = ${SELECTOR_CHARS};
-  const cut = (s) => (s.length <= MAX ? s : s.slice(0, MAX) + "…");
+  // A part over MAX keeps its end, which names the element itself (its own :nth-of-type steps), behind a short hash
+  // of the whole part, so two different deep elements never cut to the same part (a stop is told by its target).
+  const cut = (s) => {
+    if (s.length <= MAX) return s;
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    const head = "…[" + h.toString(16) + "] ";
+    return head + s.slice(s.length - (MAX - head.length));
+  };
   const partIn = (el, root) => {
     const parts = [];
     for (let node = el; node; ) {
