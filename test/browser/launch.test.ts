@@ -81,8 +81,27 @@ describe.skipIf(!hasChrome)(
   },
 );
 
+/**
+ * Whether Microsoft Edge is installed where playwright-core looks for its `msedge` channel (checked at 1.65.1). The
+ * test below launches `msedge` expecting none, so where there is one it is skipped before it starts: a test never
+ * starts a branded browser (GitHub's Ubuntu runners have Edge, which also fails to start there headless).
+ */
+function edgeInstalled(): boolean {
+  if (process.platform === "darwin")
+    return existsSync("/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge");
+  if (process.platform === "linux") return existsSync("/opt/microsoft/msedge/msedge");
+  if (process.platform === "win32") {
+    return ["LOCALAPPDATA", "PROGRAMFILES", "PROGRAMFILES(X86)"].some((name) => {
+      const base = process.env[name];
+      return base !== undefined && existsSync(join(base, "Microsoft", "Edge", "Application", "msedge.exe"));
+    });
+  }
+  return false;
+}
+
 describe("a browser that is not installed", () => {
   it("leaves no profile or artifacts folder behind (skipped where Edge is installed)", async (ctx) => {
+    if (edgeInstalled()) ctx.skip();
     // A temporary folder of this test's own: other test files launch browsers at the same time, and their
     // folders in the shared one would read as left behind by this launch. This file runs in its own process.
     const keys = ["TMPDIR", "TEMP", "TMP"] as const;
