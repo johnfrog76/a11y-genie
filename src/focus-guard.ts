@@ -64,8 +64,9 @@ const sessions = new WeakMap<Page, Promise<FocusGuard>>();
 
 export class FocusGuard {
   /**
-   * True when this guard was not in place before the page loaded: the early install did not happen, or it
-   * failed. It then sits behind the page's own window-level listeners, which can hear the check's blur and
+   * True when this guard was not in place before the page loaded: the early install did not happen, it failed,
+   * or it came after the page had loaded, so no document has its world and `reach` added the guard now. It then
+   * sits behind the page's own window-level listeners, which can hear the check's blur and
    * refocus, so `hold` cannot promise the page heard nothing. The focus-visible check reads this.
    */
   late = false;
@@ -122,10 +123,12 @@ export class FocusGuard {
 
   /**
    * Makes sure every open document has the guard: when it was installed before the page loaded they all do, and
-   * this is one call; on a page that loaded without it, each frame gets the guard now.
+   * this is one call; on a page that loaded without it, each frame gets the guard now, behind the page's own
+   * listeners, so the guard is late, whatever the install was.
    */
   private async reach(): Promise<void> {
     if (this.contexts.size > 0) return;
+    this.late = true;
     const { frameTree } = await this.session.send("Page.getFrameTree");
     const frames = [frameTree];
     for (let i = 0; i < frames.length; i++) frames.push(...(frames[i]?.childFrames ?? []));

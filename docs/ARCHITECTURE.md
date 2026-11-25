@@ -582,7 +582,10 @@ Any press that puts focus on an element outside the cycle, or on no element, mea
 nothing is flagged (`trap-shift-leaves.html`, `trap-escape-leaves.html`). If none does, every element of the
 cycle is an element of `genie/keyboard-trap` (`trap.html`, `trap-stuck.html`). After Escape, a focused element
 that is no longer shown counts as focus on no element: Chrome can leave focus on a button of a dialog Escape has
-just hidden until it moves focus to the page itself.
+just hidden until it moves focus to the page itself. Focus is read two frames after Escape and after the Tab
+that follows it (or a second later, when frames do not come), not the moment the key returns: a dialog that gives
+focus back in a `setTimeout(0)` once it has closed, as many dialog libraries do, has done so by then
+(`modal-late-return.html`).
 
 **The modal dialog.** A dialog keeps focus inside on purpose. When every element of the cycle is inside one shown
 modal dialog (`role="dialog"` or `"alertdialog"`, or a `dialog` element, with `aria-modal="true"`), and Escape
@@ -791,12 +794,16 @@ listener of the page's own on `window` in the capture phase, added at load, is b
 (`focus-listening.html`, `focus-running.html`, whose counts are the same with the check as without it). Verified in Chrome: a
 listener added from an isolated world and stopping an event with `stopImmediatePropagation()` stops the page's
 own main-world listeners after it on the same target, as the browser keeps one list of listeners per target.
-A scan of a page that was already loaded when it began (a caller that did not install the guard) gets a late
-guard, behind whatever the page added (`runScan` installs early, and if that install fails it carries on with a late one); a late guard cannot shield the page from the blur, so every stop the check would have measured is *needs review* ("the page's own listeners may have heard the check") and the check never blurs it or raises a finding on it. Stops it never measures (outside the window, past the cap, in another origin's frame) read as they always did. Focus ends on
+A scan of a page that was already loaded when it began (a caller that did not install the guard, or installed it
+only after the load, so no document has its world) gets a late guard, behind whatever the page added (`runScan`
+installs early, and if that install fails it carries on with a late one); whenever the guard has to be added to the
+open documents, it is marked late, whatever the install was. A late guard cannot shield the page from the blur, so every stop the check would have measured is *needs review* ("the page's own listeners may have heard the check") and the check never blurs it or raises a finding on it. Stops it never measures (outside the window, past the cap, in another origin's frame) read as they always did. Focus ends on
 the element Tab put it on, so the walk's next Tab goes on from there, and the trap check reads the same walk and
 the same trap with the check as without it (`trap.html`, `trap-stuck.html`, `walk-order.html`, `walk-shadow.html`,
 `walk-frame.html`). If focus cannot be given back, the check takes no more screenshots on that walk, and the rest
-of its stops are *needs review*. What the page can still notice: the screenshot style is a `style` element added and removed, and the witness's
+of its stops are *needs review*. Focus is given back once a stop, after the second screenshot, or at the end when
+something failed before that; a failure after it (a screenshot that does not decode) is that stop's own *needs
+review*, and the walk's later stops are looked at as they would be. What the page can still notice: the screenshot style is a `style` element added and removed, and the witness's
 style is in `adoptedStyleSheets` while it shoots, and so is the sheet that turns transitions off from the blur to the refocus.
 
 **The screenshots stay in memory.** Each pair is decoded in Node (`src/png.ts`, a small reader of Chrome's 8-bit
