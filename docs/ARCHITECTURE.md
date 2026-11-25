@@ -1004,7 +1004,7 @@ without `wcag2a` (or another of its tags) leaves out `genie/click-on-non-control
 - **`--tags <list>`** is comma-separated, in the order given, without repeats. The tags it accepts are the ones
   axe-core's own rule metadata carries (`axe.getRules()` at the installed version, read in Node, nothing listed
   by hand): `wcag2a`, `wcag21aa`, `best-practice`, `cat.aria`, `experimental` and the rest. An unknown or empty
-  one is a refusal that lists them. `axe.withTags()` then runs exactly those; a rule with none of them does not
+  one is a refusal that gives examples. `axe.withTags()` then runs exactly those; a rule with none of them does not
   run, which is how `engine.rulesRun` comes to differ. Without `--tags`, `engine.tags` is `null` and axe-core's
   default rule set runs (docs/JSON.md). The tags go in as given: `wcag2a` alone does not also run `wcag2aa`.
 - **`--fail-on <impact>`** is `critical`, `serious`, `moderate` or `minor`, default `minor`. The exit is 1 when a
