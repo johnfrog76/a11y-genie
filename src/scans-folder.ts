@@ -9,6 +9,11 @@ import { join } from "node:path";
  */
 export const SCANS_DIR_ENV = "A11Y_GENIE_SCANS_DIR";
 
+/** A setting that is set to something: an empty one is as good as unset, and `resolve("")` is the working folder. */
+function nonEmpty(value: string | undefined): string | undefined {
+  return value === undefined || value === "" ? undefined : value;
+}
+
 /**
  * The per-user scans folder (spec 4.4), outside any scanned project: `~/.local/share/a11y-genie` on Linux
  * (under `XDG_DATA_HOME` when set), `~/Library/Application Support/a11y-genie` on macOS, and
@@ -19,12 +24,12 @@ export function defaultScansDir(
   platform: NodeJS.Platform = process.platform,
   home: string = homedir(),
 ): string {
-  const override = env[SCANS_DIR_ENV];
-  if (override !== undefined && override !== "") return override;
+  const override = nonEmpty(env[SCANS_DIR_ENV]);
+  if (override !== undefined) return override;
   if (platform === "darwin") return join(home, "Library", "Application Support", "a11y-genie");
-  if (platform === "win32") return join(env.LOCALAPPDATA ?? join(home, "AppData", "Local"), "a11y-genie");
-  const data = env.XDG_DATA_HOME;
-  return join(data !== undefined && data !== "" ? data : join(home, ".local", "share"), "a11y-genie");
+  if (platform === "win32")
+    return join(nonEmpty(env.LOCALAPPDATA) ?? join(home, "AppData", "Local"), "a11y-genie");
+  return join(nonEmpty(env.XDG_DATA_HOME) ?? join(home, ".local", "share"), "a11y-genie");
 }
 
 /** The longest a site's folder name may be, well under the 255 a path part may be on every system. */
