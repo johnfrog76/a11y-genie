@@ -56,7 +56,7 @@ and takes no argument.
 
 Not built yet, with a place waiting in `src/exit-codes.ts`:
 
-- **Exit 4**, a refusal after something was already written. Only a later command (`cards --toolkit`) can reach it.
+- **Exit 4**, a refusal after something was already written. Only a later command can reach it: the planned `cards` command, which hands findings to a team's work tracker.
 
 `--version` wins anywhere on the line: `a11y-genie rules --version` and `a11y-genie scan <url> --version` print the
 version and exit 0, before the command reads its other arguments. (It is not only a top-level flag, so a
