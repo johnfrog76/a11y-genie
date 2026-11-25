@@ -17,6 +17,7 @@ const CONTENT_TYPES: Record<string, string> = {
   ".js": "text/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
   ".svg": "image/svg+xml",
+  ".xhtml": "application/xhtml+xml; charset=utf-8",
   ".png": "image/png",
   ".txt": "text/plain; charset=utf-8",
 };

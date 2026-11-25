@@ -1,3 +1,4 @@
+import { execFileSync, spawn } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -190,5 +191,50 @@ describe("the last scan of a site", () => {
     scanAt(root, "http_example.com", "2026-11-19T20:14:09Z", "http://example.com", "narrate");
     scanAt(root, "example.com", "2026-11-19T20:14:03Z", "http://example.com");
     expect(startOf(previousScan(root, "http://example.com"))).toBe("2026-11-19T20:14:03Z");
+  });
+});
+
+// A named pipe opens only when something writes to it, so a baseline or a scan that is one must be found out
+// without being opened (issue 185). A regression would block the whole test process, where no timeout can fire, so
+// each test starts a writer that opens the pipe after three seconds: a call that opened it returns then, and fails
+// on the time it took, instead of hanging the run.
+describe.skipIf(process.platform === "win32")("a named pipe given as a scan", () => {
+  function pipe(name: string, folder = fresh()): string {
+    const path = join(folder, name);
+    execFileSync("mkfifo", [path]);
+    return path;
+  }
+
+  /** Runs `call` with a writer standing by to free the pipe, and holds that it returned well before the writer. */
+  function unopened<T>(path: string, call: () => T): T {
+    const writer = spawn("sh", ["-c", 'sleep 3; : > "$1"', "sh", path], { stdio: "ignore" });
+    const started = Date.now();
+    try {
+      return call();
+    } finally {
+      writer.kill("SIGKILL");
+      expect(Date.now() - started, "the pipe was opened").toBeLessThan(2000);
+    }
+  }
+
+  it("is refused as a baseline, as a file that is not a file, without being opened", () => {
+    const path = pipe("scan.json");
+    expect(unopened(path, () => refusal(path)).error).toBe(`--baseline is not a file: ${path}`);
+  });
+
+  it("is refused when a scan folder's scan.json is one", () => {
+    const folder = fresh();
+    const path = pipe("scan.json", folder);
+    expect(unopened(path, () => refusal(folder)).error).toContain("is not a file");
+  });
+
+  it("is passed over as the last scan, with a reason", () => {
+    const root = fresh();
+    const site = join(root, "localhost-5173", "2026-11-19T20-14-03Z");
+    mkdirSync(site, { recursive: true });
+    const path = pipe("scan.json", site);
+    expect(unopened(path, () => previousScan(root, "http://localhost:5173"))).toEqual({
+      reason: "it cannot be read as a scan.json of this version",
+    });
   });
 });

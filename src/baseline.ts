@@ -27,6 +27,8 @@ function shown(path: string): string {
 
 /** Reads the file in chunks, and stops past `limit` bytes, so a larger file is found without reading it all. */
 function readCapped(path: string, limit: number): Buffer | "too large" | "not a file" {
+  // Looked at before it is opened: opening a pipe waits for a writer, which would hang the command.
+  if (!statSync(path).isFile()) return "not a file";
   const fd = openSync(path, "r");
   try {
     const stat = fstatSync(fd);
