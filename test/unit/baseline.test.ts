@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { latestScanFolder, previousScan, readScanFile } from "../../src/baseline.js";
 import { Refusal } from "../../src/refusal.js";
+import { UNFINISHED_PREFIX } from "../../src/scans-folder.js";
 import { goldenPath, readGolden } from "../helpers/goldens.js";
 import { controlsIn } from "../helpers/controls.js";
 
@@ -125,6 +126,22 @@ describe("the last scan of a site", () => {
     }
     expect(latestScanFolder(root, "http://127.0.0.1:4173")).toBe(join(site, "2026-11-19T20-14-04Z-10"));
     expect(latestScanFolder(root, "http://127.0.0.1:4174")).toBeUndefined();
+  });
+
+  it("is never a folder a crash left unfinished, even one that holds a whole scan.json", () => {
+    const root = fresh();
+    const site = join(root, "127.0.0.1-4173");
+    const earlier = join(site, "2026-11-19T20-14-03Z");
+    // As a crash part way through a later write would leave it (src/scans-folder.ts).
+    const unfinished = join(site, `${UNFINISHED_PREFIX}2026-11-19T20-14-04Z-AbC123`);
+    for (const folder of [earlier, unfinished]) {
+      mkdirSync(folder, { recursive: true });
+      writeFileSync(join(folder, "scan.json"), readGolden("impact-mix", "scan.json"));
+    }
+    expect(latestScanFolder(root, "http://127.0.0.1:4173")).toBe(earlier);
+    rmSync(earlier, { recursive: true });
+    expect(latestScanFolder(root, "http://127.0.0.1:4173")).toBeUndefined();
+    expect(previousScan(root, "http://127.0.0.1:4173")).toBeUndefined();
   });
 
   it("reads as not comparable when it cannot be read, and as none when there is none", () => {

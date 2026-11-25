@@ -391,6 +391,11 @@ on macOS, `$XDG_DATA_HOME/a11y-genie` or `~/.local/share/a11y-genie` on Linux, a
 `%LOCALAPPDATA%\a11y-genie` on Windows. `--format md,json` (the default) picks the reports; `scan.json` is
 always written, because every other file is made from it.
 
+A scan folder is written whole or not at all. Its files are written into `<origin key>/.unfinished-<start
+time>-<random>/`, which is renamed to the start time in one step when they are all written, and removed when a write
+fails. Only a crash part way through (the machine losing power) can leave an `.unfinished-` folder behind. It is never
+read as the last scan, since its name is not a start time, and it is safe to delete.
+
 ## axe-core's results (V1)
 
 Checked on 2026-11-19 with axe-core 4.14.1, run by `@axe-core/playwright` 4.14.0 with its default rule set,

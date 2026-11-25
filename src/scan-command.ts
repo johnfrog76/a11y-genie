@@ -23,7 +23,7 @@ import { runScan, type RunScanOptions } from "./run-scan.js";
 import { checkStorageState, parseMaxTabs, parseTimeout } from "./scan-options.js";
 import { planScan, type ScanPlan } from "./scan-plan.js";
 import { scanJson, type ScanRecord } from "./scan-record.js";
-import { defaultScansDir, makeScanFolder, writeScanFile } from "./scans-folder.js";
+import { defaultScansDir, writeScanFile, writeScanFolder } from "./scans-folder.js";
 
 const SERVE_HINT =
   "give a full address that starts with http:// or https://. To scan a built site, serve it first, for example: npx serve dist";
@@ -249,17 +249,21 @@ function refuseUnwritable(error: unknown, where: string): never {
   throw error;
 }
 
-/** Makes the scan folder and writes `scan.json`, and `report.md` unless `--format` leaves it out. */
-export function writeScan(prepared: PreparedScan, record: ScanRecord): string {
+/**
+ * Writes the scan folder, whole or not at all: `scan.json`, `report.md` unless `--format` leaves it out, and the
+ * narration. A write that fails part way leaves nothing (src/scans-folder.ts) and is refused. `write` writes one
+ * file; tests pass one that fails.
+ */
+export function writeScan(prepared: PreparedScan, record: ScanRecord, write = writeScanFile): string {
   try {
-    const folder = makeScanFolder(prepared.root, record.target.origin, record.startedAt);
-    // scan.json is the record every other file is made from, so it is always written.
-    writeScanFile(folder, "scan.json", scanJson(record));
-    if (prepared.formats.has("md")) writeScanFile(folder, "report.md", renderReport(record));
-    // The transcript of each narrated flow, in `narration/` (spec 6.6). Always written: it is what narrating is for.
-    if (record.workflows.length > 0) mkdirSync(join(folder, NARRATION_DIR));
-    for (const flow of record.workflows) writeScanFile(folder, flow.file, printable(renderTranscript(flow)));
-    return folder;
+    return writeScanFolder(prepared.root, record.target.origin, record.startedAt, (folder) => {
+      // scan.json is the record every other file is made from, so it is always written.
+      write(folder, "scan.json", scanJson(record));
+      if (prepared.formats.has("md")) write(folder, "report.md", renderReport(record));
+      // The transcript of each narrated flow, in `narration/` (spec 6.6). Always written: it is what narrating is for.
+      if (record.workflows.length > 0) mkdirSync(join(folder, NARRATION_DIR));
+      for (const flow of record.workflows) write(folder, flow.file, printable(renderTranscript(flow)));
+    });
   } catch (error) {
     return refuseUnwritable(error, prepared.root);
   }

@@ -1,6 +1,6 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, renameSync, rmSync, rmdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 /**
  * Overrides the per-user scans folder. Tests set it to a temporary folder, and a person may set it to keep
@@ -42,19 +42,70 @@ export function scanFolderName(startedAt: string): string {
   return startedAt.replace(/:/g, "-");
 }
 
-/** Makes the scan's folder under `<root>/<origin key>/`, adding `-2`, `-3` if a scan began the same second. */
-export function makeScanFolder(root: string, origin: string, startedAt: string): string {
+/**
+ * The start of the name of a scan folder still being written. It begins with a dot and is never a start time, so
+ * the last-scan lookup (`latestScanFolder` in src/baseline.ts) never reads one as a scan. Only a crash part way
+ * through a write can leave one behind.
+ */
+export const UNFINISHED_PREFIX = ".unfinished-";
+
+/**
+ * Writes a scan's folder under `<root>/<origin key>/` whole or not at all. `fill` writes the files into an
+ * unfinished folder beside the final place, which is then renamed into place in one step, as `<start time>`, or
+ * with `-2`, `-3` if a scan began the same second. When anything fails, the unfinished folder is removed, and so
+ * are the site folder and the root if this write made them, and the error is thrown on.
+ */
+export function writeScanFolder(
+  root: string,
+  origin: string,
+  startedAt: string,
+  fill: (folder: string) => void,
+): string {
   const site = join(root, originKey(origin));
-  mkdirSync(site, { recursive: true });
+  const firstMade = mkdirSync(site, { recursive: true });
   const name = scanFolderName(startedAt);
+  let unfinished: string | undefined;
+  try {
+    unfinished = mkdtempSync(join(site, `${UNFINISHED_PREFIX}${name}-`));
+    fill(unfinished);
+    return renameIntoPlace(unfinished, site, name);
+  } catch (error) {
+    // The refusal names the write's own error, never one from cleaning up after it.
+    try {
+      if (unfinished !== undefined) rmSync(unfinished, { recursive: true, force: true });
+    } catch {
+      // Left for a person to delete; it is never read as a scan.
+    }
+    if (firstMade !== undefined) removeEmptyFolders(resolve(site), resolve(firstMade));
+    throw error;
+  }
+}
+
+/** Renames `unfinished` to `<site>/<name>`, or to `<name>-2`, `-3` when that name is taken. */
+function renameIntoPlace(unfinished: string, site: string, name: string): string {
   for (let n = 1; ; n++) {
     const folder = join(site, n === 1 ? name : `${name}-${n}`);
+    if (existsSync(folder)) continue;
     try {
-      mkdirSync(folder);
+      renameSync(unfinished, folder);
       return folder;
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      // Another scan took the name between the check and the rename.
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "EEXIST" && code !== "ENOTEMPTY") throw error;
     }
+  }
+}
+
+/** Removes `from` and the folders above it up to `upTo`, while each is empty: the ones a failed write made. */
+function removeEmptyFolders(from: string, upTo: string): void {
+  for (let folder = from; ; folder = dirname(folder)) {
+    try {
+      rmdirSync(folder);
+    } catch {
+      return;
+    }
+    if (folder === upTo || dirname(folder) === folder) return;
   }
 }
 

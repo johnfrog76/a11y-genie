@@ -64,7 +64,8 @@ person who adds it to any command line gets the answer, not a refusal.)
 
 ## Refusals the command can reach
 
-Every refusal is exit 2 and happens before anything is written: the scans folder and `--out` are left as they were.
+Every refusal is exit 2 and leaves the scans folder and `--out` as they were. All but one come before anything is
+written; the one that comes at the write, `cannot write the scan under <folder>` (below), leaves nothing either.
 `check` takes every flag `scan` does, with the same refusals, and `--baseline`; its own refusals come before a
 browser opens, too.
 
@@ -133,7 +134,11 @@ The version in the hints is the installed playwright-core's.
 
 `--out` may name a folder that exists, or a new folder whose parent exists. A scan folder that turns out not to be
 writable when the write is tried (a race, or the default scans folder) is the same refusal, `cannot write the
-scan under <folder>: <code>`.
+scan under <folder>: <code>`. So is a write that fails part way, such as a full disk (`ENOSPC`): a scan is written
+whole or not at all, in the scans folder and in `--out` alike. Its files go into an unfinished folder beside the
+scan's place, which is renamed into place in one step once every file is written. On a failure the unfinished
+folder is removed, and so are the site's folder and `--out` when this write made them; folders that were there
+before are left as they were, earlier scans in them included.
 
 ## How a page that does not answer is decided
 
