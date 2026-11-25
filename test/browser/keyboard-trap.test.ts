@@ -98,6 +98,13 @@ describe.skipIf(!hasBrowser)("the keyboard trap (skipped where the test browser 
     expect(closed.notReturned).toBeUndefined();
   });
 
+  it("modal-late-return.html: a dialog that gives focus back in a setTimeout(0) after Escape is not flagged", async () => {
+    const { result, trap, notReturned } = await scan("modal-late-return.html", "#open");
+    expect(result.walk).toMatchObject({ end: "cycled" });
+    expect(trap).toBeUndefined();
+    expect(notReturned).toBeUndefined();
+  });
+
   it("trap-shift-leaves.html: a cycle that Shift+Tab can leave is not a trap", async () => {
     const { result, trap } = await scan("trap-shift-leaves.html");
     expect(result.walk).toMatchObject({ end: "cycled" });
