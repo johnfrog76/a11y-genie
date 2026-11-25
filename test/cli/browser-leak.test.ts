@@ -86,7 +86,11 @@ it.skipIf(!hasBrowser || process.platform === "win32")(
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
       expect(processesIn(signalShared).map((found) => found.command)).toEqual([]);
-      expect(readdirSync(signalShared)).toEqual([]);
+      // When a folder is left, say what is in it and what the stopped run printed, so a failure carries its cause.
+      const left = readdirSync(signalShared, { recursive: true }).map(String).sort();
+      expect(left, `left behind:\n${left.join("\n")}\n--- the stopped run's output ---\n${output}`).toEqual(
+        [],
+      );
     } finally {
       for (const { pid } of processesIn(signalShared)) process.kill(pid, "SIGKILL");
       rmSync(signalShared, { recursive: true, force: true });
