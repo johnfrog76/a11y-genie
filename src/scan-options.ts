@@ -17,7 +17,14 @@ export function parseTimeout(text: string): number {
       "for example --timeout 30. The default is 60.",
     );
   }
-  return Math.round(seconds * 1000);
+  const milliseconds = Math.round(seconds * 1000);
+  if (milliseconds < 1) {
+    throw new Refusal(
+      `--timeout takes a number of seconds above 0 and up to ${MAX_TIMEOUT_SECONDS}, not "${printableLine(text).slice(0, 40)}": that is under one millisecond.`,
+      "for example --timeout 30. The default is 60.",
+    );
+  }
+  return milliseconds;
 }
 
 /** `--max-tabs <n>`: a whole number of Tab presses from 1 to `MAX_MAX_TABS`, written in digits. */
