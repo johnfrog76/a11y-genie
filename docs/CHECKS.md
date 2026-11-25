@@ -71,7 +71,8 @@ in every finding is data: it is quoted, cut and never run.
 ### `genie/click-on-non-control`
 
 - **Finds:** an element that does something on a click, but is not a control: not a link, button, input, select,
-  textarea, summary, label or option, has no widget role, and cannot take focus. A keyboard cannot reach it and a
+  textarea, summary, label or option, has no widget role, and cannot take focus (the browser is asked, so an element it puts in the tab order by
+  itself, such as a contenteditable one, is not flagged). A keyboard cannot reach it and a
   screen reader does not say it can be pressed. It counts a click handler of the element's own: an `onclick`
   attribute, or a `click` listener on the element itself.
 - **Does not find:** a click handled further up the page. A framework often attaches one listener at the root,

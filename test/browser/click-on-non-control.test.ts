@@ -77,7 +77,7 @@ describe.skipIf(!hasBrowser)(
       );
     });
 
-    it("does not flag a real button, a div with role and tabindex, a role of several tokens, the delegating list or a hidden div", async () => {
+    it("does not flag a real button, a div with role and tabindex, a role of several tokens, the delegating list, a hidden div or a contenteditable div", async () => {
       const [result] = await scan("div-onclick.html");
       const named = [...result.findings, ...result.needsReview].flatMap((f) =>
         f.elements.map((e) => e.selector),
@@ -88,6 +88,7 @@ describe.skipIf(!hasBrowser)(
         "#multi-role",
         "#delegated-list",
         "#hidden-div",
+        "#editable",
       ]) {
         expect(named).not.toContain(selector);
       }

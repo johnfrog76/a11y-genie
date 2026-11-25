@@ -903,7 +903,8 @@ page's reach (`PressObserver`):
   `role="status"`, `"alert"` and `"log"` element, and `output`, is remembered; after it, the page is given 250 ms
   (`ACTION_SETTLE_MS`) for its answer, and the text that was added is said, as `Saved, status`. A region that
   grew by appending says only what was added; one that was rewritten says all of it. Open shadow roots are
-  searched; frames are not. A page that goes to another address (not a jump within the page), or loads a new
+  searched; frames are not. A region inside another region (a `role="status"` in an `aria-live` div) is not read on
+  its own, as a screen reader says it once with the outer one (`narrate-nested-live.html`). A page that goes to another address (not a jump within the page), or loads a new
   document at the same address (a reload, a form that posts back to itself: the main frame's `DOMContentLoaded`
   is counted), is read again from scratch, and the step says the new page's title (`kind: "page"`;
   `narrate-reload.html`). A new document that commits after that check is caught when the readers' world is
