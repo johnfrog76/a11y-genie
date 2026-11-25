@@ -113,7 +113,7 @@ describe("readScanFile", () => {
 describe("the last scan of a site", () => {
   it("is the newest scan folder, a second's -2, -10 after its -9", () => {
     const root = fresh();
-    const site = join(root, "127.0.0.1-4173");
+    const site = join(root, "http_127.0.0.1-4173");
     for (const name of [
       "2026-11-19T20-14-03Z",
       "2026-11-19T20-14-04Z",
@@ -131,7 +131,7 @@ describe("the last scan of a site", () => {
 
   it("is never a folder a crash left unfinished, even one that holds a whole scan.json", () => {
     const root = fresh();
-    const site = join(root, "127.0.0.1-4173");
+    const site = join(root, "http_127.0.0.1-4173");
     const earlier = join(site, "2026-11-19T20-14-03Z");
     // As a crash part way through a later write would leave it (src/scans-folder.ts).
     const unfinished = join(site, `${UNFINISHED_PREFIX}2026-11-19T20-14-04Z-AbC123`);
@@ -148,12 +148,66 @@ describe("the last scan of a site", () => {
   it("reads as not comparable when it cannot be read, and as none when there is none", () => {
     const root = fresh();
     expect(previousScan(root, "http://127.0.0.1:4173")).toBeUndefined();
-    const folder = join(root, "127.0.0.1-4173", "2026-11-19T20-14-03Z");
+    const folder = join(root, "http_127.0.0.1-4173", "2026-11-19T20-14-03Z");
     mkdirSync(folder, { recursive: true });
     writeFileSync(join(folder, "scan.json"), "{ broken");
     expect(previousScan(root, "http://127.0.0.1:4173")).toEqual({
       reason: "it cannot be read as a scan.json of this version",
     });
+  });
+
+  /** Writes a scan.json of `origin` into `<root>/<site>/<time>/`, made from a golden. */
+  function scanAt(root: string, site: string, time: string, origin: string, command = "scan"): void {
+    const record = golden();
+    (record.target as { origin: string }).origin = origin;
+    record.command = command;
+    record.startedAt = time;
+    const folder = join(root, site, time.replace(/:/g, "-"));
+    mkdirSync(folder, { recursive: true });
+    writeFileSync(join(folder, "scan.json"), JSON.stringify(record));
+  }
+  const startOf = (found: ReturnType<typeof previousScan>): unknown =>
+    found !== undefined && "record" in found ? found.record.startedAt : found;
+
+  it("keeps http and https apart: neither reads the other's scan as its last", () => {
+    const root = fresh();
+    scanAt(root, "http_example.com", "2026-11-19T20:14:03Z", "http://example.com");
+    expect(startOf(previousScan(root, "http://example.com"))).toBe("2026-11-19T20:14:03Z");
+    expect(previousScan(root, "https://example.com")).toBeUndefined();
+  });
+
+  it("is found under the old name when the new folder has none, and only for the same origin", () => {
+    const root = fresh();
+    // The old name was shared by http and https: its newest scan here is https's.
+    scanAt(root, "example.com", "2026-11-19T20:14:03Z", "http://example.com");
+    scanAt(root, "example.com", "2026-11-19T20:14:05Z", "https://example.com");
+    expect(startOf(previousScan(root, "http://example.com"))).toBe("2026-11-19T20:14:03Z");
+    expect(startOf(previousScan(root, "https://example.com"))).toBe("2026-11-19T20:14:05Z");
+    expect(previousScan(root, "http://example.com:8080")).toBeUndefined();
+  });
+
+  it("passes over an old-name scan that cannot be read, since it cannot say whose it is", () => {
+    const root = fresh();
+    scanAt(root, "example.com", "2026-11-19T20:14:03Z", "http://example.com");
+    const broken = join(root, "example.com", "2026-11-19T20-14-09Z");
+    mkdirSync(broken, { recursive: true });
+    writeFileSync(join(broken, "scan.json"), "{ broken");
+    expect(startOf(previousScan(root, "http://example.com"))).toBe("2026-11-19T20:14:03Z");
+    expect(previousScan(root, "https://example.com")).toBeUndefined();
+  });
+
+  it("is the new folder's when both hold a scan, even an older one", () => {
+    const root = fresh();
+    scanAt(root, "http_example.com", "2026-11-19T20:14:03Z", "http://example.com");
+    scanAt(root, "example.com", "2026-11-19T20:14:09Z", "http://example.com");
+    expect(startOf(previousScan(root, "http://example.com"))).toBe("2026-11-19T20:14:03Z");
+  });
+
+  it("reads the old name when the new folder holds only narrate runs", () => {
+    const root = fresh();
+    scanAt(root, "http_example.com", "2026-11-19T20:14:09Z", "http://example.com", "narrate");
+    scanAt(root, "example.com", "2026-11-19T20:14:03Z", "http://example.com");
+    expect(startOf(previousScan(root, "http://example.com"))).toBe("2026-11-19T20:14:03Z");
   });
 });
 
@@ -193,7 +247,7 @@ describe.skipIf(process.platform === "win32")("a named pipe given as a scan", ()
 
   it("is passed over as the last scan, with a reason", () => {
     const root = fresh();
-    const site = join(root, "localhost-5173", "2026-11-19T20-14-03Z");
+    const site = join(root, "http_localhost-5173", "2026-11-19T20-14-03Z");
     mkdirSync(site, { recursive: true });
     const path = pipe("scan.json", site);
     expect(unopened(path, () => previousScan(root, "http://localhost:5173"))).toEqual({

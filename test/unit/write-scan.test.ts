@@ -21,7 +21,7 @@ function fresh(): string {
 }
 
 const record = readGoldenRecord("impact-mix");
-const SITE = "127.0.0.1-0";
+const SITE = "http_127.0.0.1-0";
 
 function prepared(root: string): PreparedScan {
   return { root, formats: new Set(["json", "md"]) } as unknown as PreparedScan;

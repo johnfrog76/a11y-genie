@@ -119,7 +119,7 @@ browser opens, too.
 | A `--commit`, or a `GITHUB_SHA` with no `--commit`, that is not a sha, tag or branch name | `--commit is not a commit: "a b".` (or `GITHUB_SHA is not a commit: ...`) | `give a commit sha, or a tag or branch name: letters, digits, '.', '_', '/' and '-', up to 100.` |
 | `check` with no `--baseline` | `check needs --baseline: the scan to compare with.` | `scan first, then give its scan.json or its folder: a11y-genie check --baseline <scan> <url>` |
 | `check` with no address and no `--config`, or more than one | `check needs a page address to scan.`, `check takes one page, and got more: two` | as for `scan` |
-| A `--baseline` that is missing, unreadable, or a folder with no `scan.json` | `--baseline cannot be read: <path> (ENOENT)` | `give a scan.json that a11y-genie scan wrote, or the scan folder it is in, such as <scans>/localhost-5173/2026-11-19T20-14-03Z.` |
+| A `--baseline` that is missing, unreadable, or a folder with no `scan.json` | `--baseline cannot be read: <path> (ENOENT)` | `give a scan.json that a11y-genie scan wrote, or the scan folder it is in, such as <scans>/http_localhost-5173/2026-11-19T20-14-03Z.` |
 | A `--baseline` that is not a file (a device, a pipe) | `--baseline is not a file: <path>` | the same hint |
 | A `--baseline` over 50 MB, the limit on `scan.json` | `--baseline is over the 52428800 byte limit on scan.json: <path>` | the same hint |
 | A `--baseline` that is not JSON (or not UTF-8), or has no `schema` | `--baseline is not a scan.json: <path> is not JSON.` (or `... has no schema version.`) | the same hint |
