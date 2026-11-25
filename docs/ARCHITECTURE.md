@@ -58,7 +58,7 @@ SIGKILL as soon as vitest's own process exits, so no handler in a worker is sure
 made inside one folder for the run (`test/setup/run-folder.ts`, a global setup, `A11Y_GENIE_TEST_RUN_TMP`), and
 vitest's own process, which does run its `exit` handlers when it is stopped, stops every process that names the
 run's folder, synchronously, before the workers go. Only that run's folder is named, so another run on the same
-machine is never touched. Then it removes the folder, and looks again until it is gone (a few tries, a second at
+machine is never touched. Then, as a step of its own so a failure to stop them never skips it, it removes the folder, and looks again until it is gone (a few tries, a second at
 most). One removal is not enough: when a browser is stopped, the Playwright that launched it removes the browser's
 profile at the same moment. On Linux, Node's `rmSync` then returns early, with no error and the folder still there:
 it uses `std::filesystem::remove_all`, libstdc++'s version stops at the first entry already gone, and Node takes
@@ -67,7 +67,8 @@ the run's folder left holding one empty worker folder (issue 160). The removal i
 `test/unit/remove-folder.test.ts` races it against a worker thread removing a profile inside the folder, and on
 Linux races plain `rmSync` the same way and prints how often it left the folder (26 of 100 on CI's Linux, the first
 time it ran). `test/setup/private-temp.ts` removes each test file's own folder the same way, since the same race left
-one of those behind too.
+one of those behind too. Either step that fails, or a folder still
+there after both, is said on stderr, which the leak test prints when it finds the folder left.
 `test/cli/browser-leak.test.ts` holds this: it runs `test/fixtures/leak/leak.fixture.ts`, tests built to fail and
 to time out with a browser open (the main run never includes that file), and looks for any process left; and it
 runs `test/fixtures/leak/signal.fixture.ts`, stops that run with SIGTERM while a process the test started has a
