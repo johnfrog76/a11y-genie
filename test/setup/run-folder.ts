@@ -1,7 +1,8 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { stopProcessesIn } from "../helpers/processes-in.js";
+import { removeFolder } from "../helpers/remove-folder.js";
 
 /**
  * The variable that names this run's folder. Every test file's own temp folder (test/setup/private-temp.ts) is
@@ -13,7 +14,8 @@ export const RUN_TMP_ENV = "A11Y_GENIE_TEST_RUN_TMP";
  * Runs in vitest's own process, once. A run that is stopped (SIGTERM or SIGINT to vitest) ends its workers with
  * SIGKILL from vitest's watchdog, so no handler in a worker is sure to run. vitest's own process does run its `exit`
  * handlers when it is stopped by a signal (it catches SIGTERM and SIGINT and then exits), so this stops every
- * process that names the run's folder there, synchronously, before the workers go, and removes the folder. Only this run's folder, made
+ * process that names the run's folder there, synchronously, before the workers go, and removes the folder
+ * (`removeFolder`, which looks again until it is gone). Only this run's folder, made
  * by mkdtemp, is named, so another run's browsers on the same machine are never touched.
  */
 export default function setup(): () => void {
@@ -23,7 +25,7 @@ export default function setup(): () => void {
   const stop = () => {
     try {
       stopProcessesIn(run);
-      rmSync(run, { recursive: true, force: true });
+      removeFolder(run);
     } catch {
       // Cleanup must never hide the run's own result.
     }
