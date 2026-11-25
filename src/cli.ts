@@ -75,10 +75,10 @@ With no Chrome, and no --browser-channel, A11y Genie says so and downloads Playw
 
 Commands:
   scan       load each page, in each state, in a browser with a new, empty profile, run axe-core on
-             it, and write scan.json and report.md. Exit 0: no findings. Exit 1: findings, or a
-             page or state could not be scanned (the scan says why). When the site was scanned before,
-             the first line says what is new and what is fixed since then, or why the two cannot be
-             compared; the exit reads only this scan.
+             it, and write scan.json and report.md. Exit 0: no finding at or above --fail-on. Exit 1: a
+             finding at or above it, or a page or state could not be scanned (the scan says why). When the
+             site was scanned before, the first line says what is new and what is fixed since then, or why
+             the two cannot be compared; the exit reads only this scan.
 
   check      scan as scan does, with the same flags, and compare with --baseline by finding id and
              element: each finding is new, still open or fixed, and the first line counts them:
@@ -105,8 +105,9 @@ Commands:
   prompt     print the prompt file for a coding agent: how to run scan, fix, rescan on a project it can
              edit, and when to stop. It needs no browser and no network. Exit 0.
 
-Exit codes: 0 no findings (for check, no new ones), 1 findings (for check, new ones) or not scanned,
-2 a refusal (one Error: line and one Hint: line, nothing written), 3 something unexpected, 130 Ctrl-C.
+Exit codes: 0 no finding at or above --fail-on (for check, no new one), 1 one at or above it (for check,
+a new one) or a page or state not scanned, 2 a refusal (one Error: line and one Hint: line, nothing
+written), 3 something unexpected, 129 terminal closed, 130 Ctrl-C, 143 kill. Advice never changes the exit.
 
 Commands (coming, none works yet):
   cards      turn findings into cards
@@ -123,13 +124,7 @@ async function main(args: string[]): Promise<void> {
     console.log(packageInfo().version);
     return;
   }
-  // Only the commands that launch a browser need a temp folder of their own; it is made before they read anything.
-  if (["scan", "check", "narrate"].includes(args[0] ?? "")) usePrivateTemp();
-  if (args[0] === "scan") return scanCommand(args.slice(1), HELP_HINT);
-  if (args[0] === "check") return checkCommand(args.slice(1), HELP_HINT);
-  if (args[0] === "narrate") return narrateCommand(args.slice(1), HELP_HINT);
-  if (args[0] === "rules") return rulesCommand(args.slice(1), HELP_HINT);
-  if (args[0] === "prompt") return promptCommand(args.slice(1), HELP_HINT);
+  // `--help` anywhere on the line prints the same help as `a11y-genie --help`, before any command reads its arguments.
   if (args.length === 0 || args.includes("--help")) {
     const show = shouldShowBanner({
       isTTY: process.stdout.isTTY,
@@ -138,9 +133,16 @@ async function main(args: string[]): Promise<void> {
       json: false,
     });
     process.stdout.write(withBanner(HELP, show));
-  } else {
-    throw new Refusal(`unknown command or flag: ${printableLine(args[0] ?? "").slice(0, 80)}`, HELP_HINT);
+    return;
   }
+  // Only the commands that launch a browser need a temp folder of their own; it is made before they read anything.
+  if (["scan", "check", "narrate"].includes(args[0] ?? "")) usePrivateTemp();
+  if (args[0] === "scan") return scanCommand(args.slice(1), HELP_HINT);
+  if (args[0] === "check") return checkCommand(args.slice(1), HELP_HINT);
+  if (args[0] === "narrate") return narrateCommand(args.slice(1), HELP_HINT);
+  if (args[0] === "rules") return rulesCommand(args.slice(1), HELP_HINT);
+  if (args[0] === "prompt") return promptCommand(args.slice(1), HELP_HINT);
+  throw new Refusal(`unknown command or flag: ${printableLine(args[0] ?? "").slice(0, 80)}`, HELP_HINT);
 }
 
 try {
