@@ -124,11 +124,11 @@ shipped deck, which keep the style they came in.
 
 ## The player
 
-`web/src/deck/deck-engine/` is the deck player from Connected Deck, an MIT project, copied at commit `cbb3f9e5`
+`web/src/deck/deck-engine/` is the deck player from Connected Deck, an MIT project, copied at commit `0ac4a128`
 without its tests. Code Sleuth copies the same commit, so the two products play their decks with the same
 player.
 The files it imports from outside its folder came with it, to the same relative paths.
-`deck-engine/NOTICE.md` keeps the licence and lists what changed: `CopyLinkButton`'s default link, a
+`deck-engine/NOTICE.md` keeps the licence and lists what changed: a
 `useCompactLayout` that asks the player's viewport, a plain-text notes viewer in place of the Markdown one,
 and two of the deck studio's words in `types.ts`. [THIRD-PARTY-NOTICES.md](../THIRD-PARTY-NOTICES.md) records
 the copy.

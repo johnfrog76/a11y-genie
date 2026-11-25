@@ -1,10 +1,11 @@
 # The deck engine
 
-This folder is the deck player from Connected Deck, copied as it was at commit `cbb3f9e5`
+This folder is the deck player from Connected Deck, copied as it was at commit `0ac4a128`
 (<https://github.com/johnfrog76/connected-deck>, `src/deck-engine/`), without its tests. It was first copied at
 `6e1293f`; at `cbb3f9e5` four files came again: `ComponentFrame.tsx` (its `transparent`, `inverse` and `zoomStep`,
-and its zoom on a phone), `artScale.tsx` (new), `SlideRenderer.tsx` and `../shared/ZoomControl.tsx`. Connected Deck is
-MIT licensed:
+and its zoom on a phone), `artScale.tsx` (new), `SlideRenderer.tsx` and `../shared/ZoomControl.tsx`; and at
+`0ac4a128`, `CopyLinkButton.tsx` (it reads its contrast off the stage, and opens its link in a new tab where it
+used to copy it). Connected Deck is MIT licensed:
 
 ```text
 MIT License
@@ -40,12 +41,11 @@ and both products copy the same Connected Deck commit, so they play their decks 
 
 ## What changed here
 
-- `CopyLinkButton.tsx`: `url` is optional and defaults to Connected Deck's repository, the presentation engine, so a deck's closing slide
-  can use the button with no props.
 - `useCompactLayout.ts` is new: it answers from `../viewport`, where Connected Deck asks the same question.
 - `../shared/MarkdownViewer.tsx` is trimmed: it shows plain-string notes as plain paragraphs, without
   react-markdown and remark-gfm. Only the presenter's notes window uses it, and this page never opens one.
 - `../decks/types.ts` adds `DeckState.Complete` and an optional `project` field, the deck studio's words.
 - `../decks/index.ts` is this page's own registry, not a copy.
 
-Everything else is byte for byte as copied. A change to the player belongs in Connected Deck first.
+`CopyLinkButton.tsx` is byte for byte again: its `url` defaulted here to Connected Deck's repository, and since
+`0ac4a128` Connected Deck's own does the same. Everything else is byte for byte as copied. A change to the player belongs in Connected Deck first.
