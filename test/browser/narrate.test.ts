@@ -163,6 +163,16 @@ describe.skipIf(!hasBrowser)("narrate (skipped where the test browser is not ins
       expect(steps[3]?.produced).toEqual([{ kind: "live", spoken: "Updated at noon." }]);
     });
 
+    it("a live region inside another is said once, and two separate regions are said twice", async () => {
+      const nested = await narrate("narrate-nested-live.html", "Tab; Enter");
+      expect(nested.workflows[0]?.steps[1]?.produced).toEqual([{ kind: "live", spoken: "Saved" }]);
+      const siblings = await narrate("narrate-nested-live.html", "Tab; Tab; Enter");
+      expect(siblings.workflows[0]?.steps[2]?.produced).toEqual([
+        { kind: "live", spoken: "First saved, status" },
+        { kind: "live", spoken: "Second saved, status" },
+      ]);
+    });
+
     it("Space and a click are read as Enter is", async () => {
       const record = await narrate("narrate-press.html", "Tab; Tab; Space; click button 'Refresh'");
       const steps = record.workflows[0]?.steps ?? [];
