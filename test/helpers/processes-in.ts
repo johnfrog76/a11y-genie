@@ -44,6 +44,20 @@ export function processesIn(folder: string): FolderProcess[] {
   return found;
 }
 
+/**
+ * Waits, synchronously, until `processesIn(folder)` finds none, or `capMs` has passed; true when none is left.
+ * A process sent SIGKILL is not gone at once, and while it lasts it can still write into the folder.
+ */
+export function waitUntilGone(folder: string, capMs: number): boolean {
+  const pause = new Int32Array(new SharedArrayBuffer(4));
+  const deadline = Date.now() + capMs;
+  while (processesIn(folder).length > 0) {
+    if (Date.now() >= deadline) return false;
+    Atomics.wait(pause, 0, 0, 50);
+  }
+  return true;
+}
+
 /** SIGKILL every process `processesIn(folder)` finds. Synchronous, so it can run in an exit handler. */
 export function stopProcessesIn(folder: string): void {
   for (const { pid } of processesIn(folder)) {

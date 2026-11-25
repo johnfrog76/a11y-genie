@@ -52,8 +52,11 @@ A run that is itself stopped (SIGTERM or SIGINT to vitest) is different: vitest'
 SIGKILL as soon as vitest's own process exits, so no handler in a worker is sure to run. So each file's folder is
 made inside one folder for the run (`test/setup/run-folder.ts`, a global setup, `A11Y_GENIE_TEST_RUN_TMP`), and
 vitest's own process, which does run its `exit` handlers when it is stopped, stops every process that names the
-run's folder, synchronously, before the workers go. Only that run's folder is named, so another run on the same
-machine is never touched.
+run's folder, synchronously, before the workers go. A process sent SIGKILL lasts a moment, and while it does it can
+still write into the folder, so the cleanup waits until `ps` finds none of them (`waitUntilGone`, at most five
+seconds), then removes the folder with retries, and says on stderr if it is still there. Removing it at once, with
+no wait, sometimes left the folder behind, and the test below failed on CI that way. Only that run's folder is named,
+so another run on the same machine is never touched.
 `test/cli/browser-leak.test.ts` holds this: it runs `test/fixtures/leak/leak.fixture.ts`, tests built to fail and
 to time out with a browser open (the main run never includes that file), and looks for any process left; and it
 runs `test/fixtures/leak/signal.fixture.ts`, stops that run with SIGTERM while a process the test started has a
@@ -100,7 +103,9 @@ folder from its own `chrome://version` page, and checks that the folder is in th
 this run, differs between two runs, and is gone after the run, including a run that throws.
 
 On Ctrl-C, a plain `kill` (`SIGTERM`) or a closed terminal (`SIGHUP`), `src/interrupt.ts` closes the browser (so
-the folder is deleted) and exits 130, 143 or 129; the launch sets `handleSIGINT: false`, `handleSIGTERM: false`
+the folder is deleted) and exits 130, 143 or 129. It waits at most five seconds for the browser to close
+(`CLEANUP_CAP_MS`), then exits anyway, so a browser that will not close never keeps the run alive or leaves its
+private temp folder behind (`test/cli/interrupt-cap.test.ts`, with a cleanup that never settles); the launch sets `handleSIGINT: false`, `handleSIGTERM: false`
 and `handleSIGHUP: false`, so playwright-core's own handlers (all on by default) do not race it or change the code.
 
 ### A browser that is not installed

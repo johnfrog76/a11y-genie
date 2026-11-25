@@ -1,7 +1,10 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { stopProcessesIn } from "../helpers/processes-in.js";
+import { stopProcessesIn, waitUntilGone } from "../helpers/processes-in.js";
+
+/** The longest the cleanup waits for the run's stopped processes to be gone before it removes the folder. */
+const GONE_CAP_MS = 5_000;
 
 /**
  * The variable that names this run's folder. Every test file's own temp folder (test/setup/private-temp.ts) is
@@ -20,13 +23,17 @@ export default function setup(): () => void {
   const shared = process.env.A11Y_GENIE_TEST_SHARED_TMP ?? tmpdir();
   const run = mkdtempSync(join(shared, "a11y-genie-run-"));
   process.env[RUN_TMP_ENV] = run;
+  // A process sent SIGKILL lasts a moment, and a browser or a worker that is ending can still write into the
+  // folder: so wait until they are gone (capped), then remove it with retries, and say so if it is still there.
   const stop = () => {
     try {
       stopProcessesIn(run);
-      rmSync(run, { recursive: true, force: true });
+      waitUntilGone(run, GONE_CAP_MS);
+      rmSync(run, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     } catch {
       // Cleanup must never hide the run's own result.
     }
+    if (existsSync(run)) process.stderr.write(`The test run's temp folder could not be removed: ${run}\n`);
   };
   process.on("exit", stop);
   return () => {
