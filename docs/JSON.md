@@ -145,8 +145,11 @@ asked for in states of which none was scanned has no findings, and `notScanned` 
 
 **What was cut.** A finding lists at most 500 elements; `elementsCut` counts the rest. If `scan.json` would
 be larger than 50 MB, walks are cut first: every walk keeps its first N stops, N the most that fits and at least
-one, and `stopsCut` counts the rest. Walks are a record, not findings, so they go before any finding does. Then elements are dropped, least severe first and never the last one of a finding, and
-counted in `elementsCut` too. If even that is not enough, the page reads *not scanned* and says so. A
+one, and `stopsCut` counts the rest. Walks are a record, not findings, so they go before any finding does. On a
+`check`, the fixed elements listed under findings still open go next, from the last finding up, counted in
+`fixedCut`. Then elements are dropped, least severe first and never the last one of a finding, and
+counted in `elementsCut` too. If even that is not enough, the page reads *not scanned* and says so, and the counts
+of a comparison go with the findings: `summary.new`, `still` and `fixed` read `0`, and `sincePrevious` reads `null`. A
 limit reached never reads as nothing found.
 
 What an agent can rely on in major version 1: per finding `id`, `rule.source`, `rule.id`, `impact`, `kind`,
@@ -256,7 +259,11 @@ element is never in it. On a fixed finding, every element is a fixed one, and `e
 
 **Not scanned is never fixed.** An earlier element found in a state of its page that was not scanned this time is
 not read as fixed: it stays in `elements` with `status: "still"` and `unverified: true`, and its finding reads
-`still` with `unverified: true`. Such a run exits 1 anyway, since a page or state was not scanned.
+`still` with `unverified: true`. Such a run exits 1 anyway, since a page or state was not scanned. The impact counts
+in `summary` include a finding carried so, but the line `check` prints does not count it as found this time: it says
+`Found 1 problem on ..., worst first: ...` for what this run found, then `1 more still open, not checked this time.`
+(or `2 still open, not checked this time.` when this run found none). A finding still open is counted unverified
+this way even when the element cap cut every unseen element it carried: it keeps `unverified: true` and `elementsCut`.
 
 **Nor is a state the earlier scan did not scan read as new** (decided 2026-11-19: a state the baseline never
 scanned proves nothing, and failing a pull request on bugs that were always there is a false alarm). An element
@@ -297,8 +304,9 @@ site's previous scan, how many of its open findings are not found now (a `check`
 fixed are not counted again), and when it began. Each finding's `status` is
 `new` or `still` against it, and no fixed finding is listed. It is compared only when the two scans covered the
 same pages (by key), each in the same states, with the same `engine.tags`; otherwise `sincePrevious` is `null` and
-`sincePreviousReason` says why: `different pages, states or tags`, or `it cannot be read as a scan.json of this
-version`. With no previous scan, neither field is written. The previous scan is the newest folder under
+`sincePreviousReason` says why: `different pages, states or tags`, `it cannot be read as a scan.json of this
+version`, or, when the size cap kept none of the scan's findings (*What was cut*, above), `nothing of this scan was
+kept, since its results were larger than the 52428800 byte limit on scan.json`. With no previous scan, neither field is written. The previous scan is the newest folder under
 `<scans>/<origin key>/` (`--out` when given), a `check`'s included. `sincePrevious` changes nothing else: the exit
 reads only the scan just run.
 
