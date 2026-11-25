@@ -1,0 +1,41 @@
+<!doctype html>
+<!--
+  Fixture: `Tab to` an element inside a web component's shadow root, on a page that also lies about focus. The
+  Save button is in an open shadow root, where document.activeElement names only the component; and the page
+  redefines document.activeElement to always answer the Decoy button. Pressing Enter on a button records its
+  name on body's data-pressed (test/browser/drive.test.ts).
+  Must fire:     nothing: the steps test does not scan
+  Must not fire: nothing
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tab to, in a shadow root</title>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <main>
+      <h1>Tab to, in a shadow root</h1>
+      <button type="button">First</button>
+      <save-bar></save-bar>
+      <button type="button" id="decoy">Decoy</button>
+    </main>
+    <script>
+      customElements.define(
+        "save-bar",
+        class extends HTMLElement {
+          constructor() {
+            super();
+            this.attachShadow({ mode: "open" }).innerHTML = '<button type="button">Save</button>';
+          }
+        },
+      );
+      document.addEventListener("click", (event) => {
+        const button = event.composedPath()[0];
+        if (button instanceof HTMLElement) document.body.dataset.pressed = button.textContent;
+      });
+      const decoy = document.getElementById("decoy");
+      Object.defineProperty(Document.prototype, "activeElement", { get: () => decoy, configurable: true });
+    </script>
+  </body>
+</html>

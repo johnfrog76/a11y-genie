@@ -30,7 +30,18 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # The tests and the deck page's smoke test run on Playwright's headless shell (test/setup/global-chromium.ts),
+      # at the playwright-core version package.json pins, with the system libraries it needs on Linux.
+      - run: npx playwright-core@1.65.1 install --with-deps chromium
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      # The deck page (web/, docs/DECK.md): its own install, type check, build and smoke test. The smoke test
+      # scans the deck page with the dist/cli.js just built.
+      - run: npm ci
+        working-directory: web
+      - run: npm run typecheck
+        working-directory: web
+      - run: npm run smoke
+        working-directory: web

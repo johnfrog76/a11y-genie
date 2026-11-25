@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { mapAxeResults, pageKeyOf, selectorOf, wcagCriteria } from "../../src/map-axe.js";
+import { axeHelpUrl, mapAxeResults, pageKeyOf, selectorOf, wcagCriteria } from "../../src/map-axe.js";
 
 // Results recorded from axe-core 4.14.1 on the fixture pages of the same names (see docs/JSON.md).
 function recorded(name: string): unknown {
@@ -33,7 +33,7 @@ describe("mapping recorded axe-core results", () => {
     expect(scan.needsReview).toEqual([]);
   });
 
-  it("fills a finding with the spec's fields", () => {
+  it("fills every field of a finding", () => {
     const scan = mapAxeResults(recorded("impact-mix"), "impact-mix.html");
     const contrast = scan.findings.find((f) => f.rule.id === "color-contrast");
     expect(contrast).toEqual({
@@ -194,7 +194,7 @@ describe("selectorOf", () => {
   });
 });
 
-describe("pageKeyOf (D6: a page is a URL)", () => {
+describe("pageKeyOf (a page is a URL)", () => {
   it.each([
     ["http://127.0.0.1:5173/", "home"],
     ["http://127.0.0.1:5173", "home"],
@@ -204,5 +204,23 @@ describe("pageKeyOf (D6: a page is a URL)", () => {
     ["http://127.0.0.1:5173/a/b", "a/b"],
   ])("%s is %s", (url, key) => {
     expect(pageKeyOf(url)).toBe(key);
+  });
+});
+
+describe("the link about each axe-core rule", () => {
+  // axe-core runs in the page's own world, so a hostile page can hand back results of its own making.
+  const results = (fields: Record<string, unknown>) => ({ violations: [violation(fields)], incomplete: [] });
+
+  it("is built from the rule's id and the installed axe-core, never taken from the result", () => {
+    const scan = mapAxeResults(results({ helpUrl: "https://evil.example/login" }), "page.html");
+    expect(scan.findings[0]?.rule.helpUrl).toBe(axeHelpUrl("button-name"));
+    expect(axeHelpUrl("button-name")).toMatch(
+      /^https:\/\/dequeuniversity\.com\/rules\/axe\/\d+\.\d+\/button-name\?application=playwright$/,
+    );
+  });
+
+  it("is empty for a rule the installed axe-core does not have", () => {
+    const scan = mapAxeResults(results({ id: "made-up-rule", helpUrl: "javascript:alert(1)" }), "page.html");
+    expect(scan.findings[0]?.rule.helpUrl).toBe("");
   });
 });

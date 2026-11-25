@@ -5,3 +5,5 @@ test/fixtures/
 *.md
 test/goldens/
 _site/
+web/dist/
+web/src/deck/

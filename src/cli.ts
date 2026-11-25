@@ -123,6 +123,8 @@ async function main(args: string[]): Promise<void> {
     console.log(packageInfo().version);
     return;
   }
+  // Only the commands that launch a browser need a temp folder of their own; it is made before they read anything.
+  if (["scan", "check", "narrate"].includes(args[0] ?? "")) usePrivateTemp();
   if (args[0] === "scan") return scanCommand(args.slice(1), HELP_HINT);
   if (args[0] === "check") return checkCommand(args.slice(1), HELP_HINT);
   if (args[0] === "narrate") return narrateCommand(args.slice(1), HELP_HINT);
@@ -141,9 +143,9 @@ async function main(args: string[]): Promise<void> {
   }
 }
 
-usePrivateTemp();
-installInterruptHandler();
 try {
+  // Inside the try, so that whatever they throw is one Error: line and one Hint: line, as every failure is.
+  installInterruptHandler();
   await main(process.argv.slice(2));
 } catch (error) {
   // A refusal or an error can quote what it was given or what the browser said: print it stripped too.

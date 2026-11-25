@@ -20,7 +20,7 @@ const config = (text: string) => parseConfig(text, "a11y-genie.yaml");
 const PAGE = "pages:\n  - path: /\n";
 
 describe("the config file", () => {
-  it("reads the spec's example: pages, states and workflows", () => {
+  it("reads a full example: pages, states and workflows", () => {
     const read = config(example);
     expect(read.baseUrl).toBe("http://localhost:5173");
     expect(read.pages.map((page) => [page.key, page.path, page.states.map((state) => state.name)])).toEqual([

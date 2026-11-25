@@ -360,6 +360,15 @@ export async function narrateSteps(
   let tree = await TreeReader.open(page);
   let observer = await PressObserver.open(page);
   let here = withoutFragment(page.url());
+  // A new document at the same address (a reload, a form that posts back to itself) is a new page too: the readers
+  // hold the old document's world. Counted by the main frame's DOMContentLoaded, which a jump within the page does
+  // not fire.
+  let loads = 0;
+  const onLoad = () => {
+    loads += 1;
+  };
+  page.on("domcontentloaded", onLoad);
+  let loadsSeen = loads;
   let previous: FocusedAccessible | null;
   try {
     previous = await tree.read();
@@ -382,17 +391,30 @@ export async function narrateSteps(
 
       // A step that went to another page: its readers belong to the old one, so open them again.
       const there = withoutFragment(page.url());
-      const moved = there !== here;
-      if (moved) {
+      let moved = there !== here || loads !== loadsSeen;
+      const reopen = async () => {
         await tree.close();
         await observer.close();
         tree = await TreeReader.open(page);
         observer = await PressObserver.open(page);
-        here = there;
+        here = withoutFragment(page.url());
+        loadsSeen = loads;
         previous = null;
-      }
+      };
+      if (moved) await reopen();
 
-      const focus = await tree.read();
+      // A new document that committed after the check above leaves the readers on a world that is gone: that is a
+      // new page as well, read again from scratch, once.
+      let focus: FocusedAccessible | null;
+      try {
+        focus = await tree.read();
+      } catch (error) {
+        if (moved || !/Cannot find context|context was destroyed|Execution context/i.test(String(error)))
+          throw error;
+        moved = true;
+        await reopen();
+        focus = await tree.read();
+      }
       const produced: Produced[] = [];
       if (acts) {
         if (moved) {
@@ -442,6 +464,7 @@ export async function narrateSteps(
     }
     return undefined;
   } finally {
+    page.off("domcontentloaded", onLoad);
     await tree.close();
     await observer.close();
   }

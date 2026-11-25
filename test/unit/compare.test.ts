@@ -12,7 +12,8 @@ import {
 import type { AxeScan, Finding, Impact } from "../../src/finding.js";
 import { renderReport } from "../../src/report.js";
 import { buildPagesRecord, type ScanRecord, type StateResult } from "../../src/scan-record.js";
-import { CARRIED_TEXT_CHARS } from "../../src/compare.js";
+import { CARRIED_ITEMS, CARRIED_TEXT_CHARS } from "../../src/compare.js";
+import { axeHelpUrl } from "../../src/map-axe.js";
 import { scanSchema, validate } from "../../src/json-schema.js";
 import { readGolden } from "../helpers/goldens.js";
 import { neverClaimViolations } from "../helpers/never-claim.js";
@@ -151,7 +152,7 @@ describe("check against a baseline", () => {
     expect(record.exit).toBe(1);
   });
 
-  it("reads elements whose selectors moved, as many as before, as still: never fixed plus new (R11)", () => {
+  it("reads elements whose selectors moved, as many as before, as still: never fixed plus new", () => {
     const now = scanOf(
       only(finding("button-name", ["#save", "button:nth-child(3)"]), finding("image-alt", ["img"])),
     );
@@ -161,6 +162,24 @@ describe("check against a baseline", () => {
     expect(button?.fixedElements).toBeUndefined();
     expect(record.summary).toMatchObject({ new: 0, fixed: 0 });
     expect(record.exit).toBe(0);
+  });
+
+  it("never pairs an element of a state not scanned with a new one: the new one is new, the other still and unverified", () => {
+    const before = scanOf([
+      { name: "default", axe: axe() },
+      { name: "dark", axe: axe(finding("image-alt", ["#b"])) },
+    ]);
+    const now = scanOf([
+      { name: "default", axe: axe(finding("image-alt", ["#a"])) },
+      { name: "dark", axe: null, notScanned: "step 1 (colorScheme dark) failed" },
+    ]);
+    const image = byId(check(before, now))["image-alt"];
+    expect(image?.status).toBe("new");
+    expect(image?.unverified).toBe(true);
+    expect(image?.elements.map((e) => [e.selector, e.status, e.unverified ?? false])).toEqual([
+      ["#a", "new", false],
+      ["#b", "still", true],
+    ]);
   });
 
   it("never reads a finding of a state not scanned as fixed: it stays still and unverified, and the run exits 1", () => {
@@ -520,5 +539,63 @@ describe("incomparable", () => {
       "tags",
     );
     expect(incomparable(shape([["a", ["default"]]], []), shape([["a", ["default"]]]))?.what).toBe("tags");
+  });
+});
+
+describe("everything carried from a baseline is cut, and its links are built again", () => {
+  const HUGE = "y".repeat(200_000);
+  function crafted(): ScanRecord {
+    const baseline = scanOf(only(finding("image-alt", ["#a"])));
+    for (const f of baseline.findings) {
+      f.title = HUGE;
+      f.plain = HUGE;
+      f.fix = HUGE;
+      f.rule = { ...f.rule, help: HUGE, helpUrl: "https://evil.example/login" };
+      f.elements = f.elements.map((e) => ({
+        ...e,
+        target: Array.from({ length: 5_000 }, () => HUGE),
+        states: Array.from({ length: 5_000 }, (_, i) => `state-${i.toString()}`),
+      }));
+    }
+    baseline.target.commit = HUGE;
+    return baseline;
+  }
+
+  it("cuts a fixed finding's text and lists, in the record and the report", () => {
+    const record = check(crafted(), scanOf(only()));
+    const [fixed] = record.findings;
+    expect(fixed!.status).toBe("fixed");
+    for (const text of [
+      fixed!.title,
+      fixed!.plain,
+      fixed!.fix,
+      fixed!.rule.help,
+      fixed!.fixedIn!.commit ?? "",
+    ]) {
+      expect([...text].length).toBeLessThanOrEqual(CARRIED_TEXT_CHARS + 1);
+    }
+    const element = fixed!.elements[0]!;
+    expect(element.target.length).toBeLessThanOrEqual(CARRIED_ITEMS);
+    expect(element.states.length).toBeLessThanOrEqual(CARRIED_ITEMS);
+    expect([...String(element.target[0])].length).toBeLessThanOrEqual(CARRIED_TEXT_CHARS + 1);
+    expect([...(record.baseline?.commit ?? "")].length).toBeLessThanOrEqual(CARRIED_TEXT_CHARS + 1);
+    expect(renderReport(record)).not.toContain("y".repeat(CARRIED_TEXT_CHARS + 2));
+  });
+
+  it("never carries the baseline's own link: the rule's is built again from its id", () => {
+    const record = check(crafted(), scanOf(only()));
+    expect(record.findings[0]!.rule.helpUrl).toBe(axeHelpUrl("image-alt"));
+    expect(JSON.stringify(record)).not.toContain("evil.example");
+    expect(renderReport(record)).not.toContain("evil.example");
+  });
+});
+
+describe("fixed since the previous scan", () => {
+  it("counts only what the previous scan had open: a check's findings already fixed are not fixed again", () => {
+    const baseline = scanOf(only(finding("image-alt", ["img"]), finding("button-name", ["button"])));
+    const checked = check(baseline, scanOf(only()));
+    expect(checked.summary).toMatchObject({ fixed: 2 });
+    const next = withPrevious(scanOf(only()), { record: checked });
+    expect(next.summary.sincePrevious).toMatchObject({ new: 0, fixed: 0 });
   });
 });

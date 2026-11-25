@@ -1,0 +1,44 @@
+<!doctype html>
+<!--
+  Fixture: a ring drawn from a mark the page's own focus handlers set and remove, the way Fluent UI draws its
+  focus ring from data-fui-focus-visible. A keydown sets "keyboard", focusin then marks the focused button with
+  data-focus-mark, and focusout takes the mark off; the CSS draws the ring only on the mark. The check's guard
+  keeps the page from hearing its blur, so the mark stays through it; the witness shot before the Tab press sees
+  the ring arrive (test/browser/focus-visible.test.ts).
+  #marked-first and #marked-second sit side by side, and #bare right after them, so the previous stop's ring
+  going away sits inside each next stop's padded box.
+  Must fire:     genie/focus-visible on #bare only, whose outline is taken away with nothing in its place
+  Must not fire: genie/focus-visible on #marked-first or #marked-second; any axe-core rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>A ring from a mark</title>
+    <style>
+      button { margin: 0; padding: 6px 12px; border: 1px solid #555555; background: #ffffff; color: #000000; }
+      button:focus { outline: none; }
+      button[data-focus-mark] { box-shadow: 0 0 0 3px #000000; }
+    </style>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <main>
+      <h1>A ring from a mark</h1>
+      <div><button id="marked-first" type="button">First</button><button id="marked-second" type="button">Second</button><button id="bare" type="button">Bare</button></div>
+    </main>
+    <script>
+      let keyboard = false;
+      document.addEventListener("keydown", () => { keyboard = true; }, true);
+      document.addEventListener("mousedown", () => { keyboard = false; }, true);
+      document.addEventListener("focusin", (event) => {
+        const target = event.target;
+        if (keyboard && target instanceof HTMLElement && target.id.startsWith("marked")) {
+          target.setAttribute("data-focus-mark", "");
+        }
+      });
+      document.addEventListener("focusout", (event) => {
+        if (event.target instanceof HTMLElement) event.target.removeAttribute("data-focus-mark");
+      });
+    </script>
+  </body>
+</html>

@@ -42,7 +42,7 @@ A finding is one rule on one page, with every element the rule hit on that page.
 | `id` | `<source>/<rule>@<page key>`. The key for cards, ignores and the rescan. |
 | `rule.source` | `axe` for axe-core's rules; `genie` for the product's own checks, so far `genie/no-landmarks`, `genie/click-on-non-control` and `genie/skip-link`; `manual` (the checklist) comes later. A `genie` finding has an empty `helpUrl` and carries the WCAG criteria it bears on. |
 | `rule.id` | The rule's id. Never empty: an axe-core result with no rule id is dropped, never reported. |
-| `rule.help`, `rule.helpUrl` | axe-core's `help` and `helpUrl`, as it gave them. |
+| `rule.help`, `rule.helpUrl` | axe-core's `help`, as it gave it, and the address of Deque's page about the rule, built from the rule's id and the installed axe-core's version (never taken from axe-core's result, which a page can make up); empty for a rule the installed axe-core does not have, and for a `genie` rule. |
 | `rule.wcag` | The WCAG success criteria in the rule's tags: `wcag143` is `1.4.3`, `wcag1410` is `1.4.10`. Level tags such as `wcag2aa` are left out. Empty for a best-practice rule. |
 | `kind` | `violation` or `advice`. Every axe-core violation is a `violation`, best-practice rules included. |
 | `impact` | `critical`, `serious`, `moderate` or `minor`, from axe-core. |
@@ -293,7 +293,8 @@ check, unless the baseline is itself a `check` that already had the finding as f
 otherwise: a finding still open from the baseline never fails a check.
 
 **Plain `scan`'s `summary.sincePrevious`** is `{ new, fixed, startedAt }`: how many findings are new since the
-site's previous scan, how many of its findings are not found now, and when it began. Each finding's `status` is
+site's previous scan, how many of its open findings are not found now (a `check` record's findings already marked
+fixed are not counted again), and when it began. Each finding's `status` is
 `new` or `still` against it, and no fixed finding is listed. It is compared only when the two scans covered the
 same pages (by key), each in the same states, with the same `engine.tags`; otherwise `sincePrevious` is `null` and
 `sincePreviousReason` says why: `different pages, states or tags`, or `it cannot be read as a scan.json of this
@@ -305,7 +306,9 @@ reads only the scan just run.
 scan are read the same way: at most 50 MB, the limit on `scan.json`; JSON, and nothing else; a `schema` of major
 version 1; valid against `schema/scan-1.json`, checked with the validator in `src/json-schema.ts` before any field
 is read; and no finding id twice. Only the fields this version knows are copied from it into the new record, an
-element's `html` cut to 160 characters again. Its text is printed only through `src/printable.ts`, and a refusal
+element's `html` cut to 160 characters again, every other text cut to 1,000 characters and every list to 100 items
+(`CARRIED_TEXT_CHARS`, `CARRIED_ITEMS` in `src/compare.ts`), and a rule's `helpUrl` built again from its id rather
+than copied. Its text is printed only through `src/printable.ts`, and a refusal
 names where the file failed the schema, never the value it held. A `--baseline` that fails any of these is a
 refusal (docs/EXIT-CODES.md); a previous scan that fails reads *not comparable*.
 

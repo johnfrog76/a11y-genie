@@ -1,7 +1,8 @@
 <!doctype html>
 <!--
   Fixture: a page that listens for focus on `window`, in the capture phase, from the first line of its script: the
-  first listeners in line. It counts every blur, focusout, focus and focusin it hears, on `body`'s data attributes.
+  first listeners in line. It counts every blur, focusout, focus and focusin it hears, and the older DOMFocusIn and
+  DOMFocusOut that Chrome still fires beside them, on `body`'s data attributes.
   The focus-visible check takes focus off each stop and gives it back, and the page must hear none of that, so
   the counts are the same with the check as without it (test/browser/focus-visible.test.ts).
   Must fire:     genie/focus-visible on #one and #two, whose outline is taken away
@@ -13,12 +14,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Listening for focus</title>
     <script>
-      for (const type of ["blur", "focusout", "focus", "focusin"]) {
+      for (const type of ["blur", "focusout", "focus", "focusin", "DOMFocusIn", "DOMFocusOut"]) {
+        const key = type.toLowerCase();
         window.addEventListener(
           type,
           () => {
             const d = document.body.dataset;
-            d[type] = String(Number(d[type] ?? 0) + 1);
+            d[key] = String(Number(d[key] ?? 0) + 1);
           },
           true,
         );

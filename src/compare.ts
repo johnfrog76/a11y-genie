@@ -7,6 +7,7 @@
 
 import { atOrAbove, DEFAULT_FAIL_ON } from "./rule-flags.js";
 import { IMPACTS, type Impact } from "./finding.js";
+import { axeHelpUrl } from "./map-axe.js";
 import { orderFindings } from "./order.js";
 import {
   cutText,
@@ -79,12 +80,28 @@ function notScannedStates(record: ScanRecord): Map<string, Set<string>> {
 }
 
 /**
- * The most characters a carried element's `failure` or `selector` keeps. A fresh scan cuts neither (axe-core's text
- * is bounded by the page, and the record is fitted to its size), but a baseline is a file anyone could have
- * written, so a carried element gets a cap of its own: 1,000, six times the excerpt, long enough for any real
- * axe-core `failureSummary` or selector and short enough that a crafted one cannot fill the record.
+ * The most characters any text carried from an earlier scan keeps: an element's `failure`, `selector`, `target`
+ * parts and `states`, and a finding's `id`, `title`, `plain`, `fix`, `page`, rule `id` and `help`, and commit. A fresh
+ * scan cuts few of these (axe-core's text is bounded by the page, and the record is fitted to its size), but a
+ * baseline is a file anyone could have written, so everything carried from it gets a cap of its own: 1,000, six
+ * times the excerpt, long enough for any real text of these kinds. With `CARRIED_ITEMS` on its lists, a crafted
+ * baseline cannot make a carried finding larger than about a megabyte, nor one line of the report longer than this.
+ * The rule's `helpUrl` is not carried: it is built again from the rule's id (`axeHelpUrl`).
  */
 export const CARRIED_TEXT_CHARS = 1000;
+
+/** The most items any list carried from an earlier scan keeps: a `target`'s parts, an element's `states`. */
+export const CARRIED_ITEMS = 100;
+
+/** A carried value with every string cut to `CARRIED_TEXT_CHARS` and every list to `CARRIED_ITEMS`, however deep. */
+function capped<T>(value: T): T {
+  if (typeof value === "string") return cutText(value, CARRIED_TEXT_CHARS) as T;
+  if (Array.isArray(value)) return value.slice(0, CARRIED_ITEMS).map((item: unknown) => capped(item)) as T;
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, capped(item)])) as T;
+  }
+  return value;
+}
 
 /**
  * An earlier element as a new record keeps it, with its status. Only the fields this version knows are copied, and
@@ -93,12 +110,12 @@ export const CARRIED_TEXT_CHARS = 1000;
 function carried(element: RecordElement, status: RecordElement["status"], unverified = false): RecordElement {
   const out: RecordElement = {
     selector: cutText(element.selector, CARRIED_TEXT_CHARS),
-    target: element.target,
+    target: capped(element.target),
     html: cutText(element.html, LIMITS.excerptChars),
     failure: cutText(element.failure, CARRIED_TEXT_CHARS),
-    states: element.states,
+    states: capped(element.states),
   };
-  if (element.colorPair !== undefined) out.colorPair = element.colorPair;
+  if (element.colorPair !== undefined) out.colorPair = capped(element.colorPair);
   if (status !== undefined) out.status = status;
   if (unverified) out.unverified = true;
   return out;
@@ -127,18 +144,27 @@ function withFixedCut<T extends { fixedCut?: number }>(rest: T, extra: number): 
   return { ...rest, fixedCut: (rest.fixedCut ?? 0) + extra };
 }
 
-/** An earlier finding's own fields, the ones this version knows, without its elements or its comparison. */
+/**
+ * An earlier finding's own fields, the ones this version knows, without its elements or its comparison, each cut
+ * (`capped`), and its rule's `helpUrl` built again from its id, never taken from the file.
+ */
 function findingOf(was: RecordFinding): Omit<RecordFinding, "status" | "elements"> {
-  const { source, id, help, helpUrl, wcag } = was.rule;
+  const { source, id, help, wcag } = was.rule;
   return {
-    id: was.id,
-    rule: { source, id, help, helpUrl, wcag },
+    id: capped(was.id),
+    rule: {
+      source,
+      id: capped(id),
+      help: capped(help),
+      helpUrl: source === "axe" ? axeHelpUrl(id) : "",
+      wcag: capped(wcag),
+    },
     kind: was.kind,
     impact: was.impact,
-    page: was.page,
-    title: was.title,
-    plain: was.plain,
-    fix: was.fix,
+    page: capped(was.page),
+    title: capped(was.title),
+    plain: capped(was.plain),
+    fix: capped(was.fix),
     ...(was.elementsCut === undefined ? {} : { elementsCut: was.elementsCut }),
   };
 }
@@ -218,23 +244,24 @@ export function compareScans(earlier: ScanRecord, now: ScanRecord): Comparison {
     const nowSelectors = new Set(finding.elements.map((element) => element.selector));
     const unmatchedNow = finding.elements.filter((element) => !earlierBySelector.has(element.selector));
     const unmatchedBefore = was.elements.filter((element) => !nowSelectors.has(element.selector));
-    // As many on each side: the same elements, read under selectors that moved (R11).
-    const moved = unmatchedNow.length === unmatchedBefore.length;
+    // Only elements both runs could see are paired as moved: an earlier one in a state not scanned now is still
+    // open, unverified, whatever else happened; one found now in a state the earlier run did not scan is judged
+    // on its own (judgedNew).
+    const pairableNow = unmatchedNow.filter((element) => !unproven(finding.page, element));
+    const pairableBefore = unmatchedBefore.filter((element) => !unseen(finding.page, element));
+    // As many on each side: the same elements, read under selectors that moved.
+    const moved = pairableNow.length === pairableBefore.length;
+    const pairedNow = new Set(moved ? pairableNow : []);
     // An element found now is this run's own: kept whole, with its status.
     const elements: RecordElement[] = finding.elements.map((element) =>
-      moved || earlierBySelector.has(element.selector)
+      pairedNow.has(element) || earlierBySelector.has(element.selector)
         ? { ...element, status: "still" as const }
         : judgedNew(finding.page, element),
     );
     const anyUnproven = elements.some((e) => e.unverified === true);
     if (anyUnproven) unproved += 1;
-    const gone = moved ? [] : unmatchedBefore;
-    const stillUnseen = gone.filter((element) => unseen(finding.page, element));
-    const fixedCarried = carryAll(
-      gone.filter((element) => !unseen(finding.page, element)),
-      "fixed",
-      perFinding,
-    );
+    const stillUnseen = unmatchedBefore.filter((element) => unseen(finding.page, element));
+    const fixedCarried = carryAll(moved ? [] : pairableBefore, "fixed", perFinding);
     const fixedElements = fixedCarried.kept;
     const stillCarried = carryAll(stillUnseen, "still", perFinding - elements.length, true);
     elements.push(...stillCarried.kept);
@@ -289,7 +316,7 @@ export function compareScans(earlier: ScanRecord, now: ScanRecord): Comparison {
       ...withCut(findingOf(was), all.cut),
       status: "fixed",
       elements: all.kept,
-      fixedIn: was.fixedIn ?? { startedAt: earlier.startedAt, commit: earlier.target.commit },
+      fixedIn: capped(was.fixedIn ?? { startedAt: earlier.startedAt, commit: earlier.target.commit }),
     });
   }
 
@@ -345,7 +372,7 @@ export function checkRecord(now: ScanRecord, baseline: BaselineInfo): ScanRecord
     baseline: {
       path: baseline.path,
       startedAt: baseline.record.startedAt,
-      commit: baseline.record.target.commit,
+      commit: capped(baseline.record.target.commit),
       notScanned: baseline.record.pages.flatMap((page) =>
         page.notScanned.map((missed) => ({ page: page.key, state: missed.state })),
       ),
@@ -376,11 +403,15 @@ export function withPrevious(
   }
   const compared = compareScans(earlier, now);
   const status = new Map(compared.findings.map((finding) => [finding.id, finding.status]));
+  // Fixed since the previous scan: open in it, and not found now. A `check` record also carries findings it already
+  // had as fixed; they were fixed before it, not since.
+  const fixedBefore = new Set(earlier.findings.filter((f) => f.status === "fixed").map((f) => f.id));
+  const fixedSince = compared.findings.filter((f) => f.status === "fixed" && !fixedBefore.has(f.id)).length;
   return {
     ...now,
     summary: {
       ...now.summary,
-      sincePrevious: { new: compared.new, fixed: compared.fixed, startedAt: earlier.startedAt },
+      sincePrevious: { new: compared.new, fixed: fixedSince, startedAt: earlier.startedAt },
     },
     findings: now.findings.map((finding) => ({
       ...finding,

@@ -4,9 +4,9 @@ import { CRITERION_WORDING, RULE_WORDING } from "../../src/plain.js";
 import { emptyScanSentence, renderReport } from "../../src/report.js";
 import { CANNOT_SEE } from "../../src/scan-record.js";
 import { GOLDEN_PAGES, readGolden, readGoldenRecord } from "../helpers/goldens.js";
-import { neverClaimViolations, PROMPT_WORD_LIST } from "../helpers/never-claim.js";
+import { ALLOWED_IN_DECK, neverClaimViolations, PROMPT_WORD_LIST } from "../helpers/never-claim.js";
 
-describe("the phrase list (C16)", () => {
+describe("the phrase list", () => {
   it.each([
     "This site is accessible.",
     "The page is COMPLIANT",
@@ -51,7 +51,7 @@ describe("the phrase list (C16)", () => {
  * one is adopted text and the other quotes licences (Apache-2.0 says "compliance"), so neither is the project's
  * own words. Do not add them. The site and the prompt file are held in test/unit/site.test.ts and above.
  */
-describe("the project's own docs claim nothing (C16)", () => {
+describe("the project's own docs claim nothing", () => {
   const root = new URL("../../", import.meta.url);
   const read = (path: string) => readFileSync(new URL(path, root), "utf8");
   const docs = [
@@ -181,5 +181,46 @@ describe("what a report says", () => {
       expect(section.match(/^## /gm)).toHaveLength(1);
       for (const line of CANNOT_SEE) expect(section).toContain(line);
     }
+  });
+});
+
+/**
+ * The deck the studio ships into `web/src/deck/` (docs/DECK.md): its deck and figures files in `decks/`, and any
+ * narration script in `voices/`. They are read with the deck's own allowed phrases, `ALLOWED_IN_DECK`, and nothing
+ * else, so a claim in a later ship fails here. The copied player around them is code, not the deck's words, and
+ * is left out: it says a prop "passes", and it stays byte for byte as copied.
+ */
+describe("the shipped deck claims nothing", () => {
+  const deckHome = new URL("../../web/src/deck/", import.meta.url);
+  const walk = (folder: URL): URL[] =>
+    readdirSync(folder, { withFileTypes: true }).flatMap((entry) =>
+      entry.isDirectory() ? walk(new URL(`${entry.name}/`, folder)) : [new URL(entry.name, folder)],
+    );
+  const deckText = [
+    ...walk(new URL("decks/", deckHome)),
+    ...walk(new URL("voices/", deckHome)).filter((file) => file.pathname.endsWith(".json")),
+  ].map((file) => file.pathname.split("/web/src/deck/")[1] ?? file.pathname);
+
+  it("reads the deck's folder, with the registry in it", () => {
+    expect(deckText).toContain("decks/index.ts");
+  });
+
+  it.each(deckText)("web/src/deck/%s", (path) => {
+    expect(neverClaimViolations(readFileSync(new URL(path, deckHome), "utf8"), { deck: true })).toEqual([]);
+  });
+
+  it("allows the deck's approved phrases there, and still fails any other claim", () => {
+    for (const { phrase } of ALLOWED_IN_DECK) {
+      expect(neverClaimViolations(phrase, { deck: true })).toEqual([]);
+      expect(neverClaimViolations(phrase)).not.toEqual([]);
+    }
+    expect(neverClaimViolations("The page is accessible now.", { deck: true })).toEqual(["accessible"]);
+    expect(neverClaimViolations("Accessible HTML, at last.", { deck: true })).toEqual(["Accessible"]);
+    expect(neverClaimViolations("The page passed WCAG.", { deck: true })).toEqual(["passed WCAG"]);
+    expect(neverClaimViolations("the dust lifts as the duster passes", { deck: true })).toEqual([]);
+    expect(neverClaimViolations("the dust lifts as the duster passes")).toEqual(["passes"]);
+    // Only the deck's own motion phrases are allowed: "passes" said of a page still fails in the deck.
+    expect(neverClaimViolations("Your page passes every check.", { deck: true })).toEqual(["passes"]);
+    expect(neverClaimViolations("The site passes WCAG.", { deck: true })).toEqual(["passes"]);
   });
 });

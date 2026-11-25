@@ -1,0 +1,49 @@
+<!doctype html>
+<!--
+  Fixture: what must not fool the witness, the shot of the window just before a Tab press (src/focus-visible.ts).
+  Each row stands apart from the next, so only the stop just left sits beside each stop.
+  1. #wide-ring draws its ring 8 px out (an 8 px outline), and #after-wide, right beside it, has
+     none: the ring going away must not count as #after-wide's.
+  2. #beside-spinner has none, and a custom element's shadow root beside it pulses for ever, fast: the witness holds the
+     animations in shadow roots too.
+  3. #small-field is a small text field with none: its caret must not count as a ring.
+  Must fire:     genie/focus-visible on #after-wide, #beside-spinner and #small-field
+  Must not fire: genie/focus-visible on #wide-ring; any axe-core rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Witness edges</title>
+    <style>
+      .row { margin: 0 0 80px 0; }
+      button { margin: 0; padding: 4px 8px; border: 1px solid #555555; background: #ffffff; color: #000000; }
+      button:focus { outline: none; }
+      #wide-ring:focus-visible { outline: 8px solid #000000; outline-offset: 0; }
+      #small-field { width: 24px; height: 16px; padding: 0 2px; border: 1px solid #555555; outline: none; }
+      x-spin { display: inline-block; vertical-align: middle; }
+    </style>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <main>
+      <h1>Witness edges</h1>
+      <div class="row"><button id="wide-ring" type="button">Wide</button><button id="after-wide" type="button">A</button></div>
+      <div class="row"><button id="beside-spinner" type="button">Beside</button><x-spin></x-spin></div>
+      <div class="row"><label>Code <input id="small-field" type="text" /></label></div>
+    </main>
+    <script>
+      customElements.define(
+        "x-spin",
+        class extends HTMLElement {
+          constructor() {
+            super();
+            this.attachShadow({ mode: "open" }).innerHTML =
+              "<style>@keyframes pulse { from { opacity: 1; } to { opacity: 0; } }" +
+              " i { display: block; width: 14px; height: 24px; background: #000000;" +
+              " animation: pulse 0.3s linear infinite alternate; }</style><i></i>";
+          }
+        },
+      );
+    </script>
+  </body>
+</html>

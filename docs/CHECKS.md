@@ -124,12 +124,15 @@ in every finding is data: it is quoted, cut and never run.
 
 - **Finds:** an element the Tab key moves focus to, where nothing about it changes on screen. For each stop of the
   keyboard walk, it compares the element focused and unfocused, in its own styles and its two nearest ancestors',
-  and in a screenshot of the element with a few pixels around it. The screenshots stay in memory and are never
-  written. It reports only when no pixel changed and none of the styles did.
+  and in a screenshot of the element with a few pixels around it. It also compares the element focused with the
+  window as it was just before the Tab press, so a ring the page's own scripts draw when focus arrives (as Fluent UI
+  does) is seen. The screenshots stay in memory and are never written. It reports only when no pixel changed and
+  none of the styles did.
 - **Does not find:** whether the focus indicator is easy to see against its background (WCAG 2.4.7 and 1.4.11). A
   change that is there but faint is not a finding. An indicator drawn somewhere else, such as a highlight on
-  another element, is not seen. It looks at the first 100 stops of each walk, and at nothing inside a frame of
-  another origin.
+  another element, is not seen. A ring the page's own scripts draw when focus arrives, on an element the Tab press
+  scrolls into view, is not seen either, and can be reported as no change. It looks at the first 100 stops of each
+  walk, and at nothing inside a frame of another origin.
 - **Needs review:** an element whose focus changes too faintly to be sure of, or that changed a few pixels with
   no style behind them; an element it could not photograph, such as one outside the window; the stops past the
   cap; and any stop where the page's own listeners may have heard the check take focus off it.

@@ -281,8 +281,8 @@ seconds with Chrome's network log on (`--log-net-log`), once with the defaults a
 So on a branded Chrome the switches do stop the variations fetch and the component updater. **One request is
 left**: the fetch of a public key from `www.gstatic.com/ohttp_gateway/...`, which by its path belongs to Safe
 Browsing's privacy-preserving lookups. None of the default switches stops it. It carries no page content and
-no person's data, but it is traffic the person did not ask for, and the security gate should decide whether to
-turn it off.
+no person's data, but it is traffic the person did not ask for. Under `--offline` it goes to the refusing proxy
+instead (*--offline at the launch*, below); without `--offline` it is still sent.
 
 Not checked here: Microsoft Edge (not installed where this was run), Chrome on Windows or Linux, and runs
 longer than 90 seconds. A scan that loads a page also sends that page's own traffic, which is a different
@@ -499,7 +499,9 @@ accessibility tree (`Accessibility.getPartialAXTree`), and `focusVisible`: wheth
 seen (that is `genie/focus-visible`, below). Each part of a selector is the element's `id` when that id is unique in
 its own root, or a path of `:nth-of-type` steps up to one, as the click check's are; an element at the top of a
 shadow root is anchored with `:host >`, which `shadowRoot.querySelector` reads in Chrome, so the part matches
-that element and nothing deeper. A part longer than 1,000 characters is cut with `…`. The same unchanged page
+that element and nothing deeper. A part longer than 1,000 characters keeps its end, which names the element
+itself, behind `…` and a short hash of the whole part, so two different deep elements never read as one stop
+(`walk-deep.html`: siblings 60 levels down, which kept the start instead read as one stop, and as a false trap). The same unchanged page
 walked twice gives the same stops.
 
 **Frames and shadow roots.** It reads into open shadow roots and frames of the same origin. A frame of another
@@ -637,6 +639,16 @@ the fixtures. The share is of the padded box's pixels that changed by more than 
 | `focus-faint.html` `#faint-fill` | white background to `#f4f4f4` | 0 (854 pixels changed by 8 levels or more, none by more than 16) | background-color | needs review |
 | `focus-faint.html` `#faint-ring` | a 2 px outline in `#f6f6f6` on white | 0 (364 pixels by 8 or more) | outline | needs review |
 | `focus-animated.html` `#slide`, `#grow`, `#pulse` | a ring by a transition, by an animation, by an endless pulse | 25%, 25%, 24% | box-shadow | visible |
+| `focus-marked.html` `#marked-first`, `#marked-second` | `outline: none`, a ring drawn on a mark the page's focus handlers set (as Fluent UI's `data-fui-focus-visible`) | 0 after the blur; 19% and 14% against the witness | none | visible, by the witness |
+| `focus-marked.html` `#bare`, right after `#marked-second` | `outline: none` and nothing else | 0, and 0 against the witness with the previous stop left out | none | finding |
+| `focus-marked-scroll.html` `#marked-low` | as `#marked-first`, far down the page: the Tab press scrolls | 0; no witness, the press scrolled | none | finding (a limit, below) |
+| `focus-marked-scroll.html` `#native` | the browser's own outline, down the page | 13% | outline | visible |
+| `focus-witness-edges.html` `#after-wide`, right after `#wide-ring`'s 8 px outline | `outline: none` and nothing else | 0; 0 against the witness, the previous stop left out 16 px past its padded box (4.4% with only its padded box left out) | none | finding |
+| `focus-witness-edges.html` `#beside-spinner`, beside a shadow root that pulses for ever | `outline: none` and nothing else | 0, the pulse held in both shots (4.2% with it running) | none | finding |
+| `focus-witness-edges.html` `#small-field`, a 24 px text field | `outline: none` and nothing else | 0, the caret hidden in every shot (1.4% against the witness with it shown) | none | finding |
+| `focus-witness-scrolled.html` `#fixed-marked`, a fixed toolbar on a page scrolled 3,000 px | a ring drawn on a mark, as `focus-marked.html` | 0 after the blur; visible against the witness, taken of the window | none | visible, by the witness |
+| `focus-witness-scrolled.html` `#fixed-bare` | `outline: none` and nothing else | 0 | none | finding |
+| The deck page's player bar (Fluent UI v9 buttons: Exit deck, Next slide, Settings, Fullscreen, Stop narration) | Fluent's ring on `data-fui-focus-visible` | 0 after the blur; 15% to 25% against the witness | none | visible, by the witness |
 
 The smallest visible change measured was 14% of the padded box, and every unchanged element changed no pixel at
 all, at any tolerance: the two screenshots are taken in the same run, of the same layout, so nothing but focus
@@ -652,6 +664,38 @@ of its two nearest ancestors: an outline with a large `outline-offset` changes `
 element out of the findings, and at most it is *needs review*: the check is never wrong about an indicator drawn
 that way.
 
+**The witness.** Some pages draw their ring from a mark their own focus handlers set and remove: Fluent UI sets
+`data-fui-focus-visible` when a key moves focus to an element and takes it off in its `focusout` handler, and the
+focus-visible polyfill does the same with a class. The guard (below) keeps the page from hearing the check's blur,
+so the mark stays, the ring is still drawn in the unfocused screenshot, and the two match: before the witness, the
+deck page's player bar was five false serious findings. So just before each Tab press, while the check still takes
+screenshots, the walk's `beforePress` takes one more: the window, held still (finite animations at their end,
+infinite ones at their start), as the page drew it before focus moved. When the blur shows no visible change, the
+check photographs the element focused again, held the same way, and compares it with the same padded box cut from
+the witness. The previous stop's padded box is left out of that comparison, so its own ring going away is not read
+as this stop's ring arriving (`#bare` in `focus-marked.html` sits right after a ringed button). The witness is used
+only when the press scrolled nothing: the window's offsets and a count of `scroll` events, heard by the isolated
+world's own listener and read after the next frame, must be the same before and after the press. A witness can
+only show focus visible; it never makes a finding. Nothing about it reaches the page: no event is stopped or sent,
+no focus moves, and its screenshots are taken through the DevTools Protocol (`optimizeForSpeed`), whose clip is in
+the page's coordinates, so the window's own offset in the page is added (`focus-witness-scrolled.html`, where the
+toolbar sits 3,000 px down the page).
+
+What else it holds to, each from a review of its first version:
+
+- **No witness without the frame.** The scroll mark waits for the next frame, so a scroll the press caused has
+  fired its event; a page that draws no frame (a hidden or throttled one) gives up after `WITNESS_FRAME_MS`
+  (1 s) and has no witness, rather than holding the scan for ever (held by a test that stops the page's frames).
+  Each same-origin frame's window is in the mark too, its offsets and its scroll events.
+- **Only the stop just left is left out.** The check counts presses, and leaves out the padded box of the stop it
+  measured at the press just before, 16 px wider on each side (`MASK_PX`), so a ring drawn further out than the
+  padding is left out too (`#after-wide`). When the press before did not reach a stop it measured (a lap, a stop
+  outside the window or in another origin's frame), the stop focus left is not known, and there is no witness.
+- **Still in every root.** Its animations are held in every open shadow root and same-origin frame, as above.
+- **No caret.** The same style that hides the caret and turns transitions off is adopted, for each shot, in every
+  root, as a constructed style sheet (`adoptedStyleSheets`), which the page's mutation observers do not hear, then
+  taken away (`#small-field`).
+
 **Where a scan can be wrong.** An indicator drawn by something else, and more than 4 px away, changes nothing the
 check reads: focus shown only on a sibling (`#save` in `focus-elsewhere.html`, whose status line 40 px below fills
 in), or only by a pseudo-element (`#help`, whose `::after` bar sits 12 px below it; pseudo-elements' styles are not
@@ -659,14 +703,24 @@ read). Both are read as no visible change, and are findings, though a person can
 holds this limit as it is, and *What this scan cannot see* has a fixed line for it, in every record: "A focus
 indicator drawn away from the element (outside it, its two nearest ancestors' styles, and a few pixels around it)
 is not seen; check focus by hand where a design draws it elsewhere (WCAG 2.4.7)."
+A ring drawn from a mark the page's focus handlers set, on an element the Tab press scrolls into view, has no
+witness: the shot before the press is of another part of the page. It reads as the blur reads it, no visible
+change, and is a finding though a person sees the ring (`#marked-low` in `focus-marked-scroll.html`, held as it
+is by the test).
 
 **Animations (V4).** A ring that comes in by a transition or an animation is judged as it ends. Before each
-screenshot, every running animation and transition of the page, its same-origin frames and the shadow roots the
-element is in is paused, its `currentTime` kept, and a finite one is set to its end while paused; a style turns
+screenshot, every running animation and transition of the page, its same-origin frames, every open shadow root
+(a document's `getAnimations()` does not reach into them, checked at Chrome 158) and the shadow roots the element
+is in is paused, its `currentTime` kept, and a finite one is set to its end while paused; a style turns
 transitions off for as long as the screenshot takes (Playwright's `style` option, which reaches shadow roots and
-frames). An infinite animation is paused where it is. After the screenshot each one is put back at the time it
+frames). An infinite animation on the element, an ancestor or a descendant is paused where it is, since it may be
+the ring; one anywhere else is set to its start, the same in both screenshots, so a spinner beside the element is
+not read as its focus (`#beside-spinner` in `focus-witness-edges.html`). After the screenshot each one is put back at the time it
 was paused at plus the time that has passed since, and played on, so it ends where it would have without the
-check, not early and not late. Nothing is finished, so no `finish` event fires; setting a paused CSS animation or
+check, not early and not late. One whose time ran out while it was held is finished, as it would have been by
+then: played instead, from its end, it would start again from the beginning (the Web Animations auto-rewind; a
+test holds a 150 ms animation past its end and reads it finished, at 150, once). Nothing else is finished, so no
+other `finish` event fires; setting a paused CSS animation or
 transition to its end does queue its `animationend` or `transitionend`, so the guard (`src/focus-guard.ts`)
 also stops those two kinds of event, and `animationstart`, `animationiteration`, `animationcancel`,
 `transitionrun`, `transitionstart` and `transitioncancel`, for the animations the check named (it names them, with the guard, before it sets any of them to its end, so no
@@ -685,7 +739,13 @@ there, empty, which changed the HTML the trap check quotes.
 
 **The page is left as it was.** Focus is taken off the element with `blur()` and given back with `focus()`
 (`preventScroll`) in the isolated world. For that moment, a guard (`src/focus-guard.ts`) stops the `blur`,
-`focusout`, `focus` and `focusin` events, so the page's own handlers never see them: a menu that closes when
+`focusout`, `focus` and `focusin` events, and the older `DOMFocusIn` and `DOMFocusOut` that Chrome still fires beside
+them (checked at Chrome 159; `focus-listening.html` counts all six), so the page's own handlers never see them.
+From just before the blur until the refocus has been styled, a constructed style sheet in every root turns
+transitions off, so the blur and the refocus start none, and the page hears no transition event of the check's
+making (`focus-transitioning.html`, whose ring comes in by a 10 s transition and whose counts are no higher with
+the check than without it); the sheet is taken away only after each document's styles are worked out, so taking
+it away starts nothing either. A menu that closes when
 focus leaves it stays open (`focus-watched.html`, whose counts of focus and blur events, and whose walk, are the
 same with the check as without it). The guard is first in line: `runScan` installs it before the page navigates
 (`FocusGuard.install`, `Page.addScriptToEvaluateOnNewDocument` into an isolated world of its own, in every
@@ -700,19 +760,24 @@ guard, behind whatever the page added (`runScan` installs early, and if that ins
 the element Tab put it on, so the walk's next Tab goes on from there, and the trap check reads the same walk and
 the same trap with the check as without it (`trap.html`, `trap-stuck.html`, `walk-order.html`, `walk-shadow.html`,
 `walk-frame.html`). If focus cannot be given back, the check takes no more screenshots on that walk, and the rest
-of its stops are *needs review*. What the page can still notice: the screenshot style is a `style` element added and removed.
+of its stops are *needs review*. What the page can still notice: the screenshot style is a `style` element added and removed, and the witness's
+style is in `adoptedStyleSheets` while it shoots, and so is the sheet that turns transitions off from the blur to the refocus.
 
 **The screenshots stay in memory.** Each pair is decoded in Node (`src/png.ts`, a small reader of Chrome's 8-bit
 RGB and RGBA PNGs, on Node's own zlib), compared, and dropped. No screenshot is written to disk, to `scan.json`
 or to the report; the record holds only the finding or the *needs review* item, with the element's selector and
 HTML excerpt, as any other check's.
 
-**The cost, and the cap.** Two screenshots and about a dozen DevTools Protocol calls a stop: about 65 ms a stop
-on a laptop (a page of 30 buttons, 2.2 s with the check and 0.3 s without; 100 buttons, 6.9 s and 0.3 s). So at
-most `MAX_SCREENSHOT_STOPS` (100) stops of each walk get screenshots, about 7 s; each stop after them is a
+**The cost, and the cap.** Two screenshots and about a dozen DevTools Protocol calls a stop, and the witness's
+window shot before each press (with one more shot of the element when the blur shows nothing): about 100 ms a
+stop. A page of 30 buttons (`walk-long.html`) took 3.5 s with the check and 0.5 s without on a desktop, against 2.5 s
+before the witness; with Playwright's own screenshot for the witness it took 4.8 s, so the witness's shots are taken
+straight through the DevTools Protocol, encoded for speed, and decoded only when a stop needs them. So at
+most `MAX_SCREENSHOT_STOPS` (100) stops of each walk get screenshots, about 10 s; each stop after them is a
 *needs review* item saying it was not looked at, and why. With the default `--max-tabs` of 200 that is at most 100
 such items a state. Fixtures: `focus-custom-ok.html`, `focus-hidden.html`, `focus-faint.html`,
-`focus-animated.html`, `focus-watched.html`, `focus-listening.html`, `focus-elsewhere.html`; tests: `test/browser/focus-visible.test.ts`,
+`focus-animated.html`, `focus-watched.html`, `focus-listening.html`, `focus-transitioning.html`, `focus-elsewhere.html`, `focus-marked.html`,
+`focus-marked-scroll.html`, `focus-witness-edges.html`, `focus-witness-scrolled.html`; tests: `test/browser/focus-visible.test.ts`,
 `test/unit/focus-visible.test.ts`.
 
 ### Reading the accessibility tree (`src/a11y-tree.ts`)
@@ -825,8 +890,11 @@ page's reach (`PressObserver`):
   `role="status"`, `"alert"` and `"log"` element, and `output`, is remembered; after it, the page is given 250 ms
   (`ACTION_SETTLE_MS`) for its answer, and the text that was added is said, as `Saved, status`. A region that
   grew by appending says only what was added; one that was rewritten says all of it. Open shadow roots are
-  searched; frames are not. A page that goes to another address (not a jump within the page) is read again from
-  scratch, and the step says the new page's title (`kind: "page"`).
+  searched; frames are not. A page that goes to another address (not a jump within the page), or loads a new
+  document at the same address (a reload, a form that posts back to itself: the main frame's `DOMContentLoaded`
+  is counted), is read again from scratch, and the step says the new page's title (`kind: "page"`;
+  `narrate-reload.html`). A new document that commits after that check is caught when the readers' world is
+  found gone, and read again the same way, once.
 
 A press that produced none of these reads `(nothing is said)` in the transcript. Page text read here is made
 printable (`src/printable.ts`) and cut to the excerpt limit (160 characters) before it is kept, and each value read
@@ -975,7 +1043,9 @@ The comparison is a pure function of two records, so the browser tests and the u
 
 - **Match by id, then by selector.** A finding's id names its rule and page; within a finding, elements are
   matched by `selector`. Unmatched elements, as many on each side, are read as the same elements under selectors
-  that moved, so a list that only reordered reads `still`, never fixed plus new. docs/JSON.md has the
+  that moved, so a list that only reordered reads `still`, never fixed plus new. Only elements both runs could see
+  are paired so: an earlier one in a state not scanned now, or one found now in a state the earlier run did not scan,
+  is never counted on a side. docs/JSON.md has the
   rest of the rule.
 - **Not scanned is never fixed.** A baseline element found in a state that was not scanned this time stays still
   open, marked `unverified`, and the run exits 1 for the state not scanned anyway.
@@ -1043,7 +1113,7 @@ fixture in the real Chrome, from `127.0.0.1`, with every request off the fixture
 | The size cap | `scan.json` at most 50 MB. Over it, every walk is cut to its first N stops (N the most that fits, at least one; the rest counted in `stopsCut`), then elements are dropped, least severe first and never a finding's last one, and counted; if that is not enough, *not scanned* | `many-elements.html`, with the limit lowered | *the time, element and size caps* |
 | Private networks | when the address scanned is public, every request to a loopback, link-local, private or unspecified address is aborted before it leaves the browser and noted under `stopped` as `private-network`; a page whose own frame goes to one reads *not scanned*. `--allow-private` turns it off, and a target that is itself loopback or private is never limited. See *The private-network rule (V12)* below | `private-network.html`, and redirects the test's fixture server makes | *a public page cannot reach private addresses* |
 | `--same-origin` | every request to an origin other than the address scanned (scheme, host and port) is aborted and noted under `stopped` as `other-origin`; a page whose own frame goes to one reads *not scanned*. The report says so, and that some of the page's content may be missing. It is the private-network rule's mechanism, below, asked a second question: there is one interception layer, `networkRule()` in `src/context.ts` | `private-network.html`, and redirects the test's fixture server makes | `test/browser/network-flags.test.ts`, *--same-origin* |
-| `--offline` | the target must be loopback (`127.0.0.0/8`, `::1`, `localhost`, `*.localhost`), or the run is refused; every request to an address that is not loopback is aborted and noted as `offline`, a page whose own frame goes to one reads *not scanned*, and no browser is downloaded. Nothing else of A11y Genie's own leaves the machine either, so there is nothing more to switch off (no ToolKit probe exists yet) | `private-network.html`, and redirects the test's fixture server makes | `network-flags.test.ts`, *--offline* |
+| `--offline` | the target must be loopback (`127.0.0.0/8`, `::1`, `localhost`, `*.localhost`), or the run is refused; every request to an address that is not loopback is aborted and noted as `offline`, a page whose own frame goes to one reads *not scanned*, and no browser is downloaded. The browser is launched with switches that keep what it starts on its own on the machine too (*--offline at the launch*, below) | `private-network.html`, and redirects the test's fixture server makes | `network-flags.test.ts`, *--offline* |
 | Page text printed without its escapes | `printable()` (`src/printable.ts`) strips every terminal escape sequence whole (CSI, OSC with OSC 8 links and window titles, DCS, APC and the rest, in their 7-bit and 8-bit forms) and every control character but newline and tab (carriage return, DEL, C1 and the bidi overrides and isolates included) from every line the command prints and from all of `report.md`. `scan.json` keeps the page's text exactly, as data, and writes the controls `JSON.stringify` leaves raw (DEL, C1, bidi) as `\u` escapes, so `--json` on a terminal carries none either | `escapes.html` | *page text is printed without its escapes*; `test/cli/scan.test.ts` checks the real terminal output |
 
 What was stopped is recorded per page in `scan.json` (`pages[].stopped`: the kind, a count, and the first five,
@@ -1143,6 +1213,28 @@ that redirects, and the page moving itself or being redirected there. Each layer
 hand, to see its tests fail: without `FetchGuard` every redirect-hop test fails, and without its auto-attach the
 frame on another site's does.
 
+**--offline at the launch.** The rules above see only what the page asks for. Under `--offline` the browser is
+also launched with three switches (`offlineSwitches()` in `src/browser.ts`), so that what it starts on its own,
+and what the page opens around the interception points, stays on the machine:
+
+- `--proxy-server=http://127.0.0.1:9`: every connection goes to a proxy on a port nothing answers on, so it
+  fails. Chrome never sends a connection to this machine through a proxy, so the page itself still loads.
+  (Playwright's own `proxy` launch option is not used: it sends loopback through the proxy as well.)
+- `--force-webrtc-ip-handling-policy=disable_non_proxied_udp`: WebRTC may not send UDP the proxy cannot carry,
+  which is all of it.
+- `--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE *.localhost, EXCLUDE 127.*, EXCLUDE [::1]`:
+  no name is looked up but `localhost` and `*.localhost`, so no DNS query leaves the machine, a prefetch's
+  included. The loopback addresses are kept as they are (without the last two, the rule turned `127.0.0.1` itself
+  into "not found").
+
+`test/browser/offline-launch.test.ts` holds what they do, with a recording proxy on 127.0.0.1 in place of the dead
+one: the page still loads by `127.0.0.1`, `localhost` and `app.localhost`; a page's fetch off the machine, a
+dedicated worker's WebSocket and a shared worker's fetch all go to the proxy; and WebRTC gathers no candidate and
+sends no packet, even to a STUN server on 127.0.0.1 (without the switches it sent five). Checked on Playwright's
+headless shell; the branded Chrome reads the same command-line switches, but the gstatic.com request above was not
+measured again under them here. `--same-origin` cannot use the proxy, since other origins on the internet are
+allowed, so the gaps below stay open for it.
+
 **What it does not hold.** These are not caught, and `SECURITY.md` lists them:
 
 - **A dedicated worker's WebSocket.** Neither `routeWebSocket()`, nor the `Fetch` domain, nor
@@ -1153,6 +1245,14 @@ frame on another site's does.
   opens a socket of its own. Not checked. One check of `<link rel="preconnect">` to a private address opened no
   connection, which is not a proof.
 
+
+All of these hold for `--same-origin` as for the private-network rule: it uses the same three places. Under
+`--offline` the launch closes the WebSocket, the shared worker and WebRTC (*--offline at the launch*, above), and
+the rule never looks a name up at all.
+
 **What a scan does not defend against.** A page shares its document with axe-core, and can change what
 axe-core reads (gap G6 in [KNOWN-GAPS.md](KNOWN-GAPS.md)): a scan describes the page as the page presents itself, and is never a
-security boundary. `SECURITY.md` lists this and every other known gap.
+security boundary. `SECURITY.md` lists this and every other known gap. What a page can make up stays data: every text from axe-core's
+results is quoted and escaped in the report, and the one link the report draws, to the page about a rule, is
+built from the rule's id and the installed axe-core's version (`axeHelpUrl` in `src/map-axe.ts`), never taken from
+the result, which a page that replaces `window.axe` can fill in.

@@ -1,6 +1,6 @@
 import type { Browser, LaunchOptions } from "playwright-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { NO_BROWSER_ENV, BrowserNotFound, type Launcher } from "../../src/browser.js";
+import { NO_BROWSER_ENV, BrowserNotFound, offlineSwitches, type Launcher } from "../../src/browser.js";
 import {
   fallbackLines,
   noDownloadRefusal,
@@ -60,6 +60,23 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
+describe("--offline", () => {
+  it("launches Chrome, or the Chromium it falls back to, with the offline switches", async () => {
+    const withChrome = machine({ chrome: true });
+    await run({ ...DEFAULT, download: false, offline: true }, withChrome.deps);
+    expect(withChrome.launched.map((o) => o.args)).toEqual([offlineSwitches()]);
+    const fallingBack = machine({ chromium: true });
+    await run({ ...DEFAULT, download: false, offline: true }, fallingBack.deps);
+    expect(fallingBack.launched.map((o) => o.args)).toEqual([offlineSwitches(), offlineSwitches()]);
+  });
+
+  it("launches with no switch without it", async () => {
+    const m = machine({ chrome: true });
+    await run(DEFAULT, m.deps);
+    expect(m.launched.map((o) => o.args)).toEqual([undefined]);
+  });
+});
+
 describe("with Chrome installed", () => {
   it("launches Chrome, says nothing and downloads nothing", async () => {
     const m = machine({ chrome: true });
@@ -91,7 +108,7 @@ describe("with no Chrome, and no --browser-channel", () => {
     expect(m.said).toEqual([lines.using]);
   });
 
-  it("says the size and the cache in the line, as the spec words it", () => {
+  it("says the size and the cache in the line", () => {
     expect(lines.downloading).toBe(
       `Chrome was not found, so A11y Genie is downloading Playwright's Chromium (${downloadSize()}) once, into ${CACHE}. --browser-channel names another browser.`,
     );

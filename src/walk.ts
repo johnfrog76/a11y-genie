@@ -147,7 +147,15 @@ const FROM_THE_TOP = `(() => {
  */
 export const DESCRIBE = `function () {
   const MAX = ${SELECTOR_CHARS};
-  const cut = (s) => (s.length <= MAX ? s : s.slice(0, MAX) + "…");
+  // A part over MAX keeps its end, which names the element itself (its own :nth-of-type steps), behind a short hash
+  // of the whole part, so two different deep elements never cut to the same part (a stop is told by its target).
+  const cut = (s) => {
+    if (s.length <= MAX) return s;
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    const head = "…[" + h.toString(16) + "] ";
+    return head + s.slice(s.length - (MAX - head.length));
+  };
   const partIn = (el, root) => {
     const parts = [];
     for (let node = el; node; ) {
@@ -327,6 +335,8 @@ export class FocusReader {
       executionContextId: this.contextId,
       arguments: args.map((value) => ({ value })),
       returnByValue: true,
+      // A function may wait for the next frame (the focus check's scroll mark); one that returns at once is unchanged.
+      awaitPromise: true,
     });
     if (answer.exceptionDetails !== undefined) throw new Error("a check could not read the page");
     return answer.result.value as unknown;
@@ -372,6 +382,8 @@ export interface WalkOptions {
   maxTabs?: number;
   /** Called after each stop is read, while focus is still on it, so a check can look at it there. */
   onStop?: (stop: WalkStop) => Promise<void>;
+  /** Called just before each Tab press, so a check can see the page as it was before focus moved. */
+  beforePress?: () => Promise<void>;
 }
 
 /**
@@ -390,6 +402,7 @@ export async function walkPage(page: Page, options: WalkOptions = {}): Promise<W
     // While focus goes round stops already recorded: where the cycle starts, and the stop the next press must reach.
     let lap: { from: number; next: number } | undefined;
     while (tabs < maxTabs) {
+      await options.beforePress?.();
       await page.keyboard.press("Tab");
       tabs += 1;
       const focused = await reader.read();

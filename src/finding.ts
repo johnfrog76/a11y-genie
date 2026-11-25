@@ -23,7 +23,10 @@ export interface Rule {
   id: string;
   /** axe-core's one-line `help`. */
   help: string;
-  /** axe-core's `helpUrl`, or an empty string when it gave none. */
+  /**
+   * The address of Deque's page about an axe-core rule, built from its id (`axeHelpUrl` in src/map-axe.ts), never
+   * the one in axe-core's result; empty for a rule the installed axe-core does not have, and for a `genie` rule.
+   */
   helpUrl: string;
   /** WCAG success criteria from the rule's tags, such as `1.4.3`. Empty for a best-practice rule. */
   wcag: string[];

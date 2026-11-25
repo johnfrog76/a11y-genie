@@ -47,6 +47,18 @@ function start(args: string[], shared: string, scans: string, nodeArgs: string[]
 const MISSING = ["scan", "http://127.0.0.1:8/", "--browser-channel", "msedge"];
 
 describe("the private temp folder", () => {
+  it("a temp folder that cannot be made is a refusal with one Error: and one Hint: line, and only for a browser command", async () => {
+    const missing = join(folder(), "not-there");
+    const scan = await start(["scan", "http://127.0.0.1:8/"], missing, folder()).done;
+    expect(scan.status).toBe(2);
+    expect(scan.stderr.trim().split("\n")).toEqual([
+      `Error: cannot make a temp folder in ${missing} (ENOENT)`,
+      "Hint: point TMPDIR at a folder that exists and that you may write to.",
+    ]);
+    expect((await start(["--version"], missing, folder()).done).status).toBe(0);
+    expect((await start(["rules"], missing, folder()).done).status).toBe(0);
+  });
+
   it("a run that needs no browser leaves nothing in the shared temp folder", async () => {
     const shared = folder();
     expect((await start(["--version"], shared, folder()).done).status).toBe(0);

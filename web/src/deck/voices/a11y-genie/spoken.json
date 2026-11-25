@@ -1,0 +1,33 @@
+{
+  "clips": {
+    "beautiful-html": {
+      "en-US-BrianNeural": "148e4342d2b115fe91e2c4cfc1e4ebb71def32048033b9d685bc52da7167dc1e",
+      "en-US-JennyNeural": "148e4342d2b115fe91e2c4cfc1e4ebb71def32048033b9d685bc52da7167dc1e"
+    },
+    "cards-like-magic": {
+      "en-US-BrianNeural": "a74905fec9bc933c6008ec2709d0cf199a6109c202b32c9ecd525edcf794fef9",
+      "en-US-JennyNeural": "a74905fec9bc933c6008ec2709d0cf199a6109c202b32c9ecd525edcf794fef9"
+    },
+    "the-bottle-on-the-shelf": {
+      "en-US-BrianNeural": "4face26c531651322772b8cd304d8d2bfd44ee74a12a975e4432c86d9aaabe09",
+      "en-US-JennyNeural": "4face26c531651322772b8cd304d8d2bfd44ee74a12a975e4432c86d9aaabe09"
+    },
+    "three-wishes": {
+      "en-US-BrianNeural": "e98fa816c467e988d4644e3f4965a8b8eefa7a3757f62290a15edf6dfaaccc3a",
+      "en-US-JennyNeural": "e98fa816c467e988d4644e3f4965a8b8eefa7a3757f62290a15edf6dfaaccc3a"
+    },
+    "wish-one-accessible-html": {
+      "en-US-BrianNeural": "eb2971369d9e85c581805f14097683100fcaf8067be1dee883c283abf86cfa07",
+      "en-US-JennyNeural": "eb2971369d9e85c581805f14097683100fcaf8067be1dee883c283abf86cfa07"
+    },
+    "wish-three-narrated-workflows": {
+      "en-US-BrianNeural": "5c0587993221862c0c845d7bafed2f6a3fb9a73742896ae809cc01f0264f6212",
+      "en-US-JennyNeural": "5c0587993221862c0c845d7bafed2f6a3fb9a73742896ae809cc01f0264f6212"
+    },
+    "wish-two-focus": {
+      "en-US-BrianNeural": "96652395ec8718b61c67b20d7229db259bddf930000ebc73004b7901186e09a3",
+      "en-US-JennyNeural": "96652395ec8718b61c67b20d7229db259bddf930000ebc73004b7901186e09a3"
+    }
+  },
+  "scheme": "sha256-utf8-hex"
+}

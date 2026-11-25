@@ -1,0 +1,22 @@
+<!doctype html>
+<!--
+  Fixture: a button that reloads the page, so the next document is at the same address, as a form that posts back
+  to itself gives. Narration must read it as a new page and go on, not stop as if the page went away
+  (test/browser/narrate.test.ts).
+  Must fire:     nothing
+  Must not fire: genie/unnamed-step; any axe-core rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reloading page</title>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <main>
+      <h1>Reloading page</h1>
+      <button type="button" onclick="location.reload()">Reload</button>
+      <button type="button">Next</button>
+    </main>
+  </body>
+</html>

@@ -226,6 +226,17 @@ describe.skipIf(!hasBrowser)("the keyboard walk (skipped where the test browser 
       return record;
     }
 
+    it("walk-deep.html: siblings far down a page with no ids are each their own stop, and no trap is read", async () => {
+      const record = await scan("walk-deep.html");
+      const walk = record.pages[0]?.walks?.[0];
+      expect(walk?.end).not.toBe("cycled");
+      expect(walk?.stops.map((stop) => stop.name)).toEqual(["Before", "One", "Two", "Three", "After"]);
+      const targets = walk?.stops.map((stop) => JSON.stringify(stop.target)) ?? [];
+      expect(new Set(targets).size).toBe(targets.length);
+      for (const target of targets) expect(target.length).toBeLessThan(1200);
+      expect(record.findings.find((f) => f.rule.id === "keyboard-trap")).toBeUndefined();
+    });
+
     it("keeps one walk per state that was scanned, each from the top", async () => {
       const states = parseStateFlags(["sent: click button 'Send'", "gone: wait css '#nothing-here'"]);
       const record = await scan("impact-mix.html", {

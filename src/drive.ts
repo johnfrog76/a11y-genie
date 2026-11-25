@@ -92,16 +92,13 @@ function reasonOf(error: unknown, step: Step, timeoutMs: number, page: Page): st
   return "the browser could not do it";
 }
 
-/** Whether focus is on `locator`'s element (or one of them). */
-async function hasFocus(locator: Locator): Promise<boolean> {
-  // The function runs in the page, where `globalThis` is the window; this file's types have no DOM.
-  return locator.evaluateAll((elements) =>
-    elements.some(
-      (element) =>
-        element ===
-        (globalThis as unknown as { document: { activeElement: unknown } }).document.activeElement,
-    ),
-  );
+/**
+ * Whether focus is on `locator`'s element (or one of them). Asked of the browser's own focus state, `:focus`, through
+ * Playwright's locator, which runs in its own world and goes into open shadow roots, as `getByRole` and `css=` do:
+ * not of `document.activeElement`, which stops at a shadow root's host and which a page can redefine.
+ */
+async function hasFocus(page: Page, locator: Locator): Promise<boolean> {
+  return (await locator.and(page.locator(":focus")).count()) > 0;
 }
 
 async function runOne(page: Page, step: Step, timeout: number, maxTabs: number): Promise<void> {
@@ -121,7 +118,7 @@ async function runOne(page: Page, step: Step, timeout: number, maxTabs: number):
     case "tabTo": {
       const locator = locate(page, step.target);
       for (let presses = 0; ; presses += 1) {
-        if (await hasFocus(locator)) return;
+        if (await hasFocus(page, locator)) return;
         if (presses >= maxTabs) {
           const error = new Error("tab limit");
           error.name = "TabLimit";

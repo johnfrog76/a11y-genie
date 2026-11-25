@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { Refusal } from "./refusal.js";
 
 /** The variables an operating system and a browser read to find the temp folder. */
 const TEMP_VARIABLES = process.platform === "win32" ? ["TMPDIR", "TEMP", "TMP"] : ["TMPDIR"];
@@ -14,11 +15,22 @@ let folder: string | undefined;
  * shares that folder, so nothing here can touch another run's files, and nothing another run does can touch ours.
  * The folder is removed when the process exits, whatever the exit (docs/ARCHITECTURE.md).
  *
- * Call it once, before the first browser launch. A second call returns the same folder.
+ * Call it once, before the first browser launch. A second call returns the same folder. A temp folder that
+ * cannot be made (missing, read-only, full) is a refusal that says so (docs/EXIT-CODES.md).
  */
 export function usePrivateTemp(): string {
   if (folder) return folder;
-  const made = mkdtempSync(join(tmpdir(), "a11y-genie-"));
+  const parent = tmpdir();
+  let made: string;
+  try {
+    made = mkdtempSync(join(parent, "a11y-genie-"));
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code ?? "an error";
+    throw new Refusal(
+      `cannot make a temp folder in ${parent} (${code})`,
+      `point ${process.platform === "win32" ? "TEMP" : "TMPDIR"} at a folder that exists and that you may write to.`,
+    );
+  }
   folder = made;
   for (const name of TEMP_VARIABLES) process.env[name] = made;
   // `exit` runs on a normal end, on process.exit() (a refusal, an unexpected error) and after an

@@ -1,0 +1,45 @@
+<!doctype html>
+<!--
+  Fixture: the witness on a page that is already scrolled. The first Tab stop, #deep, is far down the page, so the
+  press that reaches it scrolls; the next presses reach a toolbar fixed to the bottom of the window and scroll
+  nothing, so the witness is used there, on a page scrolled far from its top. Its screenshots must be of the window,
+  not of the top of the page (src/focus-visible.ts). #fixed-marked draws its ring from a mark its focus handlers set,
+  as focus-marked.html does; #fixed-bare, 60 px away, has none.
+  Must fire:     genie/focus-visible on #fixed-bare only
+  Must not fire: genie/focus-visible on #deep or #fixed-marked; any axe-core rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>The witness, scrolled</title>
+    <style>
+      .spacer { height: 3000px; }
+      nav { position: fixed; left: 16px; bottom: 16px; background: #ffffff; }
+      nav button { margin: 0 60px 0 0; padding: 6px 12px; border: 1px solid #555555; background: #ffffff; color: #000000; }
+      nav button:focus { outline: none; }
+      #fixed-marked[data-focus-mark] { box-shadow: 0 0 0 3px #000000; }
+    </style>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <main>
+      <h1>The witness, scrolled</h1>
+      <div class="spacer"></div>
+      <a id="deep" href="#deep">Deep in the page</a>
+      <div class="spacer"></div>
+    </main>
+    <nav aria-label="Toolbar"><button id="fixed-marked" type="button">Marked</button><button id="fixed-bare" type="button">Bare</button></nav>
+    <script>
+      let keyboard = false;
+      document.addEventListener("keydown", () => { keyboard = true; }, true);
+      document.addEventListener("focusin", (event) => {
+        if (keyboard && event.target instanceof HTMLElement && event.target.id === "fixed-marked") {
+          event.target.setAttribute("data-focus-mark", "");
+        }
+      });
+      document.addEventListener("focusout", (event) => {
+        if (event.target instanceof HTMLElement) event.target.removeAttribute("data-focus-mark");
+      });
+    </script>
+  </body>
+</html>
