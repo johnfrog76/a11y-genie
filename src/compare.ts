@@ -455,8 +455,31 @@ function baselineMissed(record: ScanRecord): Map<string, Set<string>> {
 }
 
 /**
+ * The open findings of a `check` that this run did not find: carried whole from the baseline, every element in a
+ * state of its page not scanned this time. The record's impact counts include them; `scan`'s *Found* line does not,
+ * and says them apart as still open, not checked this time (issue 157). An element found now is never in a state not
+ * scanned now, and a finding found now always keeps one (the size cap drops the carried ones, at the end, first).
+ */
+export function notCheckedNow(record: ScanRecord): RecordFinding[] {
+  const nowMissed = notScannedStates(record);
+  return record.findings.filter(
+    (finding) =>
+      finding.status !== "fixed" &&
+      finding.elements.length > 0 &&
+      finding.elements.every(
+        (e) =>
+          e.unverified === true && e.states.some((state) => nowMissed.get(finding.page)?.has(state) === true),
+      ),
+  );
+}
+
+/**
  * On a `check`, the two kinds of unverified finding: `thisTime`, a baseline finding on a page or state not scanned
  * now; and `neverScanned`, a finding found now only in states the baseline did not scan, with those states' names.
+ *
+ * A finding is `thisTime` when one of its listed elements says so, and also when it is marked `unverified`, has
+ * elements not listed, and its page has a state not scanned now: the element cap, or the size cap, may have cut
+ * every unseen element it carried (issue 184).
  */
 export function unverifiedOf(record: ScanRecord): {
   thisTime: number;
@@ -474,7 +497,11 @@ export function unverifiedOf(record: ScanRecord): {
       e.states.some((state) => nowMissed.get(finding.page)?.has(state));
     const inBaselineMissed = (e: RecordElement) =>
       e.states.length > 0 && e.states.every((state) => before.get(finding.page)?.has(state) === true);
-    if (unverified.some(inMissedNow)) thisTime += 1;
+    const unseenCut =
+      finding.unverified === true &&
+      (finding.elementsCut ?? 0) > 0 &&
+      (nowMissed.get(finding.page)?.size ?? 0) > 0;
+    if (unverified.some(inMissedNow) || unseenCut) thisTime += 1;
     const never = unverified.filter((e) => !inMissedNow(e) && inBaselineMissed(e));
     if (never.length > 0) neverScanned += 1;
     for (const element of never) for (const state of element.states) states.add(state);

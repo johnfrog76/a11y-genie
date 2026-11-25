@@ -41,7 +41,10 @@ earlier scan*), and exits on what is new:
 
 Its first line counts the findings, such as `2 fixed, 0 new, 3 still open (worst: serious, color-contrast on
 settings)`, and when it exits 0 with findings still open it says `None of them is new, so the exit is 0: the ones
-still open were in the baseline.` Plain `scan` compares with the site's last scan only for its first line
+still open were in the baseline.`, or, when one of them was found only in states the baseline did not scan,
+`None of them is new, so the exit is 0: the ones still open were in the baseline, or were found only in states it
+did not scan.` Its *Found* line counts only what this run found: a baseline finding on a page or state not scanned
+this time is said apart, as `1 more still open, not checked this time.` Plain `scan` compares with the site's last scan only for its first line
 (`4 new, 2 fixed since the last scan`, or `Not comparable with the last scan: different pages, states or tags.`):
 its exit reads only the scan just run.
 
