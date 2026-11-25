@@ -2,7 +2,13 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { mapAxeResults } from "../../src/map-axe.js";
 import { RULE_WORDING } from "../../src/plain.js";
-import { emptyScanSentence, HTML_LIMIT, renderReport, wcagLines } from "../../src/report.js";
+import {
+  adviceOnlySentence,
+  emptyScanSentence,
+  HTML_LIMIT,
+  renderReport,
+  wcagLines,
+} from "../../src/report.js";
 import { buildScanRecord, failureOnOneLine, fixOf, type ScanRecord } from "../../src/scan-record.js";
 import { GOLDEN_PAGES, readGolden, readGoldenRecord } from "../helpers/goldens.js";
 
@@ -234,6 +240,22 @@ describe("the report", () => {
     const two = { ...empty, pages: [record.pages[0]!, { ...record.pages[0]!, key: "two" }] };
     expect(emptyScanSentence(two)).toMatch(/^No problems found by these 90 rules on these 2 pages\. /);
     expect(renderReport(two)).toContain("90 rules ran on 2 pages.");
+  });
+
+  it("does not say no problems were found when only advice was", () => {
+    const record = recordFrom("impact-mix");
+    const advice = { ...record.findings[0]!, kind: "advice" as const };
+    const only: ScanRecord = {
+      ...record,
+      summary: { ...record.summary, critical: 0, serious: 0, moderate: 0, minor: 0, advice: 1 },
+      findings: [advice],
+    };
+    const report = renderReport(only);
+    expect(report).not.toContain("No problems found");
+    expect(report).toContain(adviceOnlySentence(only));
+    expect(adviceOnlySentence(only)).toMatch(
+      /^No violations found by these 90 rules on this page, only 1 advice finding\. /,
+    );
   });
 
   it("reads the empty scan's sentence only when nothing was found", () => {
