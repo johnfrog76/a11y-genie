@@ -58,7 +58,9 @@ most). One removal is not enough: when a browser is stopped, the Playwright that
 profile at the same moment. On Linux, Node's `rmSync` then returns early, with no error and the folder still there:
 it uses `std::filesystem::remove_all`, libstdc++'s version stops at the first entry already gone, and Node takes
 that error as done, even with `maxRetries`. macOS's libc++ skips such an entry and goes on, so only Linux saw it:
-the run's folder left holding one empty worker folder (issue 160).
+the run's folder left holding one empty worker folder (issue 160). The removal is `test/helpers/remove-folder.ts`;
+`test/unit/remove-folder.test.ts` races it against a worker thread removing a profile inside the folder, and on
+Linux races plain `rmSync` the same way and prints how often it left the folder.
 `test/cli/browser-leak.test.ts` holds this: it runs `test/fixtures/leak/leak.fixture.ts`, tests built to fail and
 to time out with a browser open (the main run never includes that file), and looks for any process left; and it
 runs `test/fixtures/leak/signal.fixture.ts`, stops that run with SIGTERM while a process the test started has a
