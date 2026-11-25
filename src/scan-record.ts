@@ -392,9 +392,12 @@ function withStops(record: ScanRecord, n: number): ScanRecord {
  * 1. Walks first. They are a record of where focus went, not findings, so they go before any finding does.
  *    Every walk is cut to its first N stops, N the most that fits (found by halving the range), at least
  *    one; each dropped stop is counted in the walk's `stopsCut`.
- * 2. Then elements, from the end, least severe first (the needs-review items, then the findings from the
+ * 2. Then, on a `check`, the fixed elements listed under findings still open (`fixedElements`), from the last
+ *    finding up, every dropped one counted in `fixedCut`. They are a record of what is gone, not of what fails.
+ * 3. Then elements, from the end, least severe first (the needs-review items, then the findings from the
  *    last up), each kept to at least one element and every dropped one counted in `elementsCut`.
- * 3. If even that is too big, the page reads *not scanned*, and the walks lose their stops too.
+ * 4. If even that is too big, the page reads *not scanned*, and the walks lose their stops too. The counts of a
+ *    comparison go with the findings: `new`, `still` and `fixed` read 0, and `sincePrevious` reads not comparable.
  */
 export function fitToSize(record: ScanRecord, maxBytes: number): ScanRecord {
   let size = bytesOf(record);
@@ -417,6 +420,30 @@ export function fitToSize(record: ScanRecord, maxBytes: number): ScanRecord {
   }
   const fitted = structuredClone(record);
   keepStops(fitted, 1);
+  size = bytesOf(fitted);
+  if (size <= maxBytes) return fitted;
+  const withFixed = [...fitted.findings].reverse().filter((f) => (f.fixedElements?.length ?? 0) > 0);
+  const dropFixed = (finding: RecordFinding): number => {
+    const listed = finding.fixedElements ?? [];
+    let bytes = elementBytes(listed.pop());
+    // The `"fixedCut": n,` line is added the first time, and `"fixedElements": [],` goes with the last one.
+    if (finding.fixedCut === undefined) bytes -= 28;
+    if (listed.length === 0) {
+      delete finding.fixedElements;
+      bytes += 26;
+    }
+    finding.fixedCut = (finding.fixedCut ?? 0) + 1;
+    return bytes;
+  };
+  for (const finding of withFixed) {
+    while ((finding.fixedElements?.length ?? 0) > 0 && size > maxBytes) size -= dropFixed(finding);
+    if (size <= maxBytes) break;
+  }
+  // The running count is close, not exact: finish against the real size.
+  for (const finding of withFixed) {
+    if (bytesOf(fitted) <= maxBytes) break;
+    while ((finding.fixedElements?.length ?? 0) > 0 && bytesOf(fitted) > maxBytes) dropFixed(finding);
+  }
   size = bytesOf(fitted);
   if (size <= maxBytes) return fitted;
   const items: { elements: unknown[]; elementsCut?: number }[] = [
@@ -462,6 +489,14 @@ export function fitToSize(record: ScanRecord, maxBytes: number): ScanRecord {
     advice: 0,
     needsReview: 0,
     notScanned: fitted.pages.length,
+    // Counts of findings no longer listed would be read as this record's (issue 183).
+    ...(fitted.summary.new === undefined ? {} : { new: 0, still: 0, fixed: 0 }),
+    ...(fitted.summary.sincePrevious === undefined || fitted.summary.sincePrevious === null
+      ? {}
+      : {
+          sincePrevious: null,
+          sincePreviousReason: `nothing of this scan was kept, since its results were larger than the ${maxBytes} byte limit on scan.json`,
+        }),
   };
   fitted.exit = 1;
   return fitted;
