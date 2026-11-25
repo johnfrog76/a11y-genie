@@ -432,4 +432,52 @@ describe.skipIf(!hasBrowser)("focus visible (skipped where the test browser is n
       );
     });
   });
+
+  it("an install made after the page loaded is late too: needs review, no finding", async () => {
+    await withBrowser(TEST_CHANNEL, async (browser) => {
+      const context = await browser.newContext();
+      const attempted = await guardContext(context, server.origin);
+      const tab = await context.newPage();
+      await tab.goto(server.url("focus-hidden.html"));
+      // Installed, but after the load: no document has the guard's world, so the guard is added now, behind the
+      // page's own listeners, and must say it is late.
+      await FocusGuard.install(tab);
+      const result = await scanPage(tab, undefined, null, { maxTabs: 1000 });
+      expect(attempted).toEqual([]);
+      expect(result.findings.find((f) => f.rule.id === "focus-visible")).toBeUndefined();
+      const review = result.needsReview.find((n) => n.rule.id === "focus-visible");
+      expect(review?.elements.find((e) => e.selector === "#plain-link")?.reason).toContain(
+        "may have heard the check",
+      );
+    });
+  });
+
+  it("a failure after focus was given back is that stop's own: the later stops are still looked at", async () => {
+    await withBrowser(TEST_CHANNEL, async (browser) => {
+      const context = await browser.newContext();
+      const attempted = await guardContext(context, server.origin);
+      const tab = await context.newPage();
+      await FocusGuard.install(tab);
+      await tab.goto(server.url("focus-hidden.html"));
+      // The first stop's second screenshot, the unfocused one, is not a PNG: it is taken before focus is given
+      // back, and fails to decode after.
+      const real = tab.screenshot.bind(tab);
+      let calls = 0;
+      tab.screenshot = (async (...args: Parameters<typeof real>) => {
+        calls += 1;
+        if (calls === 2) return Buffer.from("not a PNG");
+        return real(...args);
+      }) as typeof real;
+      const result = await scanPage(tab, undefined, null, { maxTabs: 1000 });
+      expect(attempted).toEqual([]);
+      const finding = result.findings.find((f) => f.rule.id === "focus-visible");
+      const review = result.needsReview.find((n) => n.rule.id === "focus-visible");
+      expect(finding?.elements.map((e) => e.selector)).toEqual(["#plain-button"]);
+      expect(review?.elements.map((e) => [e.selector, e.reason])).toEqual([
+        ["#plain-link", expect.stringContaining("could not take or compare the screenshots")],
+        ["#away", expect.stringContaining("outside the window")],
+      ]);
+      expect(JSON.stringify(review)).not.toContain("could not give focus back");
+    });
+  });
 });
