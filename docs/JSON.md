@@ -299,7 +299,8 @@ fixed are not counted again), and when it began. Each finding's `status` is
 same pages (by key), each in the same states, with the same `engine.tags`; otherwise `sincePrevious` is `null` and
 `sincePreviousReason` says why: `different pages, states or tags`, or `it cannot be read as a scan.json of this
 version`. With no previous scan, neither field is written. The previous scan is the newest folder under
-`<scans>/<origin key>/` (`--out` when given), a `check`'s included. `sincePrevious` changes nothing else: the exit
+`<scans>/<origin key>/` (`--out` when given), a `check`'s included, whose `target.origin` is this scan's; when that
+folder holds none, the folder of the old name is read too (see *Where a scan is written*). `sincePrevious` changes nothing else: the exit
 reads only the scan just run.
 
 **The earlier scan is untrusted input.** `--baseline` (a `scan.json`, or a scan folder holding one) and the previous
@@ -384,12 +385,22 @@ list in every report, last.
 ## Where a scan is written (`src/scans-folder.ts`)
 
 `<scans>/<origin key>/<start time>/scan.json` and `report.md`, outside the scanned project. The origin key is
-the host and port of the address asked for (`localhost-5173`); the start time is `2026-11-19T20-14-03Z`, with `-2`, `-3` added if two
+the scheme, `_`, then the host and the port of the address asked for: `http://localhost:5173` is
+`http_localhost-5173`, and `https://example.com` is `https_example.com` (no port when it is the scheme's own). A
+host that had to change to be one path part (`[::1]`, a trailing dot) adds `_` and the first 10 hex digits of the
+SHA-256 of the full origin, and so does a key over 100 characters, cut to fit, so two origins never share a key and
+every key is one path part on macOS, Linux and Windows. The start time is `2026-11-19T20-14-03Z`, with `-2`, `-3` added if two
 scans start in the same second. `<scans>` is, in this order: `--out`; the `A11Y_GENIE_SCANS_DIR` environment
 variable (tests set it to a temporary folder); then the per-user folder, `~/Library/Application Support/a11y-genie`
 on macOS, `$XDG_DATA_HOME/a11y-genie` or `~/.local/share/a11y-genie` on Linux, and
 `%LOCALAPPDATA%\a11y-genie` on Windows. `--format md,json` (the default) picks the reports; `scan.json` is
 always written, because every other file is made from it.
+
+Before this, the origin key was the host and port alone (`localhost-5173`), shared by `http` and `https`, and not
+cut. Nothing is written under that old name any more, but the last scan is still looked for in it: when the new
+folder holds no scan, the old one is read, and a scan in it is used only when its own `target.origin` is the origin
+scanned now; one that cannot be read is passed over, since it cannot say whose it is. So an `https` scan never reads
+an `http` scan as its last. The old name never holds `_`, so it is never a new key.
 
 ## axe-core's results (V1)
 

@@ -1080,7 +1080,9 @@ The comparison is a pure function of two records, so the browser tests and the u
   to 160 characters again, with `failure` and `selector` cut to 1,000 and at most 500 elements kept per finding (the
   rest counted in `elementsCut`), so a crafted baseline cannot carry more into a record than these caps allow (a fresh scan takes `failure` and `selector` as axe-core and the checks wrote them, which are short; carried ones come from a file and are capped); and everything printed from it goes through `src/printable.ts`.
 - **Plain `scan` reads its last scan too**, for one line and `summary.sincePrevious`: the newest scan folder of the
-  site under the scans folder or `--out`, read the same way. A last scan that cannot be read, or that covered other
+  site under the scans folder or `--out`, read the same way, and only a scan whose own `target.origin` is this one;
+  the folder of the old name, shared by `http` and `https`, is read only when the new one holds no scan, and an
+  unreadable scan in it is passed over (docs/JSON.md, *Where a scan is written*). A last scan that cannot be read, or that covered other
   pages, states or tags, reads *not comparable* and says why; it is never a refusal, and it never changes the exit.
 - **`--commit`** (or `GITHUB_SHA`) is recorded as `target.commit`, and a fixed finding's `fixedIn` names it.
 

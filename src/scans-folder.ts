@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -26,8 +27,40 @@ export function defaultScansDir(
   return join(data !== undefined && data !== "" ? data : join(home, ".local", "share"), "a11y-genie");
 }
 
-/** A site's folder name, from its origin: `http://localhost:5173` is `localhost-5173`. Safe as one path part. */
+/** The longest a site's folder name may be, well under the 255 a path part may be on every system. */
+export const MAX_SITE_FOLDER = 100;
+
+/** The hash a site's folder name ends in when it was cut or its host changed: the full origin's, 10 hex digits. */
+function originHash(origin: string): string {
+  return createHash("sha256").update(origin).digest("hex").slice(0, 10);
+}
+
+/**
+ * A site's folder name, from its origin: the scheme, `_`, the host, and the port when it is not the scheme's own.
+ * `http://localhost:5173` is `http_localhost-5173`, and `https://example.com` is `https_example.com`. A host that
+ * had to change to be one path part (`[::1]`, a trailing dot) adds `_` and a hash of the full origin, and so does a
+ * name over `MAX_SITE_FOLDER` characters, cut to fit: two origins never share a name. Safe as one path part on
+ * macOS, Linux and Windows. The `_` is never in a name of the old scheme (`oldOriginKey`), so the two never meet.
+ */
 export function originKey(origin: string): string {
+  const url = new URL(origin);
+  const scheme = url.protocol.replace(/:$/, "").replace(/[^a-z0-9]+/g, "");
+  const host = url.hostname
+    .toLowerCase()
+    .replace(/[^a-z0-9.-]+/g, "-")
+    .replace(/^[.-]+|[.-]+$/g, "");
+  const name = `${scheme}_${host === "" ? "site" : host}${url.port === "" ? "" : `-${url.port}`}`;
+  if (host === url.hostname && name.length <= MAX_SITE_FOLDER) return name;
+  const hash = `_${originHash(url.origin)}`;
+  const cut = name.slice(0, MAX_SITE_FOLDER - hash.length).replace(/[._-]+$/, "");
+  return `${cut}${hash}`;
+}
+
+/**
+ * The name the scans of a site went under before issue #162, kept only to find the last scan in it: the host and
+ * port, `localhost-5173`, the same for `http` and `https`, and not cut. Nothing is written under it any more.
+ */
+export function oldOriginKey(origin: string): string {
   const url = new URL(origin);
   const host = url.hostname
     .toLowerCase()
