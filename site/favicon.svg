@@ -1,11 +1,29 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <!-- The genie's bottle: the page's mark and its tab icon. -->
-  <g stroke="#1a1233" stroke-width="3" stroke-linejoin="round">
-    <path d="M32 3 L41 18 H23 Z" fill="#f0c35a" />
+  <!-- The genie's bottle, the page's mark and its tab icon: the A11y Genie deck's bottle, simplified to read
+       small. Amber glass lit from inside, a faded label and a tall stopper. -->
+  <defs>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#6a3c08" />
+      <stop offset="0.3" stop-color="#c27f17" />
+      <stop offset="0.45" stop-color="#f2bd45" />
+      <stop offset="0.7" stop-color="#c27f17" />
+      <stop offset="1" stop-color="#7a4709" />
+    </linearGradient>
+    <radialGradient id="light" cx="0.45" cy="0.62" r="0.5">
+      <stop offset="0" stop-color="#fff1c4" stop-opacity="0.9" />
+      <stop offset="1" stop-color="#ffdf86" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <g transform="translate(32 62.4) scale(0.124)" stroke="#2a1400" stroke-width="16" stroke-linejoin="round">
     <path
-      d="M27 18 V27 C27 31 12 33 12 43 V54 C12 59 18 61 32 61 C46 61 52 59 52 54 V43 C52 33 37 31 37 27 V18 Z"
-      fill="#7b5cd0"
+      d="M -72 0 C -104 -2 -120 -44 -117 -98 C -113 -165 -62 -218 -27 -262 L -21 -332 L 21 -332 L 27 -262 C 62 -218 113 -165 117 -98 C 120 -44 104 -2 72 0 Q 0 9 -72 0 Z"
+      fill="url(#glass)"
     />
-    <path d="M19 44 V54" stroke="#e8defc" stroke-linecap="round" opacity="0.7" />
+    <path d="M -112 -126 Q 0 -112 112 -126 L 114 -62 Q 0 -48 -114 -62 Z" fill="#e4cf9c" stroke="none" opacity="0.6" />
+    <ellipse cx="-6" cy="-118" rx="80" ry="90" fill="url(#light)" stroke="none" />
+    <rect x="-29" y="-348" width="58" height="20" rx="7" fill="url(#glass)" />
+    <ellipse cx="0" cy="-366" rx="24" ry="19" fill="url(#glass)" />
+    <path d="M -20 -382 C -32 -414 -10 -452 0 -492 C 10 -452 32 -414 20 -382 Q 0 -374 -20 -382 Z" fill="url(#glass)" />
+    <path d="M -88 -70 C -96 -124 -76 -174 -42 -216" fill="none" stroke="#fff" stroke-width="14" stroke-linecap="round" opacity="0.55" />
   </g>
 </svg>
