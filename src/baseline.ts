@@ -12,13 +12,13 @@ import { scanSchema, validate } from "./json-schema.js";
 import { printableLine } from "./printable.js";
 import { Refusal } from "./refusal.js";
 import type { ScanRecord } from "./scan-record.js";
-import { originKey } from "./scans-folder.js";
+import { oldOriginKey, originKey } from "./scans-folder.js";
 
 /** The major version of `scan.json` this version reads. */
 export const SCHEMA_MAJOR = 1;
 
 const BASELINE_HINT =
-  "give a scan.json that a11y-genie scan wrote, or the scan folder it is in, such as <scans>/localhost-5173/2026-11-19T20-14-03Z.";
+  "give a scan.json that a11y-genie scan wrote, or the scan folder it is in, such as <scans>/http_localhost-5173/2026-11-19T20-14-03Z.";
 
 /** A path as a refusal may print it: one line, its controls stripped, and cut. */
 function shown(path: string): string {
@@ -115,13 +115,17 @@ export function readScanFile(path: string, flag: string, limit: number = LIMITS.
 /** A scan folder's name: its start time, with `-2`, `-3` when two began the same second (src/scans-folder.ts). */
 const SCAN_FOLDER = /^([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}-[0-9]{2}-[0-9]{2}Z)(?:-([0-9]{1,6}))?$/;
 
-/** The newest scan folder of the site `origin` under `root`, leaving out those in `skip`; undefined when there is none. */
+/**
+ * The newest scan folder of the site `origin` under `root`, leaving out those in `skip`; undefined when there is none.
+ * It looks in the site's folder (`originKey`), or in the folder of the old name (`oldOriginKey`) with `old`.
+ */
 export function latestScanFolder(
   root: string,
   origin: string,
   skip: ReadonlySet<string> = new Set(),
+  old = false,
 ): string | undefined {
-  const site = join(root, originKey(origin));
+  const site = join(root, old ? oldOriginKey(origin) : originKey(origin));
   let names: string[];
   try {
     names = readdirSync(site);
@@ -142,23 +146,33 @@ export function latestScanFolder(
 
 /**
  * Plain `scan`'s previous scan of the site: its record, or why it cannot be read, or undefined when there is none.
- * A `narrate` run is skipped: it has no axe-core results, so it is not a scan to compare with.
+ * A `narrate` run is skipped: it has no axe-core results, so it is not a scan to compare with. So is a scan whose
+ * own `target.origin` is another origin's.
+ *
+ * The site's folder is read first. When it holds no scan, the folder of the old name is read (scans written before
+ * issue #162): that name was shared by `http` and `https`, so a scan in it is used only when its own
+ * `target.origin` is this origin, and one that cannot be read is passed over, since it cannot say whose it is.
  */
 export function previousScan(
   root: string,
   origin: string,
 ): { record: ScanRecord } | { reason: string } | undefined {
-  let skip = new Set<string>();
-  for (;;) {
-    const folder = latestScanFolder(root, origin, skip);
-    if (folder === undefined) return undefined;
-    try {
-      const record = readScanFile(folder, "the last scan");
-      if (record.command !== "narrate") return { record };
+  for (const old of [false, true]) {
+    let skip = new Set<string>();
+    for (;;) {
+      const folder = latestScanFolder(root, origin, skip, old);
+      if (folder === undefined) break;
       skip = new Set([...skip, folder]);
-    } catch (error) {
-      if (error instanceof Refusal) return { reason: "it cannot be read as a scan.json of this version" };
-      throw error;
+      let record: ScanRecord;
+      try {
+        record = readScanFile(folder, "the last scan");
+      } catch (error) {
+        if (!(error instanceof Refusal)) throw error;
+        if (old) continue;
+        return { reason: "it cannot be read as a scan.json of this version" };
+      }
+      if (record.command !== "narrate" && record.target.origin === origin) return { record };
     }
   }
+  return undefined;
 }
