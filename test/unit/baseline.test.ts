@@ -230,7 +230,7 @@ describe.skipIf(process.platform === "win32")("a named pipe given as a scan", ()
 
   it("is passed over as the last scan, with a reason", () => {
     const root = fresh();
-    const site = join(root, "localhost-5173", "2026-11-19T20-14-03Z");
+    const site = join(root, "http_localhost-5173", "2026-11-19T20-14-03Z");
     mkdirSync(site, { recursive: true });
     const path = pipe("scan.json", site);
     expect(unopened(path, () => previousScan(root, "http://localhost:5173"))).toEqual({
