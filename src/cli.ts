@@ -3,6 +3,7 @@ import { shouldShowBanner, withBanner } from "./banner.js";
 import { checkCommand } from "./check-command.js";
 import { packageInfo } from "./package-info.js";
 import { installInterruptHandler } from "./interrupt.js";
+import { printableLine } from "./printable.js";
 import { usePrivateTemp } from "./private-temp.js";
 import { narrateCommand } from "./narrate-command.js";
 import { promptCommand } from "./prompt-command.js";
@@ -140,7 +141,7 @@ async function main(args: string[]): Promise<void> {
   if (args[0] === "narrate") return narrateCommand(args.slice(1), HELP_HINT);
   if (args[0] === "rules") return rulesCommand(args.slice(1), HELP_HINT);
   if (args[0] === "prompt") return promptCommand(args.slice(1), HELP_HINT);
-  throw new Refusal(`unknown command or flag: ${args[0]}`, HELP_HINT);
+  throw new Refusal(`unknown command or flag: ${printableLine(args[0] ?? "").slice(0, 80)}`, HELP_HINT);
 }
 
 try {
