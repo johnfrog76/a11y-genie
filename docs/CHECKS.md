@@ -25,7 +25,7 @@ version it pins. The version is in every `scan.json` (`engine.axeCore`) and at t
 - **By default**, axe-core's default rule set runs. Nothing is turned on or off by hand. The landmark rules
   (`region`, `landmark-one-main` and the others) are in it.
 - **With `--tags <list>`**, exactly those axe-core tags run, and a rule with none of them does not. The tags go
-  in as given: `wcag2a` alone does not also run `wcag2aa`. An unknown tag is a refusal that lists the real ones.
+  in as given: `wcag2a` alone does not also run `wcag2aa`. An unknown tag is a refusal that gives examples of tags that work.
   The landmark rules, and `genie/no-landmarks` and `genie/skip-link` that sum them up, carry `best-practice`, so
   a list without it runs none of them. A `--tags` list also leaves out an own rule that has none of the list's
   tags.
