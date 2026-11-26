@@ -179,7 +179,9 @@ Notes on the flags:
   fixed, anything not scanned, how many problems, what the page tried and was stopped from doing, how many items
   need a person to look, and the folder written.
 - **The files** go in a new folder for each scan, outside the project that is scanned: `scan.json`, `report.md`
-  unless `--format json`, and `narration/` for a narrated flow. Nothing is written inside a scanned project.
+  unless `--format json`, and `narration/` for a narrated flow. Nothing is written inside a scanned project. A
+  scan folder appears whole or not at all: a write that fails part way, such as on a full disk, is a refusal and
+  leaves nothing behind, in `--out` as in the scans folder.
   Their fields are in [JSON.md](JSON.md).
 - A refusal prints nothing to stdout and writes nothing.
 
