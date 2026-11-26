@@ -1067,6 +1067,11 @@ report is a pure function of the record, so a stored `scan.json` can write it ag
   unknown command print none.
 - **Never into the project.** Nothing is written in the folder the command runs from, or the scanned
   project. Scans go to the per-user scans folder or `--out` (docs/JSON.md says where).
+- **A scan is written whole or not at all.** `writeScanFolder` (`src/scans-folder.ts`) writes the files into an
+  `.unfinished-` folder beside the scan's place, on the same file system, and renames it into place in one step. A
+  failure removes it, and the site's folder and `--out` too when the write made them, so a full disk is a refusal
+  that leaves nothing (docs/EXIT-CODES.md). The last-scan lookup reads only folders named by a start time, so an
+  `.unfinished-` folder a crash left is never read as a scan.
 - **The schema is checked without a validator dependency.** `src/json-schema.ts` is a small
   validator for exactly the keywords `schema/scan-1.json` uses, and throws on any other, so the schema cannot
   outgrow it. The schema test runs it over every golden and over a record the browser test has just made, and
