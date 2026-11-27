@@ -6,7 +6,7 @@ import { withBrowser } from "../../src/browser.js";
 import { testBrowserIsInstalled, guardContext } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 
-// The fix loop's trial site (test/fixtures/loop/, spec 7A): one page with exactly three named bugs, so a trial
+// The fix loop's trial site (test/fixtures/loop/): one page with exactly three named bugs, so a trial
 // of the loop starts from a known place. Skipped, and says so, where Chrome is not installed.
 const hasBrowser = await testBrowserIsInstalled();
 const LOOP_SITE = fileURLToPath(new URL("../fixtures/loop/", import.meta.url));

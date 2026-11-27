@@ -9,7 +9,7 @@ import { runScan } from "../../src/run-scan.js";
 import { testBrowserIsInstalled, guardContext } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 
-// Claim C5: a page with no landmark is flagged, and a page with all four is clean of the landmark rules.
+// A page with no landmark is flagged, and a page with all four is clean of the landmark rules.
 // Each fixture page names, in its comment, the rules that must fire. Skipped, and says so, where Chrome is
 // not installed.
 const hasBrowser = await testBrowserIsInstalled();

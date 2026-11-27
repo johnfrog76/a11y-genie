@@ -9,7 +9,7 @@ import { FocusReader } from "../../src/walk.js";
 import { testBrowserIsInstalled, guardContext } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 
-// Claim C7: genie/skip-link is advice where landmarks or headings already give a way past the navigation, a
+// genie/skip-link (docs/CHECKS.md) is advice where landmarks or headings already give a way past the navigation, a
 // WCAG 2.4.1 violation where nothing does, and a working skip link is clean. Each fixture page names, in its
 // comment, what must fire. Skipped, and says so, where Chrome is not installed.
 const hasBrowser = await testBrowserIsInstalled();
