@@ -3,7 +3,8 @@
 # The browser and the rules come in a pull request of their own: a playwright-core bump also moves the browser
 # CI installs (ci.yml pins it, and test/unit/ci-workflow.test.ts holds the two equal) and wants the headless-shell
 # lookup checked (docs/ARCHITECTURE.md), and an axe-core bump can change the rules and the golden scans. @types/node
-# majors wait for the Node major the package runs on (24, per .nvmrc and engines).
+# majors wait for the Node major the package runs on (24, per .nvmrc and engines), and TypeScript majors are
+# planned work with an issue of their own, never a weekly bump.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -19,6 +20,9 @@ updates:
     ignore:
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # A TypeScript major is planned work with its own issue, never a weekly bump.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
   # The deck page (web/), its own npm project. Its playwright-core runs the smoke test, at the root's version.
   - package-ecosystem: npm
     directory: /web
@@ -30,6 +34,9 @@ updates:
       minor-and-patch:
         update-types: [minor, patch]
         exclude-patterns: ["playwright-core"]
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
