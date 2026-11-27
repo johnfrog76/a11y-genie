@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { escapeJsonControls, printable, printableLine } from "../../src/printable.js";
 import { controlsIn } from "../helpers/controls.js";
 
-// Page text made safe to print (spec 8A.1): every terminal escape sequence and control character removed,
+// Page text made safe to print (docs/ARCHITECTURE.md, *Hostile pages*): every terminal escape sequence and control character removed,
 // whole. The characters are built from their codes, so this file holds none of them itself.
 const ESC = String.fromCharCode(0x1b);
 const BEL = String.fromCharCode(0x07);

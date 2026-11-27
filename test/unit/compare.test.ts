@@ -25,7 +25,7 @@ import { scanSchema, validate } from "../../src/json-schema.js";
 import { readGolden } from "../helpers/goldens.js";
 import { neverClaimViolations } from "../helpers/never-claim.js";
 
-// How two scans are compared (spec 4.6), with no browser: records built from made-up axe-core findings.
+// How two scans are compared (docs/ARCHITECTURE.md, *Scan, fix, rescan*), with no browser: records built from made-up axe-core findings.
 // test/browser/check.test.ts proves the same over a real page served in three versions.
 
 const schema = scanSchema();

@@ -9,7 +9,7 @@ import { UNFINISHED_PREFIX } from "../../src/scans-folder.js";
 import { goldenPath, readGolden } from "../helpers/goldens.js";
 import { controlsIn } from "../helpers/controls.js";
 
-// The baseline is a file this run did not write (spec 8A.1): read whole, held to the size limit, checked against
+// The baseline is a file this run did not write (docs/ARCHITECTURE.md, *Hostile pages*): read whole, held to the size limit, checked against
 // the schema before any field is used, and refused in words that never quote what it held.
 
 const made: string[] = [];

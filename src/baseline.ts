@@ -1,6 +1,6 @@
 /**
  * Reading an earlier `scan.json`: `check`'s `--baseline`, and plain `scan`'s previous scan of the site. Either is a
- * file this run did not write, so it is untrusted input (spec 8A.1): it is held to the size limit on `scan.json`,
+ * file this run did not write, so it is untrusted input (docs/ARCHITECTURE.md, *Hostile pages*): it is held to the size limit on `scan.json`,
  * parsed as JSON and nothing else, checked against `schema/scan-1.json` before any field is read, and only then
  * used. Nothing in it is run, and nothing of it is printed except through `printable`, by the caller.
  */

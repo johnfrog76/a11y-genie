@@ -1,5 +1,5 @@
 /**
- * Reading the accessibility tree for narration (spec 6.6, M9). For the element keyboard focus is on, found
+ * Reading the accessibility tree for narration (docs/ARCHITECTURE.md, *Reading the accessibility tree*). For the element keyboard focus is on, found
  * through open shadow roots and same-origin frames as the keyboard walk finds it (src/walk.ts), this reads
  * what the browser's own accessibility tree says of it: role, name, value, heading level, states (expanded,
  * checked, pressed, selected, disabled, read only, required, invalid) and its position in a set ("2 of 5"),

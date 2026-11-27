@@ -12,7 +12,7 @@ import { controlsIn } from "../helpers/controls.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 import { validate } from "../helpers/json-schema.js";
 
-// Each defence of the browser context (src/context.ts, spec 8A.1) against its own hostile fixture page in
+// Each defence of the browser context (src/context.ts, docs/ARCHITECTURE.md, *Hostile pages*) against its own hostile fixture page in
 // test/fixtures/site/hostile/, scanned in the machine's real Chrome from 127.0.0.1. Every test checks the
 // defence held, and that the scan still ended: scanned, or *not scanned* with its reason. Every request the
 // browser makes off the two fixture servers is aborted, and each scan checks none was tried. Skipped, and

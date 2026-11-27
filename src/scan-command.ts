@@ -140,7 +140,7 @@ function checkOfflineTarget(target: string): void {
 /** A commit as `--commit` or `GITHUB_SHA` may name it: a sha, or a tag or branch name. */
 const COMMIT = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$/;
 
-/** `--commit`, or `GITHUB_SHA` when it is set and `--commit` is not given (spec 4.2). */
+/** `--commit`, or `GITHUB_SHA` when it is set and `--commit` is not given. */
 export function parseCommit(flag: string | undefined, env: NodeJS.ProcessEnv = process.env): string | null {
   const [value, from] =
     flag !== undefined
@@ -267,7 +267,7 @@ export function writeScan(prepared: PreparedScan, record: ScanRecord, write = wr
       // scan.json is the record every other file is made from, so it is always written.
       write(folder, "scan.json", scanJson(record));
       if (prepared.formats.has("md")) write(folder, "report.md", renderReport(record));
-      // The transcript of each narrated flow, in `narration/` (spec 6.6). Always written: it is what narrating is for.
+      // The transcript of each narrated flow, in `narration/`. Always written: it is what narrating is for.
       if (record.workflows.length > 0) mkdirSync(join(folder, NARRATION_DIR));
       for (const flow of record.workflows) write(folder, flow.file, printable(renderTranscript(flow)));
     });

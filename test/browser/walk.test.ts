@@ -11,7 +11,7 @@ import { testBrowserIsInstalled, guardContext } from "../helpers/browser-guard.j
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 import { lapEndAsTested, readGoldenRecord } from "../helpers/goldens.js";
 
-// The keyboard walk (spec 6.5, src/walk.ts) over its fixture pages: the order Tab takes, through open shadow
+// The keyboard walk (docs/ARCHITECTURE.md, *The keyboard walk*) over its fixture pages: the order Tab takes, through open shadow
 // roots and same-origin frames, a positive tabindex first, hidden controls skipped, --max-tabs, a page that
 // lies about focus, a frame of another origin, and names kept as data. The walk over impact-mix.html matches
 // the walk in its golden scan.json. Skipped, and says so, where Chrome is not installed.
