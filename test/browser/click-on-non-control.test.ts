@@ -14,7 +14,7 @@ import { runScan } from "../../src/run-scan.js";
 import { testBrowserIsInstalled, guardContext } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 
-// Claim C4: genie/click-on-non-control (spec 6.2) flags an inline onclick and an own click listener on an
+// genie/click-on-non-control (docs/ARCHITECTURE.md, *Click on a non-control*) flags an inline onclick and an own click listener on an
 // element that is not a control; a real button and a div with role="button" and tabindex="0" are not
 // flagged; a delegated handler, on the list and not on the item, is *needs review*. Each fixture page names, in
 // its comment, what must fire. Skipped, and says so, where Chrome is not installed.

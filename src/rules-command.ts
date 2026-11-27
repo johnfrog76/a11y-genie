@@ -1,5 +1,5 @@
 /**
- * `a11y-genie rules`: every rule it runs, axe-core's and its own, with the axe-core version (spec 4.1).
+ * `a11y-genie rules`: every rule it runs, axe-core's and its own, with the axe-core version.
  * It needs no browser and no network: axe-core's rules come from `axe.getRules()` in Node, the product's own
  * from the registry in `src/genie-rules.ts`. docs/JSON.md has the `--json` shape.
  */

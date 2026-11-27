@@ -10,7 +10,7 @@ import { Refusal } from "./refusal.js";
 /** The tag the landmark rules carry: a `--tags` list without it runs none of them (docs/ARCHITECTURE.md). */
 export const BEST_PRACTICE_TAG = "best-practice";
 
-/** What `--fail-on` is when it is not given: any violation fails the run (spec 4.2). */
+/** What `--fail-on` is when it is not given: any violation fails the run. */
 export const DEFAULT_FAIL_ON: Impact = "minor";
 
 /**

@@ -1,5 +1,5 @@
 /**
- * Page text, made safe to print (spec 8A.1, "Text from the page in our outputs"). A page chooses its own
+ * Page text, made safe to print (docs/ARCHITECTURE.md, *Hostile pages*). A page chooses its own
  * title, addresses, dialog messages and markup, and can put terminal escape sequences in them: to colour or
  * hide text, move the cursor, rewrite the window title, or show a link (OSC 8) whose text is not where it
  * goes. Everything the command prints, and everything `report.md` quotes, passes through `printable` first.

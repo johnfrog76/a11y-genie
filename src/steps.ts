@@ -1,5 +1,5 @@
 /**
- * The step grammar (spec 4.1), shared by `--states`, `--flow` and the config file's steps: text in, typed steps
+ * The step grammar (docs/STEPS.md), shared by `--states`, `--flow` and the config file's steps: text in, typed steps
  * out. It only reads text. It runs nothing, opens no browser and builds no selector: a step names its element by
  * role and accessible name, or by one CSS selector checked here, and the code that drives the page (not this
  * file) turns that into a Playwright locator. docs/STEPS.md is the grammar for people, with every error.

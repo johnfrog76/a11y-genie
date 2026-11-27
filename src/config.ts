@@ -1,5 +1,5 @@
 /**
- * The config file (spec 5.1): the pages to scan, their states, and the workflows `narrate` will run. YAML (the
+ * The config file (docs/CONFIG.md): the pages to scan, their states, and the workflows `narrate` will run. YAML (the
  * subset src/yaml-subset.ts reads), validated whole before anything is scanned. An unknown key, a missing
  * key, a value of the wrong kind and a step that does not parse are each a refusal that names the file, the
  * line and the key. docs/CONFIG.md shows the file.

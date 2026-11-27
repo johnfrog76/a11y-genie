@@ -1,5 +1,5 @@
 /**
- * A strict reader for the small part of YAML the config file uses (spec 5.1), so the config needs no new
+ * A strict reader for the small part of YAML the config file uses (docs/CONFIG.md), so the config needs no new
  * runtime dependency. It reads text and builds plain data: no tags, no anchors or aliases, no merge keys, no
  * block scalars, no documents, nothing that runs. Anything outside the subset is a refusal that names the
  * line, so a file that reads differently in a full YAML parser is never read half-right here.

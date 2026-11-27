@@ -12,7 +12,7 @@ import { testBrowserIsInstalled, guardContext } from "../helpers/browser-guard.j
 import { neverClaimViolations } from "../helpers/never-claim.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 
-// Claim C9: genie/keyboard-trap (spec 6.5) flags a widget that holds Tab and ignores Escape, read from the
+// genie/keyboard-trap (docs/ARCHITECTURE.md, *The keyboard trap*) flags a widget that holds Tab and ignores Escape, read from the
 // keyboard walk; a proper modal dialog is not flagged, and one that drops focus when Escape closes it is
 // genie/focus-not-returned. Each fixture page names, in its comment, what must fire. Skipped, and says so,
 // where Chrome is not installed.

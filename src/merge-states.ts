@@ -1,10 +1,10 @@
 /**
- * One page, several states, one finding per rule (D6): a page is a URL, and its states are merged into the
+ * One page, several states, one finding per rule: a page is a URL, and its states are merged into the
  * page's finding, each element naming the states it was found in. An element is the same element across
- * states when its axe-core `target` is the same (spec 5.2).
+ * states when its axe-core `target` is the same.
  *
  * This is the merge the record needs to be valid at all (a finding id is unique), so it is here from the
- * first state. Choices made where the spec is silent: a merged finding keeps the first state's wording
+ * first state. Choices made where nothing else decides: a merged finding keeps the first state's wording
  * (`help`, `fix`, the element's `html` and `failure`), takes the worst impact any state gave it, and lists its
  * elements by the first state each was found in (`default` first), then by target.
  */
