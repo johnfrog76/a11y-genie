@@ -155,7 +155,7 @@ export function answeredButNotScanned(
 export interface PageSpec {
   /** The full address. Every page of a run is on the first one's origin. */
   url: string;
-  /** The page's name in finding ids; without it, from the address's path (D6). */
+  /** The page's name in finding ids; without it, from the address's path. */
   key?: string;
   states: State[];
 }
@@ -350,7 +350,7 @@ async function loadAndScan(
     if (done === TIMED_OUT) {
       return notScanned(`its steps did not finish within ${seconds} seconds`, redirects);
     }
-    // Let what the steps started settle (spec 5.2): the network quiet, then a short wait.
+    // Let what the steps started settle: the network quiet, then a short wait.
     await tab.waitForLoadState("networkidle", { timeout: Math.min(2_000, left()) }).catch(() => undefined);
     await tab.waitForTimeout(Math.min(SETTLE_MS, left())).catch(() => undefined);
     if (tab.isClosed()) return notScanned("the page closed itself while its steps ran", redirects);
@@ -500,7 +500,7 @@ async function narrateWorkflow(
 }
 
 /**
- * Scans each page in each of its states (spec 5.2): for every state, `default` first, a new browser context
+ * Scans each page in each of its states: for every state, `default` first, a new browser context
  * of a browser with a new, empty profile, guarded by src/context.ts, with a fresh load of the page, so no
  * state leaks into another. The state's media is set, the page loads, its steps run, and axe-core reads it.
  * Returns the record.

@@ -1,5 +1,5 @@
 /**
- * The key names a step may press (spec 4.1: "any Playwright key name"), as playwright-core 1.65.1 accepts them
+ * The key names a step may press (any Playwright key name; docs/STEPS.md), as playwright-core 1.65.1 accepts them
  * in `keyboard.press()`. `test/unit/keys.test.ts` reads playwright-core's own keyboard layout and fails when
  * this list and the installed version's differ, so a Playwright update that adds or drops a key is seen.
  */

@@ -1,5 +1,5 @@
 /**
- * `a11y-genie check --baseline <scan> [<url>] [scan's flags]` (spec 4.6): scans as `scan` does with the same
+ * `a11y-genie check --baseline <scan> [<url>] [scan's flags]` (docs/ARCHITECTURE.md, *Scan, fix, rescan*): scans as `scan` does with the same
  * flags, compares with the baseline (src/compare.ts), and exits 1 only on a new violation at or above
  * `--fail-on`, or on a page or state not scanned. A finding still open from the baseline never fails it.
  *

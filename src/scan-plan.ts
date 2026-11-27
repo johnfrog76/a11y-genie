@@ -1,6 +1,6 @@
 /**
  * What a run scans: the pages, and the states of each, from the command line's `--states` flags or from the
- * `--config` file (spec 4.1, 5.1). Every refusal here comes before a browser is opened.
+ * `--config` file (docs/STEPS.md and docs/CONFIG.md). Every refusal here comes before a browser is opened.
  */
 
 import { readConfigFile } from "./config.js";

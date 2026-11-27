@@ -33,7 +33,7 @@ import { FocusReader, walkPage, type Walk } from "./walk.js";
  *
  * Last comes the keyboard walk (src/walk.ts), because it presses Tab. It runs whatever the tags, since it is
  * a record of where focus goes and not a rule, and it is kept on the result as `walk`. The skip link's check
- * reads the walk's first stops rather than pressing Tab itself (spec 6.5: one walk feeds 6.3 and 6.4).
+ * reads the walk's first stops rather than pressing Tab itself: one walk feeds both keyboard checks (docs/ARCHITECTURE.md, *The keyboard walk*).
  *
  * At each stop of the walk, while focus is on it, `genie/focus-visible` (src/focus-visible.ts) compares the element
  * focused and unfocused, and gives focus back where the Tab key put it. It runs when a `--tags` list has one of
@@ -43,7 +43,7 @@ import { FocusReader, walkPage, type Walk } from "./walk.js";
  * press Shift+Tab and Escape from where the walk left focus. They come last of all, because Escape may close a
  * dialog. Each runs when a `--tags` list has one of its tags (`wcag2a` among them).
  *
- * `pageKey` names the page in finding ids; without it, the key comes from the page's URL (D6). `maxTabs` is
+ * `pageKey` names the page in finding ids; without it, the key comes from the page's URL. `maxTabs` is
  * `--max-tabs`, the walk's limit.
  */
 export async function scanPage(

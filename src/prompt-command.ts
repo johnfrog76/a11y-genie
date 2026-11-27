@@ -1,5 +1,5 @@
 /**
- * `a11y-genie prompt`: prints the prompt file for a coding agent, `agentic/fix-loop.prompt.md` (spec 7A),
+ * `a11y-genie prompt`: prints the prompt file for a coding agent, `agentic/fix-loop.prompt.md`,
  * byte for byte. The file is read from the package's own folder, next to `dist/`, never from the working
  * directory, so a project's own file of the same name can't stand in for it.
  */
