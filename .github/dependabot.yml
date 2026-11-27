@@ -1,0 +1,39 @@
+# Weekly dependency updates, with minor and patch updates in one pull request per ecosystem.
+#
+# The browser and the rules come in a pull request of their own: a playwright-core bump also moves the browser
+# CI installs (ci.yml pins it, and test/unit/ci-workflow.test.ts holds the two equal) and wants the headless-shell
+# lookup checked (docs/ARCHITECTURE.md), and an axe-core bump can change the rules and the golden scans. @types/node
+# majors wait for the Node major the package runs on (24, per .nvmrc and engines).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      browser-and-rules:
+        patterns: ["playwright-core", "axe-core", "@axe-core/playwright"]
+      minor-and-patch:
+        update-types: [minor, patch]
+        exclude-patterns: ["playwright-core", "axe-core", "@axe-core/playwright"]
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+  # The deck page (web/), its own npm project. Its playwright-core runs the smoke test, at the root's version.
+  - package-ecosystem: npm
+    directory: /web
+    schedule:
+      interval: weekly
+    groups:
+      browser:
+        patterns: ["playwright-core"]
+      minor-and-patch:
+        update-types: [minor, patch]
+        exclude-patterns: ["playwright-core"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
