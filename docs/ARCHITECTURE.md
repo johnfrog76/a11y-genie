@@ -450,7 +450,14 @@ axe-core and the other checks and starts at the top of the page: at each, it ask
 focus is a skip link. It presses no Tab of its own: one walk feeds the skip link, the trap check and focus visible. A skip link is a same-page link (`href="#id"`) whose target
 exists and is the page's `main` or inside it. With none, the finding is **advice** (`minor`) when the page has a
 landmark or a heading (read as `genie/no-landmarks` reads landmarks, in the isolated world), and a WCAG 2.4.1 **violation** (`moderate`) when it has neither. A page with fewer than
-five tabbable elements before its main content (all of them when it has no main) is not checked. It is tagged
+five tabbable elements before its main content (all of them when it has no main) is not checked. The count walks
+the page in the order it is drawn, not the order of its markup: a host with an open shadow root is followed into
+that root, and its own children are reached only through the slots they are assigned to, in each slot's place; a
+slot with nothing assigned is followed to its fallback children; the walk stops at the top document's `main`. So
+each drawn element is counted once, and a light-DOM child assigned to no slot, which is not drawn, is not. A
+closed shadow root cannot be read: its host's own children are walked, and those it does not draw have no box
+and are not counted ([KNOWN-GAPS.md](KNOWN-GAPS.md), G8). Tab already goes into shadow roots, so the walk's first
+stops need nothing more. It is tagged
 `best-practice`, as `genie/no-landmarks` is, and the registry lists the violation's impact. The check does not
 test whether the link shows itself on focus or whether its target takes focus.
 A link counts only when it belongs to the top document: its fragment is resolved against its own
@@ -463,7 +470,8 @@ shares it), so a page that overrides `document.activeElement`,
 Advice never changes the exit code. Fixtures: `no-skip-link.html`, `no-skip-no-structure.html`,
 `skip-link-ok.html`, `skip-link-broken.html`, `few-tabbable.html`, `skip-link-tampered.html`,
 `skip-link-hidden-tampered.html`, `no-landmarks-tampered.html`, `skip-link-frame.html` (with
-`skip-link-frame-inner.html`), `skip-link-shadow.html`; the role and scope fixtures (`landmark-role-*.html`, `landmark-header-presentation.html`, `landmark-scoped-header-footer.html`, `landmark-top-header-footer.html`, `landmark-scoped-role-*.html`, `landmark-unscoped-tabpanel.html`, `landmark-role-multi-token-article.html`) are read by `test/browser/landmarks.test.ts`; test: `test/browser/skip-link.test.ts`.
+`skip-link-frame-inner.html`), `skip-link-shadow.html`, `skip-link-shadow-nav.html`,
+`skip-link-shadow-nav-ok.html`, `skip-link-shadow-closed.html`, `skip-link-shadow-slots.html`; the role and scope fixtures (`landmark-role-*.html`, `landmark-header-presentation.html`, `landmark-scoped-header-footer.html`, `landmark-top-header-footer.html`, `landmark-scoped-role-*.html`, `landmark-unscoped-tabpanel.html`, `landmark-role-multi-token-article.html`) are read by `test/browser/landmarks.test.ts`; test: `test/browser/skip-link.test.ts`.
 
 ### The keyboard walk (`src/walk.ts`)
 
