@@ -45,9 +45,9 @@ describe("the phrase list", () => {
 });
 
 /**
- * The project's own words for people (spec C16, and AGENTS.md rule 1). The README and docs/ are read in docs mode,
- * as the spec says. CONTRIBUTING, SECURITY and the .github templates are read in the strict mode, so the test-run
- * phrases stay where the spec allows them. CODE_OF_CONDUCT.md and THIRD-PARTY-NOTICES.md are left out on purpose:
+ * The project's own words for people (AGENTS.md rule 1). The README and docs/ are read in docs mode, which lets through the
+ * few phrases test/helpers/never-claim.ts allows there. CONTRIBUTING, SECURITY and the .github templates are read in
+ * the strict mode, so the test-run phrases stay out of them. CODE_OF_CONDUCT.md and THIRD-PARTY-NOTICES.md are left out on purpose:
  * one is adopted text and the other quotes licences (Apache-2.0 says "compliance"), so neither is the project's
  * own words. Do not add them. The site and the prompt file are held in test/unit/site.test.ts and above.
  */

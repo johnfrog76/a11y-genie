@@ -15,7 +15,7 @@ import {
   quote,
 } from "../../src/steps.js";
 
-// The step grammar (spec 4.1), shared by --states, --flow and the config file. docs/STEPS.md is the same
+// The step grammar, shared by --states, --flow and the config file. docs/STEPS.md is the same
 // grammar in words; every form and every error there has a row here.
 
 const flow = (text: string) => parseSteps(text, { source: "--flow", use: "flow" });

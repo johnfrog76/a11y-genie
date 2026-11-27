@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { addressKind, addressKindOfUrl, isPrivateHost } from "../../src/private-address.js";
 
-// The address classifier behind the private-network rule (spec 8A.1), over each range it names and the
+// The address classifier behind the private-network rule (docs/ARCHITECTURE.md, *Hostile pages*), over each range it names and the
 // edges of each, with no browser and no lookup: it judges the host as written.
 
 describe("the address classifier", () => {
@@ -108,7 +108,7 @@ describe("the address classifier", () => {
     "fbff::1",
     "fe00::1",
     "fec0::1",
-    // Not in the spec's list, so public
+    // Not in the list of private ranges, so public
     "100.64.0.1",
     "100.127.255.255",
     "2001:db8::1",
