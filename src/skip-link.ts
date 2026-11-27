@@ -5,7 +5,8 @@
  * starts at the top of the page. A skip link is a same-page link (`href="#id"`) whose target exists and is the
  * page's `main` or sits inside it. With none, the finding is advice when landmarks or headings already let a
  * screen-reader user jump past the repeated content, and a WCAG 2.4.1 violation when nothing does. A page with
- * fewer than five tabbable elements before its main content has nothing much to skip and is not checked.
+ * fewer than five tabbable elements before its main content has nothing much to skip and is not checked. The
+ * count goes through open shadow roots; a closed one cannot be read, and what is in it is not counted.
  */
 
 import type { Page } from "playwright-core";
@@ -50,16 +51,38 @@ const VIOLATION_FAILURE =
   "Add a link to #main as the first thing on the page, shown when it gets focus, " +
   "and put the page's own content in a main element with that id.";
 
-/** Runs in the isolated world (`FocusReader.call`): how many tabbable elements come before `main`, or all of them when there is no main. */
+/**
+ * Runs in the isolated world (`FocusReader.call`): how many tabbable elements come before `main`, or all of them
+ * when there is no main. `main` is the top document's own, the one a skip link's fragment can reach.
+ *
+ * It walks the page in the order it is drawn (the flattened tree), not the order of its markup, so a web
+ * component's open shadow root is counted where the component stands. A host with an open shadow root is
+ * followed into that root, and its own children are not walked there; a `<slot>` in a shadow root is followed
+ * to the elements assigned to it, in place, or to its own children (its fallback) when nothing is assigned. So
+ * each drawn element is visited once, and the walk stops at `main`. A closed shadow root cannot be read: its
+ * host's own children are walked instead, and those it does not draw have no box and are not counted. The walk
+ * uses a stack, not recursion, so a deep page cannot overflow it.
+ */
 const COUNT_TABBABLE = `function () {
   const main = document.querySelector("main, [role=main]");
   const sel = "a[href], button, input:not([type=hidden]), select, textarea, summary, [tabindex], [contenteditable=true]";
+  const drawnChildren = (el) => {
+    if (el.shadowRoot) return el.shadowRoot.children;
+    if (el.localName === "slot" && typeof el.assignedNodes === "function" && el.assignedNodes().length > 0) {
+      return el.assignedElements();
+    }
+    return el.children;
+  };
   let n = 0;
-  for (const el of document.querySelectorAll(sel)) {
-    if (el.disabled || el.tabIndex < 0) continue;
+  const stack = document.documentElement ? [document.documentElement] : [];
+  while (stack.length > 0) {
+    const el = stack.pop();
+    if (el === main) break;
+    const kids = drawnChildren(el);
+    for (let i = kids.length - 1; i >= 0; i--) stack.push(kids[i]);
+    if (!el.matches(sel) || el.disabled || el.tabIndex < 0) continue;
     const box = el.getClientRects();
     if (box.length === 0 || getComputedStyle(el).visibility === "hidden") continue;
-    if (main && (main.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_PRECEDING) === 0) continue;
     n++;
   }
   return n;
@@ -103,6 +126,15 @@ export async function focusedIsSkipLink(reader: FocusReader): Promise<boolean> {
 }
 
 /**
+ * How many tabbable elements come before the page's main content, through open shadow roots (`COUNT_TABBABLE`),
+ * read in the reader's isolated world; undefined when the read gives no number.
+ */
+export async function countTabbableBeforeMain(reader: FocusReader): Promise<number | undefined> {
+  const tabbable: unknown = await reader.call(COUNT_TABBABLE);
+  return typeof tabbable === "number" ? tabbable : undefined;
+}
+
+/**
  * The finding for a page with no skip link, or undefined when it has one or has too little to skip.
  * `skipLinkSeen` is what the keyboard walk found at its first three stops (`focusedIsSkipLink`).
  */
@@ -112,8 +144,8 @@ export async function checkSkipLink(
   skipLinkSeen: boolean,
   reader: FocusReader,
 ): Promise<Finding | undefined> {
-  const tabbable: unknown = await reader.call(COUNT_TABBABLE);
-  if (typeof tabbable !== "number" || tabbable < MIN_TABBABLE) return undefined;
+  const tabbable = await countTabbableBeforeMain(reader);
+  if (tabbable === undefined || tabbable < MIN_TABBABLE) return undefined;
   if (skipLinkSeen) return undefined;
   const found = await readStructure(reader);
   const structure = found.landmark || found.heading;

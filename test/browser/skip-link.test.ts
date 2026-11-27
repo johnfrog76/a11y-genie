@@ -4,6 +4,8 @@ import { scanPage } from "../../src/axe.js";
 import { withBrowser } from "../../src/browser.js";
 import type { AxeScan, Finding } from "../../src/finding.js";
 import { runScan } from "../../src/run-scan.js";
+import { countTabbableBeforeMain } from "../../src/skip-link.js";
+import { FocusReader } from "../../src/walk.js";
 import { testBrowserIsInstalled, guardContext } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 
@@ -101,6 +103,52 @@ describe.skipIf(!hasBrowser)(
       const { result, skip } = await scan("skip-link-shadow.html");
       expect(skip).toBeUndefined();
       expect(result.findings).toEqual([]);
+    });
+
+    async function count(page: string): Promise<number | undefined> {
+      return withBrowser(TEST_CHANNEL, async (browser) => {
+        const context = await browser.newContext();
+        const attempted = await guardContext(context, server.origin);
+        const tab = await context.newPage();
+        await tab.goto(server.url(page));
+        const reader = await FocusReader.open(tab);
+        try {
+          return await countTabbableBeforeMain(reader);
+        } finally {
+          await reader.close();
+          expect(attempted).toEqual([]);
+        }
+      });
+    }
+
+    it("skip-link-shadow-nav.html: links in an open shadow root before main are counted, and there is no skip link", async () => {
+      expect(await count("skip-link-shadow-nav.html")).toBe(6);
+      const { result, skip } = await scan("skip-link-shadow-nav.html");
+      expect(result.findings.map((f) => f.id)).toEqual(["genie/skip-link@skip-link-shadow-nav.html"]);
+      expect(skip).toMatchObject({ kind: "advice", impact: "minor" });
+    });
+
+    it("skip-link-shadow-nav-ok.html: the same header with a skip link first has no finding", async () => {
+      expect(await count("skip-link-shadow-nav-ok.html")).toBe(7);
+      const { result } = await scan("skip-link-shadow-nav-ok.html");
+      expect(result.findings).toEqual([]);
+    });
+
+    it("skip-link-shadow-closed.html: links in a closed shadow root cannot be read, so the page is not checked", async () => {
+      expect(await count("skip-link-shadow-closed.html")).toBe(0);
+      const { result } = await scan("skip-link-shadow-closed.html");
+      expect(result.findings).toEqual([]);
+    });
+
+    it("skip-link-shadow-slots.html: slotted links count where their slot is, once, and an unslotted one not at all", async () => {
+      // Three of the shell's own, three assigned to a slot, one slot fallback; main is slotted after them.
+      expect(await count("skip-link-shadow-slots.html")).toBe(7);
+      const { skip } = await scan("skip-link-shadow-slots.html");
+      expect(skip).toMatchObject({ kind: "advice", impact: "minor" });
+    });
+
+    it("the count in markup order still stops at main: no-skip-link.html counts its six links", async () => {
+      expect(await count("no-skip-link.html")).toBe(6);
     });
 
     it("few-tabbable.html is not checked: two Tab stops before main is nothing much to skip", async () => {

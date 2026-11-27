@@ -1,0 +1,43 @@
+<!doctype html>
+<!--
+  Fixture: slots in an open shadow root. The app shell draws three links of its own, then a slot with three
+  light-DOM links assigned to it, then a slot with nothing assigned that falls back to one link of its own; a
+  fourth light-DOM link is assigned to no slot and is not drawn. Main is assigned to the last slot. So seven
+  links are drawn before main, each counted once; the undrawn one is not counted. No skip link.
+  Must fire:     genie/skip-link as advice (minor), once for the page
+  Must not fire: any axe-core rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Slots before the main content</title>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <app-shell>
+      <a href="/four" slot="nav">Four</a>
+      <a href="/five" slot="nav">Five</a>
+      <a href="/six" slot="nav">Six</a>
+      <a href="/hidden" slot="nowhere">Not drawn</a>
+      <main id="main" slot="content">
+        <h1>Slots before the main content</h1>
+        <p>The links before this come from the shell and from its slots.</p>
+      </main>
+    </app-shell>
+    <script>
+      customElements.define(
+        "app-shell",
+        class extends HTMLElement {
+          constructor() {
+            super();
+            this.attachShadow({ mode: "open" }).innerHTML =
+              '<header><nav aria-label="Site"><a href="/one">One</a> <a href="/two">Two</a> ' +
+              '<a href="/three">Three</a> <slot name="nav"></slot> ' +
+              '<slot name="empty"><a href="/seven">Seven</a></slot></nav></header>' +
+              '<slot name="content"></slot>';
+          }
+        },
+      );
+    </script>
+  </body>
+</html>

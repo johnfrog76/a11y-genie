@@ -14,7 +14,7 @@ has chosen to keep for now).
 | [G5](#g5-states-are-given-by-hand) | States are given by hand | Accepted |
 | [G6](#g6-a-page-can-tamper-with-the-scan) | A page can tamper with the scan | Accepted |
 | [G7](#g7-a-public-name-can-point-at-a-private-address) | A public name can point at a private address | Accepted |
-| [G8](#g8-the-skip-link-check-does-not-count-inside-shadow-roots) | The skip-link check does not count inside shadow roots | Open |
+| [G8](#g8-the-skip-link-check-does-not-count-inside-closed-shadow-roots) | The skip-link check does not count inside closed shadow roots | Accepted |
 
 Gaps G6 and G7 are security limits. [SECURITY.md](../SECURITY.md) lists them too, with two more of the same kind
 (below), and says how to report a way around one of A11y Genie's promises that is not on the list.
@@ -89,15 +89,15 @@ as it is written and never looks a name up. So a public name that points at a pr
 rebinding) is not caught. A check in the browser's request path that looks names up is a question for later.
 [ARCHITECTURE.md](ARCHITECTURE.md) (*The private-network rule*) says how the rule works.
 
-## G8: the skip-link check does not count inside shadow roots
+## G8: the skip-link check does not count inside closed shadow roots
 
-**Status: open.** `genie/skip-link` decides whether a page has enough to skip by counting the tabbable elements
-before its main content. It counts only those in the page's own markup, not those inside a shadow root. A page
-whose navigation lives in web components, such as a custom header, counts few or none. Below five, the check does
-not run, so there is no finding and no note that it was skipped. A page like that can lack a skip link and still
-get no finding. Counting through open shadow roots is tracked in
-[issue #216](https://github.com/johnfrog76/a11y-genie/issues/216). [CHECKS.md](CHECKS.md) (`genie/skip-link`)
-says what the check does.
+**Status: accepted.** `genie/skip-link` decides whether a page has enough to skip by counting the tabbable
+elements before its main content. It counts through open shadow roots, the trees web components keep
+([issue #216](https://github.com/johnfrog76/a11y-genie/issues/216)), but a closed shadow root cannot be read from
+outside it, so what is inside one is not counted. A page whose navigation lives in components with closed shadow
+roots counts few or none. Below five, the check does not run, so there is no finding and no note that it was
+skipped. A page like that can lack a skip link and still get no finding. The keyboard walk cannot read inside a
+closed shadow root either. [CHECKS.md](CHECKS.md) (`genie/skip-link`) says what the check does.
 
 ## Two more security limits
 
