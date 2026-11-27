@@ -3,6 +3,14 @@
   "version": "0.0.0",
   "description": "An accessibility scanner for agents and people. It gives you a list of suggested improvements for your HTML: automated checks find many problems with HTML, but they are no substitute for a full accessibility audit.",
   "license": "MIT",
+  "homepage": "https://johnfrog76.github.io/a11y-genie/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/johnfrog76/a11y-genie.git"
+  },
+  "bugs": {
+    "url": "https://github.com/johnfrog76/a11y-genie/issues"
+  },
   "type": "module",
   "bin": {
     "a11y-genie": "dist/cli.js"
