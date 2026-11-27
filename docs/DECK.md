@@ -4,9 +4,15 @@ A11y Genie will have a short product deck: the genie's story, narrated, played i
 own beside the project's page. This page says where the deck is made, where it lives here, how a deck is
 registered, and how its page is built, checked and served.
 
-The deck has arrived, and the deck page plays it. Nothing links to it yet: the project's page shows its
-"Watch the video" button only once `DECK_URL` is set in `scripts/build-site.ts`, which is the owner's own step.
+The deck has arrived, and the deck page plays it. The project's page opens it with its "Watch the video"
+button: `DECK_URL` in `scripts/build-site.ts` is `deck/`, the deck page beside it. Emptied, the button goes.
 With the registry empty, the page says the deck is not here and links back to the project's page.
+
+The project's page has a link preview too, made in the same studio from the deck's own stills:
+`site/a11y-genie-share-1200x630.png`, copied byte for byte. `scripts/build-site.ts` writes its Open Graph and
+Twitter tags into the page. A preview needs whole addresses, so the page's own address is set once, in
+`SITE_URL`, and the tags are built from it. `test/unit/site.test.ts` holds every tag, the addresses, and the
+picture in the built folder.
 
 ## Where the deck is made
 
@@ -113,10 +119,15 @@ page built by `scripts/build-site.ts`, with `web/dist` at `deck/`.
 The smoke test builds `web/`, assembles the two pages, serves them on `127.0.0.1` and drives Playwright's
 headless shell, never the Google Chrome app. It holds that the deck page plays the registered deck ("1 / N" in
 its bar, slide 1's title on screen) and that Escape leaves it for the project's page; that every baked clip is
-in the build and answers as audio; that the project's page has no deck button while `DECK_URL` is empty; that
+in the build and answers as audio; that for every slide and every voice the player finds a clip, and that clip is
+served (it asks the player's own resolver, `web/src/deck/bakedVoices.ts`, loaded through Vite, so a slide renamed
+away from its clip fails instead of playing silent); that the project's page shows "Watch the video" and that it opens `deck/`; that
 on a 390 px phone the deck page plays slide 1 and does not scroll sideways; that neither page logs an error;
 and that A11y Genie's own scan of the deck page, on the deck's first slide, finds nothing critical or serious. `--shots <dir>` saves
-screenshots, and `--host` and `--port` choose where it listens.
+screenshots, and `--host` and `--port` choose where it listens. Under `--serve` the exit code still says whether
+the checks held. Its scratch folder goes on every way out: a failed step or check, a browser that will not start,
+and Ctrl+C or SIGTERM. Its server answers a malformed `%` escape with 400 and a file it cannot read with 404 or
+500, and keeps serving.
 
 The root's `npm run lint` checks the page's own files (`web/src/*.tsx`, `web/index.html`, `web/tests/`, its
 config) with ESLint and Prettier, and leaves `web/src/deck/` alone: it holds the copied player and the
@@ -124,11 +135,11 @@ shipped deck, which keep the style they came in.
 
 ## The player
 
-`web/src/deck/deck-engine/` is the deck player from Connected Deck, an MIT project, copied at commit `cbb3f9e5`
+`web/src/deck/deck-engine/` is the deck player from Connected Deck, an MIT project, copied at commit `0ac4a128`
 without its tests. Code Sleuth copies the same commit, so the two products play their decks with the same
 player.
 The files it imports from outside its folder came with it, to the same relative paths.
-`deck-engine/NOTICE.md` keeps the licence and lists what changed: `CopyLinkButton`'s default link, a
+`deck-engine/NOTICE.md` keeps the licence and lists what changed: a
 `useCompactLayout` that asks the player's viewport, a plain-text notes viewer in place of the Markdown one,
 and two of the deck studio's words in `types.ts`. [THIRD-PARTY-NOTICES.md](../THIRD-PARTY-NOTICES.md) records
 the copy.

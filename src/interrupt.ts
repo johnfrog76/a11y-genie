@@ -15,15 +15,36 @@ const SIGNALS = [
   ["SIGHUP", EXIT.hangUp],
 ] as const;
 
+/**
+ * The longest the cleanups may take after a signal, in milliseconds. A browser that does not close would
+ * otherwise keep the process alive until something sends SIGKILL, and then the private temp folder, removed on
+ * exit, would be left behind. After the cap the run exits anyway, with the signal's code.
+ */
+export const CLEANUP_CAP_MS = 5_000;
+
 const cleanups = new Set<Cleanup>();
 let installed = false;
-let interrupting = false;
+let underWay = false;
 
-/** Runs every registered cleanup, then exits with the signal's code. A second signal exits at once. */
+/**
+ * Runs every registered cleanup, then exits with the signal's code: when they have all settled, or after
+ * `CLEANUP_CAP_MS`, whichever comes first. A second signal exits at once.
+ */
 function onSignal(code: number): void {
-  if (interrupting) process.exit(code);
-  interrupting = true;
-  void Promise.allSettled([...cleanups].map((cleanup) => cleanup())).then(() => process.exit(code));
+  if (underWay) process.exit(code);
+  underWay = true;
+  const capped = new Promise<void>((done) => setTimeout(done, CLEANUP_CAP_MS));
+  const settled = Promise.allSettled([...cleanups].map((cleanup) => cleanup()));
+  void Promise.race([settled, capped]).then(() => process.exit(code));
+}
+
+/**
+ * Whether a signal has been received and its cleanups are running. Closing the browser makes whatever the run
+ * was waiting on in it fail, and that failure is not news: src/cli.ts prints nothing for it, and the run exits
+ * with the signal's code from here.
+ */
+export function interrupting(): boolean {
+  return underWay;
 }
 
 /**

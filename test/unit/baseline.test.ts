@@ -1,9 +1,11 @@
+import { execFileSync, spawn } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { latestScanFolder, previousScan, readScanFile } from "../../src/baseline.js";
 import { Refusal } from "../../src/refusal.js";
+import { UNFINISHED_PREFIX } from "../../src/scans-folder.js";
 import { goldenPath, readGolden } from "../helpers/goldens.js";
 import { controlsIn } from "../helpers/controls.js";
 
@@ -111,7 +113,7 @@ describe("readScanFile", () => {
 describe("the last scan of a site", () => {
   it("is the newest scan folder, a second's -2, -10 after its -9", () => {
     const root = fresh();
-    const site = join(root, "127.0.0.1-4173");
+    const site = join(root, "http_127.0.0.1-4173");
     for (const name of [
       "2026-11-19T20-14-03Z",
       "2026-11-19T20-14-04Z",
@@ -127,13 +129,128 @@ describe("the last scan of a site", () => {
     expect(latestScanFolder(root, "http://127.0.0.1:4174")).toBeUndefined();
   });
 
+  it("is never a folder a crash left unfinished, even one that holds a whole scan.json", () => {
+    const root = fresh();
+    const site = join(root, "http_127.0.0.1-4173");
+    const earlier = join(site, "2026-11-19T20-14-03Z");
+    // As a crash part way through a later write would leave it (src/scans-folder.ts).
+    const unfinished = join(site, `${UNFINISHED_PREFIX}2026-11-19T20-14-04Z-AbC123`);
+    for (const folder of [earlier, unfinished]) {
+      mkdirSync(folder, { recursive: true });
+      writeFileSync(join(folder, "scan.json"), readGolden("impact-mix", "scan.json"));
+    }
+    expect(latestScanFolder(root, "http://127.0.0.1:4173")).toBe(earlier);
+    rmSync(earlier, { recursive: true });
+    expect(latestScanFolder(root, "http://127.0.0.1:4173")).toBeUndefined();
+    expect(previousScan(root, "http://127.0.0.1:4173")).toBeUndefined();
+  });
+
   it("reads as not comparable when it cannot be read, and as none when there is none", () => {
     const root = fresh();
     expect(previousScan(root, "http://127.0.0.1:4173")).toBeUndefined();
-    const folder = join(root, "127.0.0.1-4173", "2026-11-19T20-14-03Z");
+    const folder = join(root, "http_127.0.0.1-4173", "2026-11-19T20-14-03Z");
     mkdirSync(folder, { recursive: true });
     writeFileSync(join(folder, "scan.json"), "{ broken");
     expect(previousScan(root, "http://127.0.0.1:4173")).toEqual({
+      reason: "it cannot be read as a scan.json of this version",
+    });
+  });
+
+  /** Writes a scan.json of `origin` into `<root>/<site>/<time>/`, made from a golden. */
+  function scanAt(root: string, site: string, time: string, origin: string, command = "scan"): void {
+    const record = golden();
+    (record.target as { origin: string }).origin = origin;
+    record.command = command;
+    record.startedAt = time;
+    const folder = join(root, site, time.replace(/:/g, "-"));
+    mkdirSync(folder, { recursive: true });
+    writeFileSync(join(folder, "scan.json"), JSON.stringify(record));
+  }
+  const startOf = (found: ReturnType<typeof previousScan>): unknown =>
+    found !== undefined && "record" in found ? found.record.startedAt : found;
+
+  it("keeps http and https apart: neither reads the other's scan as its last", () => {
+    const root = fresh();
+    scanAt(root, "http_example.com", "2026-11-19T20:14:03Z", "http://example.com");
+    expect(startOf(previousScan(root, "http://example.com"))).toBe("2026-11-19T20:14:03Z");
+    expect(previousScan(root, "https://example.com")).toBeUndefined();
+  });
+
+  it("is found under the old name when the new folder has none, and only for the same origin", () => {
+    const root = fresh();
+    // The old name was shared by http and https: its newest scan here is https's.
+    scanAt(root, "example.com", "2026-11-19T20:14:03Z", "http://example.com");
+    scanAt(root, "example.com", "2026-11-19T20:14:05Z", "https://example.com");
+    expect(startOf(previousScan(root, "http://example.com"))).toBe("2026-11-19T20:14:03Z");
+    expect(startOf(previousScan(root, "https://example.com"))).toBe("2026-11-19T20:14:05Z");
+    expect(previousScan(root, "http://example.com:8080")).toBeUndefined();
+  });
+
+  it("passes over an old-name scan that cannot be read, since it cannot say whose it is", () => {
+    const root = fresh();
+    scanAt(root, "example.com", "2026-11-19T20:14:03Z", "http://example.com");
+    const broken = join(root, "example.com", "2026-11-19T20-14-09Z");
+    mkdirSync(broken, { recursive: true });
+    writeFileSync(join(broken, "scan.json"), "{ broken");
+    expect(startOf(previousScan(root, "http://example.com"))).toBe("2026-11-19T20:14:03Z");
+    expect(previousScan(root, "https://example.com")).toBeUndefined();
+  });
+
+  it("is the new folder's when both hold a scan, even an older one", () => {
+    const root = fresh();
+    scanAt(root, "http_example.com", "2026-11-19T20:14:03Z", "http://example.com");
+    scanAt(root, "example.com", "2026-11-19T20:14:09Z", "http://example.com");
+    expect(startOf(previousScan(root, "http://example.com"))).toBe("2026-11-19T20:14:03Z");
+  });
+
+  it("reads the old name when the new folder holds only narrate runs", () => {
+    const root = fresh();
+    scanAt(root, "http_example.com", "2026-11-19T20:14:09Z", "http://example.com", "narrate");
+    scanAt(root, "example.com", "2026-11-19T20:14:03Z", "http://example.com");
+    expect(startOf(previousScan(root, "http://example.com"))).toBe("2026-11-19T20:14:03Z");
+  });
+});
+
+// A named pipe opens only when something writes to it, so a baseline or a scan that is one must be found out
+// without being opened (issue 185). A regression would block the whole test process, where no timeout can fire, so
+// each test starts a writer that opens the pipe after three seconds: a call that opened it returns then, and fails
+// on the time it took, instead of hanging the run.
+describe.skipIf(process.platform === "win32")("a named pipe given as a scan", () => {
+  function pipe(name: string, folder = fresh()): string {
+    const path = join(folder, name);
+    execFileSync("mkfifo", [path]);
+    return path;
+  }
+
+  /** Runs `call` with a writer standing by to free the pipe, and holds that it returned well before the writer. */
+  function unopened<T>(path: string, call: () => T): T {
+    const writer = spawn("sh", ["-c", 'sleep 3; : > "$1"', "sh", path], { stdio: "ignore" });
+    const started = Date.now();
+    try {
+      return call();
+    } finally {
+      writer.kill("SIGKILL");
+      expect(Date.now() - started, "the pipe was opened").toBeLessThan(2000);
+    }
+  }
+
+  it("is refused as a baseline, as a file that is not a file, without being opened", () => {
+    const path = pipe("scan.json");
+    expect(unopened(path, () => refusal(path)).error).toBe(`--baseline is not a file: ${path}`);
+  });
+
+  it("is refused when a scan folder's scan.json is one", () => {
+    const folder = fresh();
+    const path = pipe("scan.json", folder);
+    expect(unopened(path, () => refusal(folder)).error).toContain("is not a file");
+  });
+
+  it("is passed over as the last scan, with a reason", () => {
+    const root = fresh();
+    const site = join(root, "http_localhost-5173", "2026-11-19T20-14-03Z");
+    mkdirSync(site, { recursive: true });
+    const path = pipe("scan.json", site);
+    expect(unopened(path, () => previousScan(root, "http://localhost:5173"))).toEqual({
       reason: "it cannot be read as a scan.json of this version",
     });
   });

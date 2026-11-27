@@ -10,8 +10,9 @@ a11y-genie --version
 a11y-genie <command> [<url>] [flags]
 ```
 
-`--version` prints the version and exits 0, wherever it is on the line. `--help`, or no arguments at all, prints
-the help.
+`--version` prints the version and exits 0, wherever it is on the line. So does `--help`: with no arguments at all,
+or anywhere on the line (`a11y-genie scan --help`), it prints the same help. There is no help of its own for a
+command.
 
 A flag takes its value after a space or an equals sign (`--timeout 30` or `--timeout=30`). A flag that is not in
 the table below, or a flag a command does not take, is a refusal (exit 2): one `Error:` line, one `Hint:` line,
@@ -157,7 +158,7 @@ Notes on the flags:
   Chromium once. With `--browser-channel` named, it uses that browser or refuses. `--offline` and
   `--no-download` both stop the download.
 - **`--tags`** takes the tags axe-core's own rules carry (`wcag2a`, `wcag2aa`, `wcag21aa`, `best-practice`,
-  `cat.aria` and the rest); an unknown one is a refusal that lists them. The tags go in as given: `wcag2a` alone
+  `cat.aria` and the rest); an unknown one is a refusal that gives examples. The tags go in as given: `wcag2a` alone
   does not also run `wcag2aa`. A11y Genie's own rules run under the tags they carry (`a11y-genie rules` shows
   them).
 - **`--out`** is checked before anything is scanned. Without it, a scan goes under the per-user folder:
@@ -178,7 +179,9 @@ Notes on the flags:
   fixed, anything not scanned, how many problems, what the page tried and was stopped from doing, how many items
   need a person to look, and the folder written.
 - **The files** go in a new folder for each scan, outside the project that is scanned: `scan.json`, `report.md`
-  unless `--format json`, and `narration/` for a narrated flow. Nothing is written inside a scanned project.
+  unless `--format json`, and `narration/` for a narrated flow. Nothing is written inside a scanned project. A
+  scan folder appears whole or not at all: a write that fails part way, such as on a full disk, is a refusal and
+  leaves nothing behind, in `--out` as in the scans folder.
   Their fields are in [JSON.md](JSON.md).
 - A refusal prints nothing to stdout and writes nothing.
 
@@ -198,8 +201,8 @@ It is never in a file, in a pipe, or in `--json` output. `NO_COLOR` does not hid
 
 | Code | Meaning |
 | --- | --- |
-| 0 | No findings (for `check`, no new ones) |
-| 1 | Findings (for `check`, new ones), or a page or state that was not scanned |
+| 0 | No finding at or above `--fail-on` (for `check`, no new one). Findings below it are still listed |
+| 1 | A finding at or above `--fail-on` (for `check`, a new one), or a page or state that was not scanned |
 | 2 | A refusal: one `Error:` line, one `Hint:` line, nothing written |
 | 3 | Something unexpected |
 | 129, 130, 143 | The terminal was closed, Ctrl-C, or a plain `kill`, after the browser is closed |

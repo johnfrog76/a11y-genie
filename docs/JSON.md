@@ -145,8 +145,11 @@ asked for in states of which none was scanned has no findings, and `notScanned` 
 
 **What was cut.** A finding lists at most 500 elements; `elementsCut` counts the rest. If `scan.json` would
 be larger than 50 MB, walks are cut first: every walk keeps its first N stops, N the most that fits and at least
-one, and `stopsCut` counts the rest. Walks are a record, not findings, so they go before any finding does. Then elements are dropped, least severe first and never the last one of a finding, and
-counted in `elementsCut` too. If even that is not enough, the page reads *not scanned* and says so. A
+one, and `stopsCut` counts the rest. Walks are a record, not findings, so they go before any finding does. On a
+`check`, the fixed elements listed under findings still open go next, from the last finding up, counted in
+`fixedCut`. Then elements are dropped, least severe first and never the last one of a finding, and
+counted in `elementsCut` too. If even that is not enough, the page reads *not scanned* and says so, and the counts
+of a comparison go with the findings: `summary.new`, `still` and `fixed` read `0`, and `sincePrevious` reads `null`. A
 limit reached never reads as nothing found.
 
 What an agent can rely on in major version 1: per finding `id`, `rule.source`, `rule.id`, `impact`, `kind`,
@@ -256,7 +259,11 @@ element is never in it. On a fixed finding, every element is a fixed one, and `e
 
 **Not scanned is never fixed.** An earlier element found in a state of its page that was not scanned this time is
 not read as fixed: it stays in `elements` with `status: "still"` and `unverified: true`, and its finding reads
-`still` with `unverified: true`. Such a run exits 1 anyway, since a page or state was not scanned.
+`still` with `unverified: true`. Such a run exits 1 anyway, since a page or state was not scanned. The impact counts
+in `summary` include a finding carried so, but the line `check` prints does not count it as found this time: it says
+`Found 1 problem on ..., worst first: ...` for what this run found, then `1 more still open, not checked this time.`
+(or `2 still open, not checked this time.` when this run found none). A finding still open is counted unverified
+this way even when the element cap cut every unseen element it carried: it keeps `unverified: true` and `elementsCut`.
 
 **Nor is a state the earlier scan did not scan read as new** (decided 2026-11-19: a state the baseline never
 scanned proves nothing, and failing a pull request on bugs that were always there is a false alarm). An element
@@ -297,9 +304,12 @@ site's previous scan, how many of its open findings are not found now (a `check`
 fixed are not counted again), and when it began. Each finding's `status` is
 `new` or `still` against it, and no fixed finding is listed. It is compared only when the two scans covered the
 same pages (by key), each in the same states, with the same `engine.tags`; otherwise `sincePrevious` is `null` and
-`sincePreviousReason` says why: `different pages, states or tags`, or `it cannot be read as a scan.json of this
-version`. With no previous scan, neither field is written. The previous scan is the newest folder under
-`<scans>/<origin key>/` (`--out` when given), a `check`'s included. `sincePrevious` changes nothing else: the exit
+`sincePreviousReason` says why: `different pages, states or tags`, `it cannot be read as a scan.json of this
+version`, or, when the size cap kept none of the scan's findings (*What was cut*, above), `nothing of this scan was
+kept, since its results were larger than the 52428800 byte limit on scan.json`. With no previous scan, neither field
+is written. The previous scan is the newest folder under `<scans>/<origin key>/` (`--out` when given), a `check`'s
+included, whose `target.origin` is this scan's; when that folder holds none, the folder of the old name is read too
+(see *Where a scan is written*). `sincePrevious` changes nothing else: the exit
 reads only the scan just run.
 
 **The earlier scan is untrusted input.** `--baseline` (a `scan.json`, or a scan folder holding one) and the previous
@@ -384,12 +394,27 @@ list in every report, last.
 ## Where a scan is written (`src/scans-folder.ts`)
 
 `<scans>/<origin key>/<start time>/scan.json` and `report.md`, outside the scanned project. The origin key is
-the host and port of the address asked for (`localhost-5173`); the start time is `2026-11-19T20-14-03Z`, with `-2`, `-3` added if two
+the scheme, `_`, then the host and the port of the address asked for: `http://localhost:5173` is
+`http_localhost-5173`, and `https://example.com` is `https_example.com` (no port when it is the scheme's own). A
+host that had to change to be one path part (`[::1]`, a trailing dot) adds `_` and the first 10 hex digits of the
+SHA-256 of the full origin, and so does a key over 100 characters, cut to fit, so two origins never share a key and
+every key is one path part on macOS, Linux and Windows. The start time is `2026-11-19T20-14-03Z`, with `-2`, `-3` added if two
 scans start in the same second. `<scans>` is, in this order: `--out`; the `A11Y_GENIE_SCANS_DIR` environment
 variable (tests set it to a temporary folder); then the per-user folder, `~/Library/Application Support/a11y-genie`
 on macOS, `$XDG_DATA_HOME/a11y-genie` or `~/.local/share/a11y-genie` on Linux, and
 `%LOCALAPPDATA%\a11y-genie` on Windows. `--format md,json` (the default) picks the reports; `scan.json` is
 always written, because every other file is made from it.
+
+Before this, the origin key was the host and port alone (`localhost-5173`), shared by `http` and `https`, and not
+cut. Nothing is written under that old name any more, but the last scan is still looked for in it: when the new
+folder holds no scan, the old one is read, and a scan in it is used only when its own `target.origin` is the origin
+scanned now; one that cannot be read is passed over, since it cannot say whose it is. So an `https` scan never reads
+an `http` scan as its last. The old name never holds `_`, so it is never a new key.
+
+A scan folder is written whole or not at all. Its files are written into `<origin key>/.unfinished-<start
+time>-<random>/`, which is renamed to the start time in one step when they are all written, and removed when a write
+fails. Only a crash part way through (the machine losing power) can leave an `.unfinished-` folder behind. It is never
+read as the last scan, since its name is not a start time, and it is safe to delete.
 
 ## axe-core's results (V1)
 

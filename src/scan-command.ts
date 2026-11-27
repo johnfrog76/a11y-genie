@@ -10,20 +10,20 @@ import { parseArgs } from "node:util";
 import { printRunBanner } from "./banner.js";
 import { previousScan } from "./baseline.js";
 import { BROWSER_CHANNELS, DEFAULT_CHANNEL, isBrowserChannel } from "./browser.js";
-import { sincePreviousLine, withPrevious } from "./compare.js";
+import { notCheckedNow, sincePreviousLine, unverifiedOf, withPrevious } from "./compare.js";
 import type { Impact } from "./finding.js";
 import { narrationLines, NARRATION_DIR, renderTranscript } from "./narrate.js";
 import { checkOutFolder } from "./out-folder.js";
 import { printable, printableLine } from "./printable.js";
 import { addressKindOfUrl } from "./private-address.js";
 import { Refusal } from "./refusal.js";
-import { emptyNarrationSentence, emptyScanSentence, renderReport } from "./report.js";
+import { adviceOnlySentence, emptyNarrationSentence, emptyScanSentence, renderReport } from "./report.js";
 import { DEFAULT_FAIL_ON, parseFailOn, parseTags } from "./rule-flags.js";
 import { runScan, type RunScanOptions } from "./run-scan.js";
 import { checkStorageState, parseMaxTabs, parseTimeout } from "./scan-options.js";
 import { planScan, type ScanPlan } from "./scan-plan.js";
 import { scanJson, type ScanRecord } from "./scan-record.js";
-import { defaultScansDir, makeScanFolder, writeScanFile } from "./scans-folder.js";
+import { defaultScansDir, writeScanFile, writeScanFolder } from "./scans-folder.js";
 
 const SERVE_HINT =
   "give a full address that starts with http:// or https://. To scan a built site, serve it first, for example: npx serve dist";
@@ -101,7 +101,7 @@ function parseFormats(values: string[] | undefined): Set<Format> {
     for (const name of value.split(",")) {
       if (!(FORMATS as readonly string[]).includes(name)) {
         throw new Refusal(
-          `unknown --format: ${name || "(empty)"}`,
+          `unknown --format: ${printableLine(name).slice(0, 80) || "(empty)"}`,
           `use ${FORMATS.join(" or ")}, or both, separated by a comma.`,
         );
       }
@@ -183,11 +183,18 @@ export function prepareScan(
       `${command} needs a page address to ${command === "narrate" ? "narrate" : "scan"}.`,
       `run: a11y-genie ${command} <url>${command === "narrate" ? ' --flow "<steps>"' : ""}`,
     );
-  if (extra.length > 0) throw new Refusal(`${command} takes one page, and got more: ${extra[0]}`, helpHint);
+  if (extra.length > 0)
+    throw new Refusal(
+      `${command} takes one page, and got more: ${printableLine(extra[0] ?? "").slice(0, 80)}`,
+      helpHint,
+    );
 
   const channel = values["browser-channel"] ?? DEFAULT_CHANNEL;
   if (!isBrowserChannel(channel)) {
-    throw new Refusal(`unknown --browser-channel: ${channel}`, `use one of: ${BROWSER_CHANNELS.join(", ")}.`);
+    throw new Refusal(
+      `unknown --browser-channel: ${printableLine(String(channel)).slice(0, 80)}`,
+      `use one of: ${BROWSER_CHANNELS.join(", ")}.`,
+    );
   }
   const formats = parseFormats(values.format);
   const tags = values.tags === undefined ? undefined : parseTags(values.tags);
@@ -249,17 +256,21 @@ function refuseUnwritable(error: unknown, where: string): never {
   throw error;
 }
 
-/** Makes the scan folder and writes `scan.json`, and `report.md` unless `--format` leaves it out. */
-export function writeScan(prepared: PreparedScan, record: ScanRecord): string {
+/**
+ * Writes the scan folder, whole or not at all: `scan.json`, `report.md` unless `--format` leaves it out, and the
+ * narration. A write that fails part way leaves nothing (src/scans-folder.ts) and is refused. `write` writes one
+ * file; tests pass one that fails.
+ */
+export function writeScan(prepared: PreparedScan, record: ScanRecord, write = writeScanFile): string {
   try {
-    const folder = makeScanFolder(prepared.root, record.target.origin, record.startedAt);
-    // scan.json is the record every other file is made from, so it is always written.
-    writeScanFile(folder, "scan.json", scanJson(record));
-    if (prepared.formats.has("md")) writeScanFile(folder, "report.md", renderReport(record));
-    // The transcript of each narrated flow, in `narration/` (spec 6.6). Always written: it is what narrating is for.
-    if (record.workflows.length > 0) mkdirSync(join(folder, NARRATION_DIR));
-    for (const flow of record.workflows) writeScanFile(folder, flow.file, printable(renderTranscript(flow)));
-    return folder;
+    return writeScanFolder(prepared.root, record.target.origin, record.startedAt, (folder) => {
+      // scan.json is the record every other file is made from, so it is always written.
+      write(folder, "scan.json", scanJson(record));
+      if (prepared.formats.has("md")) write(folder, "report.md", renderReport(record));
+      // The transcript of each narrated flow, in `narration/` (spec 6.6). Always written: it is what narrating is for.
+      if (record.workflows.length > 0) mkdirSync(join(folder, NARRATION_DIR));
+      for (const flow of record.workflows) write(folder, flow.file, printable(renderTranscript(flow)));
+    });
   } catch (error) {
     return refuseUnwritable(error, prepared.root);
   }
@@ -272,8 +283,12 @@ export function writeScan(prepared: PreparedScan, record: ScanRecord): string {
  */
 export function scanLines(record: ScanRecord, prepared: PreparedScan, folder: string): string[] {
   const lines: string[] = [];
-  const found =
-    record.summary.critical + record.summary.serious + record.summary.moderate + record.summary.minor;
+  // On a `check`, the impact counts include the baseline's findings carried over unchecked, in a state not scanned
+  // now. This run did not find them, so *Found* leaves them out and a line of their own says them (issue 157).
+  const carried = notCheckedNow(record).filter((f) => f.kind === "violation");
+  const count = (impact: Impact): number =>
+    record.summary[impact] - carried.filter((f) => f.impact === impact).length;
+  const found = count("critical") + count("serious") + count("moderate") + count("minor");
   const first = record.pages[0];
   // `narrate` prints each flow's transcript, which is what it is asked for; a scan only says where they went.
   if (record.command === "narrate") {
@@ -297,11 +312,16 @@ export function scanLines(record: ScanRecord, prepared: PreparedScan, folder: st
       found === 0
         ? record.command === "narrate"
           ? emptyNarrationSentence(record)
-          : emptyScanSentence(record)
+          : record.summary.advice > 0
+            ? adviceOnlySentence(record)
+            : emptyScanSentence(record)
         : `Found ${found} ${found === 1 ? "problem" : "problems"} on ${pages === 1 ? (first?.url ?? prepared.plan.url) : `${pages} pages`}, worst first: ` +
-            `${record.summary.critical} critical, ${record.summary.serious} serious, ` +
-            `${record.summary.moderate} moderate, ${record.summary.minor} minor.`,
+            `${count("critical")} critical, ${count("serious")} serious, ` +
+            `${count("moderate")} moderate, ${count("minor")} minor.`,
     );
+  }
+  if (carried.length > 0) {
+    lines.push(`${carried.length} ${found > 0 ? "more " : ""}still open, not checked this time.`);
   }
   for (const page of record.pages) {
     if (page.requestedUrl !== undefined && page.url !== page.requestedUrl) {
@@ -319,7 +339,9 @@ export function scanLines(record: ScanRecord, prepared: PreparedScan, folder: st
   if (found > 0 && record.summary.notScanned === 0 && record.exit === 0) {
     lines.push(
       record.command === "check"
-        ? `None of them is new${prepared.failOn === "minor" ? "" : ` at ${prepared.failOn} or worse`}, so the exit is 0: the ones still open were in the baseline.`
+        ? `None of them is new${prepared.failOn === "minor" ? "" : ` at ${prepared.failOn} or worse`}, so the exit is 0: the ones still open were in the baseline` +
+            // A finding found only in states the baseline did not scan reads still open, and was never in it (issue 158).
+            (unverifiedOf(record).neverScanned > 0 ? ", or were found only in states it did not scan." : ".")
         : `None is ${prepared.failOn} or worse, so the exit is 0 (--fail-on ${prepared.failOn}).`,
     );
   }

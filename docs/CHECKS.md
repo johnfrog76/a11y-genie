@@ -25,7 +25,7 @@ version it pins. The version is in every `scan.json` (`engine.axeCore`) and at t
 - **By default**, axe-core's default rule set runs. Nothing is turned on or off by hand. The landmark rules
   (`region`, `landmark-one-main` and the others) are in it.
 - **With `--tags <list>`**, exactly those axe-core tags run, and a rule with none of them does not. The tags go
-  in as given: `wcag2a` alone does not also run `wcag2aa`. An unknown tag is a refusal that lists the real ones.
+  in as given: `wcag2a` alone does not also run `wcag2aa`. An unknown tag is a refusal that gives examples of tags that work.
   The landmark rules, and `genie/no-landmarks` and `genie/skip-link` that sum them up, carry `best-practice`, so
   a list without it runs none of them. A `--tags` list also leaves out an own rule that has none of the list's
   tags.
@@ -63,7 +63,8 @@ in every finding is data: it is quoted, cut and never run.
   page, where axe-core would report every element outside a landmark one at a time. It reads the accessibility
   roles, not the tag names, so `<div role="main">` counts, and a `header` inside an `article` is not a banner.
 - **Does not find:** a page that has some landmarks but the wrong ones, or two of one kind. axe-core's own
-  landmark rules cover those. It does not read inside a frame.
+  landmark rules cover those. It does not read inside a frame. A document with no `body` element, such as an
+  SVG image or an XML file, is not checked and makes no finding.
 - **Needs review:** nothing. It is a finding or it is silent.
 - **The fix:** put the page's own content in a `main` element, and use `header`, `nav` and `footer` for its
   banner, its navigation and its footer, so a person using a screen reader can jump between them.
@@ -71,7 +72,8 @@ in every finding is data: it is quoted, cut and never run.
 ### `genie/click-on-non-control`
 
 - **Finds:** an element that does something on a click, but is not a control: not a link, button, input, select,
-  textarea, summary, label or option, has no widget role, and cannot take focus. A keyboard cannot reach it and a
+  textarea, summary, label or option, has no widget role, and cannot take focus (the browser is asked, so an element it puts in the tab order by
+  itself, such as a contenteditable one, is not flagged). A keyboard cannot reach it and a
   screen reader does not say it can be pressed. It counts a click handler of the element's own: an `onclick`
   attribute, or a `click` listener on the element itself.
 - **Does not find:** a click handled further up the page. A framework often attaches one listener at the root,
@@ -91,7 +93,13 @@ in every finding is data: it is quoted, cut and never run.
   (moderate, WCAG 2.4.1) when the page has neither.
 - **Does not find:** whether the skip link shows itself when it gets focus, or whether its target takes focus.
   A page with fewer than five tabbable elements before its main content is not checked, since it has little to
-  skip. A skip link inside a frame does not count.
+  skip. A skip link inside a frame does not count. A document with no `body` element, such as an SVG image
+  or an XML file, is not checked and makes no finding.
+- **When it does not run:** the check counts the tabbable elements before the main content, and it counts only
+  those in the page's own markup, not those inside a shadow root (the hidden tree a web component keeps). A page
+  whose navigation is all in shadow roots, such as a web-component header, counts few or none. Below five, the
+  check does not run and makes no finding, and nothing in the scan says it was skipped. Counting through open
+  shadow roots is tracked in [issue #216](https://github.com/johnfrog76/a11y-genie/issues/216).
 - **Needs review:** nothing.
 - **The fix:** make the first thing on the page a link to the main content, such as `href="#main"` with
   `id="main"` on the `main` element, shown when it gets focus.

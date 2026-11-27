@@ -42,12 +42,24 @@ describe.skipIf(!hasBrowser)("focus visible (skipped where the test browser is n
     report: string | undefined;
   }
 
-  /** Scans a fixture page, or `html` set as its content, with `tags` (`--tags`) when given. */
-  async function scan(page: string, tags: string[] | null = null, html?: string): Promise<Scanned> {
+  /**
+   * Scans a fixture page, or `html` set as its content, with `tags` (`--tags`) when given. `slower` runs the page's
+   * CPU that many times slower (the DevTools Protocol's CPU throttling), as a busy machine would.
+   */
+  async function scan(
+    page: string,
+    tags: string[] | null = null,
+    html?: string,
+    slower = 1,
+  ): Promise<Scanned> {
     return withBrowser(TEST_CHANNEL, async (browser) => {
       const context = await browser.newContext();
       const attempted = await guardContext(context, server.origin);
       const tab = await context.newPage();
+      if (slower > 1) {
+        const cdp = await context.newCDPSession(tab);
+        await cdp.send("Emulation.setCPUThrottlingRate", { rate: slower });
+      }
       // Before the page loads, as `runScan` does: the guard is then first in line.
       await FocusGuard.install(tab);
       await tab.goto(server.url(page));
@@ -237,19 +249,66 @@ describe.skipIf(!hasBrowser)("focus visible (skipped where the test browser is n
     expect(withIt.data).toEqual(without.data);
   });
 
-  it("focus-transitioning.html: a ring by a transition is seen, and the page hears no transition event of the check's making", async () => {
-    const without = await scan("focus-transitioning.html", ["wcag2a", "best-practice"]);
-    const withIt = await scan("focus-transitioning.html", ["wcag2a", "best-practice", "wcag2aa"]);
-    expect(withIt.finding).toBeUndefined();
-    const heard = (s: Scanned) => JSON.parse(s.report ?? "null") as Record<string, number>;
-    // The walk's own Tabs start the ring's transitions, and the page hears those. The check's blur and refocus
-    // start none, so it hears no more with the check than without it. (A shot's hold can keep back one of the
-    // page's own, named while it runs, so the count is held as at most, not equal.)
-    expect(heard(without).transitionrun).toBeGreaterThan(0);
-    for (const type of ["transitionrun", "transitionstart", "transitioncancel", "transitionend"]) {
-      expect(heard(withIt)[type] ?? 0, type).toBeLessThanOrEqual(heard(without)[type] ?? 0);
-    }
-  });
+  /**
+   * What, in the ordered log `focus-transitioning.html` keeps, the page heard that no focus change it heard can
+   * explain: each such transition event, with the rule it breaks. Empty when every one follows the page's own.
+   */
+  function unexplained(heard: [string, string][]): string[] {
+    const broken: string[] = [];
+    let changes = 0;
+    // Per element: its focus changes the page heard, since its last run, start or end of each kind; and whether
+    // the page heard it lose focus since it last gained it.
+    const since = new Map<string, Map<string, number>>();
+    const left = new Map<string, boolean>();
+    heard.forEach(([type, id], at) => {
+      if (type === "focus" || type === "blur") {
+        changes += 1;
+        left.set(id, type === "blur");
+        const kinds = since.get(id) ?? new Map<string, number>();
+        for (const kind of ["transitionrun", "transitionstart", "transitionend"])
+          kinds.set(kind, (kinds.get(kind) ?? 0) + 1);
+        since.set(id, kinds);
+        return;
+      }
+      const where = `${type} on #${id}, event ${at.toString()}`;
+      if (changes === 0) broken.push(`${where}: before any focus change the page heard`);
+      if (type === "transitioncancel") {
+        if (left.get(id) !== true) broken.push(`${where}: the page had not heard it lose focus`);
+        return;
+      }
+      const kinds = since.get(id) ?? new Map<string, number>();
+      if ((kinds.get(type) ?? 0) === 0)
+        broken.push(`${where}: a second one with no focus change of its own heard`);
+      kinds.set(type, 0);
+      since.set(id, kinds);
+    });
+    return broken;
+  }
+
+  for (const slower of [1, 6]) {
+    const pace = slower === 1 ? "" : `, with the CPU ${slower.toString()} times slower`;
+    it(`focus-transitioning.html: a ring by a transition is seen, and the page hears no transition event of the check's making${pace}`, async () => {
+      const heard = (s: Scanned) => JSON.parse(s.report ?? "[]") as [string, string][];
+      const without = heard(
+        await scan("focus-transitioning.html", ["wcag2a", "best-practice"], undefined, slower),
+      );
+      const withScan = await scan(
+        "focus-transitioning.html",
+        ["wcag2a", "best-practice", "wcag2aa"],
+        undefined,
+        slower,
+      );
+      expect(withScan.finding).toBeUndefined();
+      // The walk's own Tabs start the ring's transitions, and the page hears those.
+      expect(without.filter(([type]) => type === "transitionrun").length).toBeGreaterThan(0);
+      // With the check, every transition event the page hears follows a focus change it heard itself: none comes
+      // before the first, an element starts, runs or ends at most once for each of its own, and is cancelled only
+      // after the page heard it lose focus. The check's blur and refocus are not heard, so what they start or
+      // cancel breaks one of the three. How many there are is not compared: that depends on the walk's pace.
+      expect(unexplained(heard(withScan)), JSON.stringify(heard(withScan))).toEqual([]);
+      expect(unexplained(without), JSON.stringify(without)).toEqual([]);
+    }, 60_000);
+  }
 
   it("a held animation whose time ran out ends where it would have, and does not start again", async () => {
     await withBrowser(TEST_CHANNEL, async (browser) => {
@@ -371,6 +430,54 @@ describe.skipIf(!hasBrowser)("focus visible (skipped where the test browser is n
       expect(result.needsReview.find((n) => n.rule.id === "focus-visible")?.elements.length).toBeGreaterThan(
         0,
       );
+    });
+  });
+
+  it("an install made after the page loaded is late too: needs review, no finding", async () => {
+    await withBrowser(TEST_CHANNEL, async (browser) => {
+      const context = await browser.newContext();
+      const attempted = await guardContext(context, server.origin);
+      const tab = await context.newPage();
+      await tab.goto(server.url("focus-hidden.html"));
+      // Installed, but after the load: no document has the guard's world, so the guard is added now, behind the
+      // page's own listeners, and must say it is late.
+      await FocusGuard.install(tab);
+      const result = await scanPage(tab, undefined, null, { maxTabs: 1000 });
+      expect(attempted).toEqual([]);
+      expect(result.findings.find((f) => f.rule.id === "focus-visible")).toBeUndefined();
+      const review = result.needsReview.find((n) => n.rule.id === "focus-visible");
+      expect(review?.elements.find((e) => e.selector === "#plain-link")?.reason).toContain(
+        "may have heard the check",
+      );
+    });
+  });
+
+  it("a failure after focus was given back is that stop's own: the later stops are still looked at", async () => {
+    await withBrowser(TEST_CHANNEL, async (browser) => {
+      const context = await browser.newContext();
+      const attempted = await guardContext(context, server.origin);
+      const tab = await context.newPage();
+      await FocusGuard.install(tab);
+      await tab.goto(server.url("focus-hidden.html"));
+      // The first stop's second screenshot, the unfocused one, is not a PNG: it is taken before focus is given
+      // back, and fails to decode after.
+      const real = tab.screenshot.bind(tab);
+      let calls = 0;
+      tab.screenshot = (async (...args: Parameters<typeof real>) => {
+        calls += 1;
+        if (calls === 2) return Buffer.from("not a PNG");
+        return real(...args);
+      }) as typeof real;
+      const result = await scanPage(tab, undefined, null, { maxTabs: 1000 });
+      expect(attempted).toEqual([]);
+      const finding = result.findings.find((f) => f.rule.id === "focus-visible");
+      const review = result.needsReview.find((n) => n.rule.id === "focus-visible");
+      expect(finding?.elements.map((e) => e.selector)).toEqual(["#plain-button"]);
+      expect(review?.elements.map((e) => [e.selector, e.reason])).toEqual([
+        ["#plain-link", expect.stringContaining("could not take or compare the screenshots")],
+        ["#away", expect.stringContaining("outside the window")],
+      ]);
+      expect(JSON.stringify(review)).not.toContain("could not give focus back");
     });
   });
 });

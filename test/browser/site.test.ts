@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { runScan } from "../../src/run-scan.js";
 import { SCANS_DIR_ENV } from "../../src/scans-folder.js";
-import { buildSite } from "../../scripts/build-site.js";
+import { buildSite, DECK_PAGE } from "../../scripts/build-site.js";
 import { testBrowserIsInstalled, guardContext } from "../helpers/browser-guard.js";
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 import { neverClaimViolations } from "../helpers/never-claim.js";
@@ -72,6 +72,11 @@ describe.skipIf(!hasBrowser)("the project's page (skipped where the test browser
     const html = readFileSync(join(site, "index.html"), "utf8");
     const local = [...html.matchAll(/(?:src|href)="([^":#]+)"/g)].map(([, path]) => path ?? "");
     expect(local.length).toBeGreaterThan(0);
-    for (const path of local) expect(existsSync(join(site, path)), path).toBe(true);
+    // deck/ is the deck page, put beside this one when the pages are put together (pages.yml, "Assemble the page");
+    // web/tests/smoke.mjs serves the two together and holds that the link opens it.
+    expect(local.filter((path) => path === DECK_PAGE)).toHaveLength(1);
+    for (const path of local.filter((path) => path !== DECK_PAGE)) {
+      expect(existsSync(join(site, path)), path).toBe(true);
+    }
   });
 });

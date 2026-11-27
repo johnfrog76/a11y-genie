@@ -29,7 +29,12 @@ suffix) and set `TMPDIR` to it in `process.env`, and `TEMP` and `TMP` too on Win
 temp folder each time it launches, not once at import, so its profile and artifacts folders, and everything the
 browser and the browser installer (a child process) make, land in it. The folder is removed when the process
 exits, however it exits: a normal end, a refusal (exit 2), an unexpected error (exit 3), and Ctrl-C, a plain kill and a closed terminal (130, 143 and 129,
-through `process.exit()` in `src/interrupt.ts`), all of which run the `exit` handler.
+through `process.exit()` in `src/interrupt.ts`), all of which run the `exit` handler. The handler removes the folder and
+looks again until it is gone (`removeUntilGone`, about a second at most), because one `rmSync` is not enough: after
+Ctrl-C, Playwright may still be removing the browser's profile inside the folder, and on Linux `rmSync` then returns
+with no error and the folder still there (libstdc++'s `std::filesystem::remove_all`, which Node uses, stops at the
+first entry already gone, and Node takes that as done). CI's Linux left the folder so after Ctrl-C (issue 223);
+`test/unit/private-temp-remove.test.ts` races the removal against a worker thread removing a profile inside it.
 
 Why: the system temp folder is shared by every process on the machine. Cleaning up after a failed launch there,
 as this code once did, can remove another run's brand-new, still-empty profile folder, and that browser then
@@ -53,7 +58,17 @@ SIGKILL as soon as vitest's own process exits, so no handler in a worker is sure
 made inside one folder for the run (`test/setup/run-folder.ts`, a global setup, `A11Y_GENIE_TEST_RUN_TMP`), and
 vitest's own process, which does run its `exit` handlers when it is stopped, stops every process that names the
 run's folder, synchronously, before the workers go. Only that run's folder is named, so another run on the same
-machine is never touched.
+machine is never touched. Then, as a step of its own so a failure to stop them never skips it, it removes the folder, and looks again until it is gone (a few tries, a second at
+most). One removal is not enough: when a browser is stopped, the Playwright that launched it removes the browser's
+profile at the same moment. On Linux, Node's `rmSync` then returns early, with no error and the folder still there:
+it uses `std::filesystem::remove_all`, libstdc++'s version stops at the first entry already gone, and Node takes
+that error as done, even with `maxRetries`. macOS's libc++ skips such an entry and goes on, so only Linux saw it:
+the run's folder left holding one empty worker folder (issue 160). The removal is `test/helpers/remove-folder.ts`;
+`test/unit/remove-folder.test.ts` races it against a worker thread removing a profile inside the folder, and on
+Linux races plain `rmSync` the same way and prints how often it left the folder (26 of 100 on CI's Linux, the first
+time it ran). `test/setup/private-temp.ts` removes each test file's own folder the same way, since the same race left
+one of those behind too. Either step that fails, or a folder still
+there after both, is said on stderr, which the leak test prints when it finds the folder left.
 `test/cli/browser-leak.test.ts` holds this: it runs `test/fixtures/leak/leak.fixture.ts`, tests built to fail and
 to time out with a browser open (the main run never includes that file), and looks for any process left; and it
 runs `test/fixtures/leak/signal.fixture.ts`, stops that run with SIGTERM while a process the test started has a
@@ -100,8 +115,15 @@ folder from its own `chrome://version` page, and checks that the folder is in th
 this run, differs between two runs, and is gone after the run, including a run that throws.
 
 On Ctrl-C, a plain `kill` (`SIGTERM`) or a closed terminal (`SIGHUP`), `src/interrupt.ts` closes the browser (so
-the folder is deleted) and exits 130, 143 or 129; the launch sets `handleSIGINT: false`, `handleSIGTERM: false`
+the folder is deleted) and exits 130, 143 or 129. It waits at most five seconds for the browser to close
+(`CLEANUP_CAP_MS`), then exits anyway, so a browser that will not close never keeps the run alive or leaves its
+private temp folder behind (`test/cli/interrupt-cap.test.ts`, with a cleanup that never settles); the launch sets `handleSIGINT: false`, `handleSIGTERM: false`
 and `handleSIGHUP: false`, so playwright-core's own handlers (all on by default) do not race it or change the code.
+Closing the browser makes whatever the scan was waiting on fail (`page.evaluate: Target page, context or browser
+has been closed`), often before the browser has finished closing, so that failure reaches the command's catch
+before the exit. `interrupting()` says a signal is being handled, and `reportFailure()` (src/refusal.ts), which the
+catch calls, then prints nothing and sets no exit code (`test/cli/interrupt-failure.test.ts`, with a cleanup that
+makes the wait fail every time).
 
 ### A browser that is not installed
 
@@ -156,7 +178,10 @@ another browser.` With `--browser-channel chromium` and nothing in the cache, th
 Playwright's Chromium is read as installed only when its executable exists **and** playwright-core's
 `INSTALLATION_COMPLETE` marker is in the build's folder. playwright-core writes the marker after unpacking, so
 a download stopped part-way (Ctrl-C, a lost connection) reads as not installed, and the next run downloads it
-again. Ctrl-C during the download stops the installer and exits 130.
+again. Ctrl-C during the download sends SIGINT on to the installer and waits for it to exit, at most
+`INSTALLER_STOP_MS` (three seconds, below the five-second cap), then sends SIGKILL, and exits 130. Without the
+wait the run would remove its private temp folder while the installer was still writing into it
+(`test/cli/interrupt-download.test.ts`, with a fake installer that is slow to stop and one that never does).
 
 The installer's output (its "Downloading ..." lines, and a progress bar at a terminal) goes to stderr, never
 stdout, so `--json` keeps stdout for the one document. A download that fails is a refusal:
@@ -557,7 +582,10 @@ Any press that puts focus on an element outside the cycle, or on no element, mea
 nothing is flagged (`trap-shift-leaves.html`, `trap-escape-leaves.html`). If none does, every element of the
 cycle is an element of `genie/keyboard-trap` (`trap.html`, `trap-stuck.html`). After Escape, a focused element
 that is no longer shown counts as focus on no element: Chrome can leave focus on a button of a dialog Escape has
-just hidden until it moves focus to the page itself.
+just hidden until it moves focus to the page itself. Focus is read two frames after Escape and after the Tab
+that follows it (or a second later, when frames do not come), not the moment the key returns: a dialog that gives
+focus back in a `setTimeout(0)` once it has closed, as many dialog libraries do, has done so by then
+(`modal-late-return.html`).
 
 **The modal dialog.** A dialog keeps focus inside on purpose. When every element of the cycle is inside one shown
 modal dialog (`role="dialog"` or `"alertdialog"`, or a `dialog` element, with `aria-modal="true"`), and Escape
@@ -742,10 +770,21 @@ there, empty, which changed the HTML the trap check quotes.
 `focusout`, `focus` and `focusin` events, and the older `DOMFocusIn` and `DOMFocusOut` that Chrome still fires beside
 them (checked at Chrome 159; `focus-listening.html` counts all six), so the page's own handlers never see them.
 From just before the blur until the refocus has been styled, a constructed style sheet in every root turns
-transitions off, so the blur and the refocus start none, and the page hears no transition event of the check's
-making (`focus-transitioning.html`, whose ring comes in by a 10 s transition and whose counts are no higher with
-the check than without it); the sheet is taken away only after each document's styles are worked out, so taking
-it away starts nothing either. A menu that closes when
+transitions off, so the blur and the refocus start none; the sheet is taken away only after each document's styles
+are worked out, so taking it away starts nothing either. Turning transitions off does not stop one that is already
+running from being cancelled: the blur changes the focus style under the ring's own transition, and the browser
+cancels it a frame later, a `transitioncancel` the page did not cause. So just before the blur the check names,
+with the guard, every animation and transition that is running, and the guard holds their events through the
+blur, the unfocused screenshot and the refocus, until three frames have been drawn after focus is back (`keep` and
+`release` in `src/focus-guard.ts`). The page hears no transition event of the check's making
+(`focus-transitioning.html`, whose ring comes in by a 10 s transition and which writes down, in order, every focus
+change and transition event it hears: each one follows a focus change the page heard itself, an element runs,
+starts or ends at most once for each of its own, and is cancelled only after the page heard it lose focus; the
+same test runs again with the CPU six times slower). How many events it hears is not compared with a scan
+without the check, because that depends on the walk's pace: a Tab away from a ring that has been drawn for a frame
+starts it back, and the check makes the walk wait on each stop, as a person would. Until this was found, the test
+compared those counts, and passed on a fast machine only because a screenshot's hold happened to keep back two of
+the page's own events. A menu that closes when
 focus leaves it stays open (`focus-watched.html`, whose counts of focus and blur events, and whose walk, are the
 same with the check as without it). The guard is first in line: `runScan` installs it before the page navigates
 (`FocusGuard.install`, `Page.addScriptToEvaluateOnNewDocument` into an isolated world of its own, in every
@@ -755,12 +794,16 @@ listener of the page's own on `window` in the capture phase, added at load, is b
 (`focus-listening.html`, `focus-running.html`, whose counts are the same with the check as without it). Verified in Chrome: a
 listener added from an isolated world and stopping an event with `stopImmediatePropagation()` stops the page's
 own main-world listeners after it on the same target, as the browser keeps one list of listeners per target.
-A scan of a page that was already loaded when it began (a caller that did not install the guard) gets a late
-guard, behind whatever the page added (`runScan` installs early, and if that install fails it carries on with a late one); a late guard cannot shield the page from the blur, so every stop the check would have measured is *needs review* ("the page's own listeners may have heard the check") and the check never blurs it or raises a finding on it. Stops it never measures (outside the window, past the cap, in another origin's frame) read as they always did. Focus ends on
+A scan of a page that was already loaded when it began (a caller that did not install the guard, or installed it
+only after the load, so no document has its world) gets a late guard, behind whatever the page added (`runScan`
+installs early, and if that install fails it carries on with a late one); whenever the guard has to be added to the
+open documents, it is marked late, whatever the install was. A late guard cannot shield the page from the blur, so every stop the check would have measured is *needs review* ("the page's own listeners may have heard the check") and the check never blurs it or raises a finding on it. Stops it never measures (outside the window, past the cap, in another origin's frame) read as they always did. Focus ends on
 the element Tab put it on, so the walk's next Tab goes on from there, and the trap check reads the same walk and
 the same trap with the check as without it (`trap.html`, `trap-stuck.html`, `walk-order.html`, `walk-shadow.html`,
 `walk-frame.html`). If focus cannot be given back, the check takes no more screenshots on that walk, and the rest
-of its stops are *needs review*. What the page can still notice: the screenshot style is a `style` element added and removed, and the witness's
+of its stops are *needs review*. Focus is given back once a stop, after the second screenshot, or at the end when
+something failed before that; a failure after it (a screenshot that does not decode) is that stop's own *needs
+review*, and the walk's later stops are looked at as they would be. What the page can still notice: the screenshot style is a `style` element added and removed, and the witness's
 style is in `adoptedStyleSheets` while it shoots, and so is the sheet that turns transitions off from the blur to the refocus.
 
 **The screenshots stay in memory.** Each pair is decoded in Node (`src/png.ts`, a small reader of Chrome's 8-bit
@@ -890,7 +933,8 @@ page's reach (`PressObserver`):
   `role="status"`, `"alert"` and `"log"` element, and `output`, is remembered; after it, the page is given 250 ms
   (`ACTION_SETTLE_MS`) for its answer, and the text that was added is said, as `Saved, status`. A region that
   grew by appending says only what was added; one that was rewritten says all of it. Open shadow roots are
-  searched; frames are not. A page that goes to another address (not a jump within the page), or loads a new
+  searched; frames are not. A region inside another region (a `role="status"` in an `aria-live` div) is not read on
+  its own, as a screen reader says it once with the outer one (`narrate-nested-live.html`). A page that goes to another address (not a jump within the page), or loads a new
   document at the same address (a reload, a form that posts back to itself: the main frame's `DOMContentLoaded`
   is counted), is read again from scratch, and the step says the new page's title (`kind: "page"`;
   `narrate-reload.html`). A new document that commits after that check is caught when the readers' world is
@@ -983,7 +1027,7 @@ without `wcag2a` (or another of its tags) leaves out `genie/click-on-non-control
 - **`--tags <list>`** is comma-separated, in the order given, without repeats. The tags it accepts are the ones
   axe-core's own rule metadata carries (`axe.getRules()` at the installed version, read in Node, nothing listed
   by hand): `wcag2a`, `wcag21aa`, `best-practice`, `cat.aria`, `experimental` and the rest. An unknown or empty
-  one is a refusal that lists them. `axe.withTags()` then runs exactly those; a rule with none of them does not
+  one is a refusal that gives examples. `axe.withTags()` then runs exactly those; a rule with none of them does not
   run, which is how `engine.rulesRun` comes to differ. Without `--tags`, `engine.tags` is `null` and axe-core's
   default rule set runs (docs/JSON.md). The tags go in as given: `wcag2a` alone does not also run `wcag2aa`.
 - **`--fail-on <impact>`** is `critical`, `serious`, `moderate` or `minor`, default `minor`. The exit is 1 when a
@@ -1023,6 +1067,11 @@ report is a pure function of the record, so a stored `scan.json` can write it ag
   unknown command print none.
 - **Never into the project.** Nothing is written in the folder the command runs from, or the scanned
   project. Scans go to the per-user scans folder or `--out` (docs/JSON.md says where).
+- **A scan is written whole or not at all.** `writeScanFolder` (`src/scans-folder.ts`) writes the files into an
+  `.unfinished-` folder beside the scan's place, on the same file system, and renames it into place in one step. A
+  failure removes it, and the site's folder and `--out` too when the write made them, so a full disk is a refusal
+  that leaves nothing (docs/EXIT-CODES.md). The last-scan lookup reads only folders named by a start time, so an
+  `.unfinished-` folder a crash left is never read as a scan.
 - **The schema is checked without a validator dependency.** `src/json-schema.ts` is a small
   validator for exactly the keywords `schema/scan-1.json` uses, and throws on any other, so the schema cannot
   outgrow it. The schema test runs it over every golden and over a record the browser test has just made, and
@@ -1048,7 +1097,9 @@ The comparison is a pure function of two records, so the browser tests and the u
   is never counted on a side. docs/JSON.md has the
   rest of the rule.
 - **Not scanned is never fixed.** A baseline element found in a state that was not scanned this time stays still
-  open, marked `unverified`, and the run exits 1 for the state not scanned anyway.
+  open, marked `unverified`, and the run exits 1 for the state not scanned anyway. The printed *Found* line counts
+  only what this run found (`notCheckedNow` in `src/compare.ts`); the findings carried so are said apart, as still
+  open, not checked this time.
 - **One new element makes a finding new** (decided 2026-11-19: a new instance is new work). The finding reads
   `new` and fails the run, and its elements say which one is new.
 - **A state the baseline never scanned is not new either** (decided 2026-11-19: a state the baseline never scanned
@@ -1067,7 +1118,9 @@ The comparison is a pure function of two records, so the browser tests and the u
   to 160 characters again, with `failure` and `selector` cut to 1,000 and at most 500 elements kept per finding (the
   rest counted in `elementsCut`), so a crafted baseline cannot carry more into a record than these caps allow (a fresh scan takes `failure` and `selector` as axe-core and the checks wrote them, which are short; carried ones come from a file and are capped); and everything printed from it goes through `src/printable.ts`.
 - **Plain `scan` reads its last scan too**, for one line and `summary.sincePrevious`: the newest scan folder of the
-  site under the scans folder or `--out`, read the same way. A last scan that cannot be read, or that covered other
+  site under the scans folder or `--out`, read the same way, and only a scan whose own `target.origin` is this one;
+  the folder of the old name, shared by `http` and `https`, is read only when the new one holds no scan, and an
+  unreadable scan in it is passed over (docs/JSON.md, *Where a scan is written*). A last scan that cannot be read, or that covered other
   pages, states or tags, reads *not comparable* and says why; it is never a refusal, and it never changes the exit.
 - **`--commit`** (or `GITHUB_SHA`) is recorded as `target.commit`, and a fixed finding's `fixedIn` names it.
 
@@ -1110,7 +1163,7 @@ fixture in the real Chrome, from `127.0.0.1`, with every request off the fixture
 | Redirects to a cap | the main frame's redirects are counted from its `request` events; past 10 the page is closed, which stops the chain, and reads *not scanned*. The address asked for (`requestedUrl`), where it ended (`url`) and the count (`redirects`) are recorded; a redirect to another origin is scanned there, and the report says it is another origin | redirects the test's fixture server makes | *redirects are followed to a cap* |
 | The time limit | 60 seconds a page, from the first request to the end of axe-core. The answer is waited for first (30 seconds; no answer is a refusal), then the load and axe-core within what is left. Past it, *not scanned* | `busy-load.html`, `busy-after-load.html` | *the time, element and size caps* |
 | The element and excerpt caps | at most 500 elements per finding, the rest counted in `elementsCut`; each element's quoted HTML cut at 160 characters in `scan.json` as well as in the report | `many-elements.html` | *the time, element and size caps* |
-| The size cap | `scan.json` at most 50 MB. Over it, every walk is cut to its first N stops (N the most that fits, at least one; the rest counted in `stopsCut`), then elements are dropped, least severe first and never a finding's last one, and counted; if that is not enough, *not scanned* | `many-elements.html`, with the limit lowered | *the time, element and size caps* |
+| The size cap | `scan.json` at most 50 MB. Over it, every walk is cut to its first N stops (N the most that fits, at least one; the rest counted in `stopsCut`), then, on a `check`, the fixed elements under findings still open (counted in `fixedCut`), then elements are dropped, least severe first and never a finding's last one, and counted; if that is not enough, *not scanned*, with the comparison's counts at 0 | `many-elements.html`, with the limit lowered | *the time, element and size caps* |
 | Private networks | when the address scanned is public, every request to a loopback, link-local, private or unspecified address is aborted before it leaves the browser and noted under `stopped` as `private-network`; a page whose own frame goes to one reads *not scanned*. `--allow-private` turns it off, and a target that is itself loopback or private is never limited. See *The private-network rule (V12)* below | `private-network.html`, and redirects the test's fixture server makes | *a public page cannot reach private addresses* |
 | `--same-origin` | every request to an origin other than the address scanned (scheme, host and port) is aborted and noted under `stopped` as `other-origin`; a page whose own frame goes to one reads *not scanned*. The report says so, and that some of the page's content may be missing. It is the private-network rule's mechanism, below, asked a second question: there is one interception layer, `networkRule()` in `src/context.ts` | `private-network.html`, and redirects the test's fixture server makes | `test/browser/network-flags.test.ts`, *--same-origin* |
 | `--offline` | the target must be loopback (`127.0.0.0/8`, `::1`, `localhost`, `*.localhost`), or the run is refused; every request to an address that is not loopback is aborted and noted as `offline`, a page whose own frame goes to one reads *not scanned*, and no browser is downloaded. The browser is launched with switches that keep what it starts on its own on the machine too (*--offline at the launch*, below) | `private-network.html`, and redirects the test's fixture server makes | `network-flags.test.ts`, *--offline* |

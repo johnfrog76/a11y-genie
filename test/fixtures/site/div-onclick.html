@@ -10,7 +10,8 @@
                  key handler), on #multi-role (role="presentation button": any token that names a control counts), on
                  #delegated-list (its listener is real, but it does not look clickable, so it is
                  not asked), on the spans inside #delegated items (they inherit the pointer, they do not set it),
-                 or on #hidden-div (not shown); and no axe-core rule
+                 on #hidden-div (not shown), or on #editable (a contenteditable div with an onclick: the
+                 browser puts it in the tab order itself); and no axe-core rule
 -->
 <html lang="en">
   <head>
@@ -49,6 +50,9 @@
         <li id="delegated-one" class="clickable"><span>First item</span></li>
         <li id="delegated-two" class="clickable"><span>Second item</span></li>
       </ul>
+
+      <!-- Must not fire: contenteditable is focusable natively, so Tab reaches it with no tabindex. -->
+      <div id="editable" contenteditable="true" onclick="void 0">Note</div>
 
       <!-- Must not fire: hidden, so no one can click it. -->
       <div id="hidden-div" onclick="void 0" hidden>Hidden</div>

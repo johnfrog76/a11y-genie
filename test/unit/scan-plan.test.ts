@@ -92,6 +92,16 @@ describe("--config", () => {
     );
   });
 
+  it("refuses a workflow of more than 200 steps, naming the file and the line its steps start on", () => {
+    const steps = Array.from({ length: 201 }, () => "    - Tab").join("\n");
+    const text = `baseUrl: http://127.0.0.1:5173\npages:\n  - path: /\nworkflows:\n  - name: long\n    page: home\n    steps:\n${steps}\n`;
+    const path = file("long.yaml", text);
+    const error = refusal(() => planScan({ url: undefined, states: [], config: path }));
+    expect(error.message).toBe(
+      `${path}, line 7: the workflow "long" has 201 steps, and a flow may have at most 200.`,
+    );
+  });
+
   it("refuses --states beside --config", () => {
     const error = refusal(() =>
       planScan({ url: undefined, states: ["a: Tab"], config: file("d.yaml", yaml) }),
@@ -146,11 +156,18 @@ describe("--timeout and --storage-state", () => {
   it("reads seconds, whole or decimal, as milliseconds", () => {
     expect(parseTimeout("30")).toBe(30_000);
     expect(parseTimeout("0.5")).toBe(500);
+    expect(parseTimeout("0.001")).toBe(1);
   });
 
   it.each(["0", "-1", "abc", "", "1e3", "3601", "NaN", " 5"])("refuses --timeout %j", (text) => {
     expect(refusal(() => parseTimeout(text)).message).toMatch(
       /^--timeout takes a number of seconds above 0 and up to 3600/,
+    );
+  });
+
+  it("refuses a --timeout that rounds to 0 milliseconds", () => {
+    expect(refusal(() => parseTimeout("0.0004")).message).toMatch(
+      /^--timeout takes a number of seconds above 0 and up to 3600, not "0\.0004": that is under one millisecond\.$/,
     );
   });
 

@@ -22,9 +22,15 @@ function writable(folder: string): boolean {
 /**
  * Refuses an `--out` that a scan could not be written to, before anything is scanned. `--out` may be a
  * folder that exists, or a new folder whose parent exists; it is never made, and neither is its parent,
- * until a scan is ready to be written.
+ * until a scan is ready to be written, and a new one is removed again if the write fails (src/scans-folder.ts).
  */
 export function checkOutFolder(out: string): void {
+  if (out === "") {
+    throw new Refusal(
+      "--out is empty.",
+      "give a folder, or leave --out off to use the per-user scans folder.",
+    );
+  }
   const folder = resolve(out);
   const kind = kindOf(folder);
   if (kind === "other") {

@@ -1,5 +1,5 @@
 # Publishes the project's page to GitHub Pages on every push to main that changes it, and on demand: site/ as
-# built by scripts/build-site.ts (which adds the deck's button only once DECK_URL is set there), with the deck
+# built by scripts/build-site.ts (with its "Watch the video" button to deck/, set by DECK_URL there), with the deck
 # page built from web/ beside it at deck/ (docs/DECK.md).
 #
 # Two jobs. `build` installs the deck page's npm project from its lockfile, builds both pages and uploads them;
@@ -18,7 +18,7 @@ name: Pages
 on:
   push:
     branches: [main]
-    paths: ["site/**", "scripts/build-site.ts", "web/**"]
+    paths: ["site/**", "scripts/build-site.ts", "web/**", ".github/workflows/pages.yml", ".nvmrc"]
   workflow_dispatch:
 
 permissions: {}

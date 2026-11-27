@@ -754,6 +754,14 @@ export class FocusVisibleCheck {
     }
     this.shots += 1;
     let verdict: Verdict;
+    // Focus is given back once: in the try, before the witness needs it, or in the finally when something threw
+    // first. A throw after it was given back is that stop's own failure, and the walk goes on as it would.
+    let givenBack = false;
+    const giveBack = async (): Promise<void> => {
+      if (givenBack) return;
+      givenBack = true;
+      await this.giveBack();
+    };
     try {
       // Each shot is taken with the page held still, and its styles read in that same stillness, so an animated
       // ring is judged as it ends; the animations are put back before the next thing happens.
@@ -782,12 +790,17 @@ export class FocusVisibleCheck {
         }
       };
       const focused = await shot();
+      // What runs now, the blur can cancel: the guard holds those events until focus is back (`giveBack`).
+      const running = await this.reader.call(STILL, null);
+      await this.guard.keep(
+        Array.isArray(running) ? running.filter((n): n is string => typeof n === "string") : [],
+      );
       // From here until the refocus is styled, the check's own focus changes start no transition (TRANSITIONS_OFF).
       await this.reader.call(TRANSITIONS_OFF);
       await this.guard.hold(true);
       if ((await this.reader.call(BLUR)) !== true) throw new Error("focus did not leave the element");
       const unfocused = await shot();
-      await this.giveBack();
+      await giveBack();
       const focusedStyles = focused.styles;
       const unfocusedStyles = unfocused.styles;
       if (focusedStyles === undefined || unfocusedStyles === undefined) throw new Error("unreadable styles");
@@ -805,8 +818,9 @@ export class FocusVisibleCheck {
         if (witnessed !== undefined && witnessed >= VISIBLE_SHARE) verdict = { kind: "visible" };
       }
     } catch {
-      await this.giveBack();
       verdict = { kind: "review", reason: NOT_MEASURED_REASON };
+    } finally {
+      await giveBack();
     }
     this.before = undefined;
     this.lastClip = clip;
@@ -821,6 +835,8 @@ export class FocusVisibleCheck {
     await this.reader.call(TRANSITIONS_ON).catch(() => undefined);
     // Last: the events the refocus fired have been stopped before the guard is let go.
     await this.guard.hold(false).catch(() => undefined);
+    // And the cancels the blur queued have been dispatched, held, before their names are let go.
+    await this.guard.release().catch(() => undefined);
     if (back !== true) this.stopped = true;
   }
 

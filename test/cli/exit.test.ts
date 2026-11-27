@@ -26,9 +26,10 @@ interface Run {
   stderr: string;
 }
 
-function start(args: string[], env: Record<string, string>) {
+function start(args: string[], env: Record<string, string>, cwd?: string) {
   const child = spawn(process.execPath, [cli, ...channelArgs(args, env)], {
     env: { ...process.env, ...env },
+    cwd,
   });
   let stdout = "";
   let stderr = "";
@@ -104,6 +105,22 @@ describe("refusals that need no browser", () => {
     expect(readdirSync(scans)).toEqual([]);
   });
 
+  it.each([
+    ["a newline", "a\nHint: b"],
+    ["an escape and a control character", "a\u001b[31m\u0007b\rc"],
+  ])("an argument with %s is quoted on one line", async (_name, bad) => {
+    const scans = temp();
+    const page = "http://127.0.0.1:1/";
+    expectRefusal(await run(["scan", page, bad], scans), /^Error: scan takes one page, and got more: a/);
+    expectRefusal(await run([bad], scans), /^Error: unknown command or flag: a/);
+    expectRefusal(
+      await run(["scan", page, "--browser-channel", bad], scans),
+      /^Error: unknown --browser-channel: a/,
+    );
+    expectRefusal(await run(["scan", page, "--format", bad], scans), /^Error: unknown --format: a/);
+    expect(readdirSync(scans)).toEqual([]);
+  });
+
   it("an extra argument", async () => {
     const scans = temp();
     expectRefusal(await run(["scan", "http://127.0.0.1:1/", "two"], scans), /scan takes one page.*two/);
@@ -143,6 +160,19 @@ describe("refusals that need no browser", () => {
         /--out cannot be made, because the folder above it does not exist/,
       );
       expect(existsSync(join(root, "missing"))).toBe(false);
+      expect(readdirSync(scans)).toEqual([]);
+    });
+
+    it("an empty --out writes nothing, not even to the working folder", async () => {
+      const scans = temp();
+      const cwd = temp();
+      const result = start(["scan", "http://127.0.0.1:1/", "--out", ""], { [SCANS_DIR_ENV]: scans }, cwd);
+      expectRefusal(
+        await result.done,
+        /^Error: --out is empty\.$/,
+        /^Hint: give a folder, or leave --out off/,
+      );
+      expect(readdirSync(cwd)).toEqual([]);
       expect(readdirSync(scans)).toEqual([]);
     });
 
@@ -267,6 +297,8 @@ describe.skipIf(!hasBrowser)(
       const result = await done;
       expect(result.status).toBe(130);
       expect(result.stdout).toBe("");
+      // Closing the browser makes the scan's wait fail; that is not news (issue #159).
+      expect(result.stderr).not.toMatch(/^Error:/m);
       expect(readdirSync(scans)).toEqual([]);
       expect(readdirSync(privateTmp)).toEqual([]);
     });

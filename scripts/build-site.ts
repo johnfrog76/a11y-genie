@@ -5,50 +5,153 @@
  * `site/index.html` holds one marker, `<!-- deck-cta -->`, where the deck's button goes. With `DECK_URL` set,
  * the button to watch the deck goes there, before the repository's. Emptied, the marker is taken out and the
  * page has no deck button at all, so there is never a link to nowhere. The page is published only once the
- * repository is public (pages.yml, which also puts the deck page beside it at deck/); `DECK_URL` stays empty
- * until the deck is published too.
+ * repository is public (pages.yml, which also puts the deck page beside it at deck/, the address the button
+ * opens).
+ *
+ * It also fills a second marker, `<!-- share-tags -->`, with the Open Graph and Twitter tags a link preview reads.
+ * A preview needs whole addresses, so the page's own address is set once, in `SITE_URL`, and every tag is built
+ * from it and from `SHARE_IMAGE`, the picture in `site/`.
  *
  * Run it with `npm run site` (or `node scripts/build-site.ts [folder]`); it writes `_site/` by default.
  * test/unit/site.test.ts checks both cases.
  */
-import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { cpSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 /**
- * The product-intro deck's address, set here and only here. It stays empty, and the page has no deck button,
- * until the deck is published. Then this one line becomes `"https://css-wasteland.com/decks/a11y-genie"`.
+ * The product deck's address, set here and only here: the deck page `web/` builds, which Pages serves at `deck/`
+ * beside this page (docs/DECK.md). Emptied, the page has no deck button at all.
  */
-export const DECK_URL: string = "";
+export const DECK_URL: string = "deck/";
+
+/** The one address that is not an https: one: the deck page beside this one. */
+export const DECK_PAGE = "deck/";
 
 /** The marker in `site/index.html` the deck's button replaces. */
 export const DECK_MARKER = "<!-- deck-cta -->";
 
 /** The deck button's words. */
-export const DECK_LABEL = "Watch the deck";
+export const DECK_LABEL = "Watch the video";
 
 export const SITE_DIR = fileURLToPath(new URL("../site/", import.meta.url));
 
-/** The page's HTML with the deck button filled in, or with no deck button when `deckUrl` is empty. */
+/** The page's own address once published, set here and only here. Every share tag's address is built from it. */
+export const SITE_URL = "https://johnfrog76.github.io/a11y-genie/";
+
+/** The marker in `site/index.html` the share tags replace. */
+export const SHARE_MARKER = "<!-- share-tags -->";
+
+/** The picture a link preview shows, a file in `site/` (1200 by 630 pixels). */
+export const SHARE_IMAGE = "a11y-genie-share-1200x630.png";
+
+/** What the picture shows, for someone who cannot see it. */
+export const SHARE_IMAGE_ALT =
+  "The name A11y Genie in large gold letters above a smiling genie floating on a red-and-teal magic carpet " +
+  "across a moonlit night stage, with a glowing glass bottle on the shelf below.";
+
+/** The words of a link preview. */
+export const SHARE_TITLE = "A11y Genie";
+export const SHARE_DESCRIPTION = "An accessibility scanner for agents and people.";
+
+function attribute(text: string): string {
+  return text
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+/** The share tags, one per line at `indent`, each with a whole https: address where it takes one. */
+export function shareTags(indent: string, base: string = SITE_URL): string {
+  if (!/^https:\/\/[^\s"'<>]+\/$/.test(base)) {
+    throw new Error(
+      `SITE_URL must be an https: address ending in a slash, with no spaces, quotes or angle brackets: ${base}`,
+    );
+  }
+  const tags: [string, string, string][] = [
+    ["property", "og:title", SHARE_TITLE],
+    ["property", "og:description", SHARE_DESCRIPTION],
+    ["property", "og:type", "website"],
+    ["property", "og:url", base],
+    ["property", "og:image", new URL(SHARE_IMAGE, base).href],
+    ["property", "og:image:alt", SHARE_IMAGE_ALT],
+    ["name", "twitter:card", "summary_large_image"],
+  ];
+  return tags
+    .map(([kind, key, value]) => `${indent}<meta ${kind}="${key}" content="${attribute(value)}" />`)
+    .join("\n");
+}
+
+/** The page's HTML with its share tags, and with the deck button filled in, or none when `deckUrl` is empty. */
 export function renderIndex(html: string, deckUrl: string = DECK_URL): string {
-  const markers = html.split(DECK_MARKER).length - 1;
-  if (markers !== 1)
-    throw new Error(`site/index.html must hold ${DECK_MARKER} exactly once, not ${markers} times`);
+  for (const marker of [SHARE_MARKER, DECK_MARKER]) {
+    const count = html.split(marker).length - 1;
+    if (count !== 1) throw new Error(`site/index.html must hold ${marker} exactly once, not ${count} times`);
+  }
+  html = html.replace(new RegExp(`^([ \\t]*)${SHARE_MARKER}`, "m"), (_line, indent: string) =>
+    shareTags(indent),
+  );
   if (deckUrl === "") {
     // Take out the marker's whole line, so the built page has no trace of it.
     return html.replace(new RegExp(`^[ \\t]*${DECK_MARKER}\\r?\\n`, "m"), "").replace(DECK_MARKER, "");
   }
-  if (!/^https:\/\/[^\s"'<>]+$/.test(deckUrl)) {
+  if (deckUrl !== DECK_PAGE && !/^https:\/\/[^\s"'<>]+$/.test(deckUrl)) {
     throw new Error(
-      `DECK_URL must be an https: address with no spaces, quotes or angle brackets: ${deckUrl}`,
+      `DECK_URL must be ${DECK_PAGE}, or an https: address with no spaces, quotes or angle brackets: ${deckUrl}`,
     );
   }
   const button = `<a class="lp-cta-button" data-cta="deck" href="${deckUrl.replaceAll("&", "&amp;")}">${DECK_LABEL}</a>`;
   return html.replace(DECK_MARKER, button);
 }
 
+/** The repository's root, the folder above `scripts/`. */
+export const REPO_ROOT = fileURLToPath(new URL("../", import.meta.url));
+
+/** The real path of `path`: of its nearest folder that exists, with the rest put back, so `..` and links count. */
+function realPathOf(path: string): string {
+  const full = resolve(path);
+  if (existsSync(full)) return realpathSync(full);
+  const parent = dirname(full);
+  return parent === full ? full : join(realPathOf(parent), full.slice(parent.length + 1));
+}
+
+function contains(outer: string, inner: string): boolean {
+  const rel = relative(outer, inner);
+  return rel === "" || (!rel.startsWith("..") && !rel.includes(`..${sep}`) && resolve(outer, rel) === inner);
+}
+
+/**
+ * The reason `out` must not be emptied, or `undefined` when it may be. The build deletes `out` first, so it is
+ * refused, before anything is deleted, when it is, holds or sits inside `site/`, when it is or holds the
+ * repository, and when it is anywhere else inside the repository but `_site/`, so no folder of the project
+ * itself (`src/`, `docs/`) can be emptied by a mistyped argument.
+ */
+export function unsafeOutFolder(
+  out: string,
+  from: string = SITE_DIR,
+  root: string = REPO_ROOT,
+): string | undefined {
+  const target = realPathOf(out);
+  const source = realPathOf(from);
+  const repo = realPathOf(root);
+  const given = resolve(out);
+  if (contains(target, source) || contains(source, target)) {
+    return `Refusing ${given}: it is, holds or sits inside the page's source folder. Give a folder of its own, such as _site.`;
+  }
+  if (contains(target, repo)) {
+    return `Refusing ${given}: it is or holds the repository. Give a folder of its own, such as _site.`;
+  }
+  if (contains(repo, target) && !contains(join(repo, "_site"), target)) {
+    return `Refusing ${given}: inside the repository, only _site may be emptied. Give _site, or a folder outside it.`;
+  }
+  return undefined;
+}
+
 /** Writes the page into `out`, replacing whatever was there. */
 export function buildSite(out: string, deckUrl: string = DECK_URL, from: string = SITE_DIR): void {
+  const refusal = unsafeOutFolder(out, from);
+  if (refusal !== undefined) throw new Error(refusal);
   rmSync(out, { recursive: true, force: true });
   mkdirSync(out, { recursive: true });
   cpSync(from, out, { recursive: true });
@@ -58,6 +161,11 @@ export function buildSite(out: string, deckUrl: string = DECK_URL, from: string 
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const out = resolve(process.argv[2] ?? "_site");
+  const refusal = unsafeOutFolder(out);
+  if (refusal !== undefined) {
+    console.error(refusal);
+    process.exit(1);
+  }
   buildSite(out);
   console.log(`Built the page into ${out}${DECK_URL === "" ? ", with no deck button yet" : ""}.`);
 }

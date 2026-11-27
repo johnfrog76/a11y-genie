@@ -64,8 +64,9 @@ const sessions = new WeakMap<Page, Promise<FocusGuard>>();
 
 export class FocusGuard {
   /**
-   * True when this guard was not in place before the page loaded: the early install did not happen, or it
-   * failed. It then sits behind the page's own window-level listeners, which can hear the check's blur and
+   * True when this guard was not in place before the page loaded: the early install did not happen, it failed,
+   * or it came after the page had loaded, so no document has its world and `reach` added the guard now. It then
+   * sits behind the page's own window-level listeners, which can hear the check's blur and
    * refocus, so `hold` cannot promise the page heard nothing. The focus-visible check reads this.
    */
   late = false;
@@ -122,10 +123,12 @@ export class FocusGuard {
 
   /**
    * Makes sure every open document has the guard: when it was installed before the page loaded they all do, and
-   * this is one call; on a page that loaded without it, each frame gets the guard now.
+   * this is one call; on a page that loaded without it, each frame gets the guard now, behind the page's own
+   * listeners, so the guard is late, whatever the install was.
    */
   private async reach(): Promise<void> {
     if (this.contexts.size > 0) return;
+    this.late = true;
     const { frameTree } = await this.session.send("Page.getFrameTree");
     const frames = [frameTree];
     for (let i = 0; i < frames.length; i++) frames.push(...(frames[i]?.childFrames ?? []));
@@ -167,13 +170,47 @@ export class FocusGuard {
   /** Whether `still` named any animation, so `settle` has events to wait for. */
   private named = false;
 
+  /** The names `keep` holds, from before the check's blur until `release`, beside the ones `still` names. */
+  private kept: string[] = [];
+
   /**
    * Names the animations and transitions (by `animationName` and `propertyName`) whose events the page must not
-   * hear while the check holds them still: until `settle`. An empty list names none.
+   * hear while the check holds them still: until `settle`. An empty list names none. The names `keep` holds stay
+   * held beside them.
    */
   async still(names: readonly string[]): Promise<void> {
     this.named = names.length > 0;
+    await this.names([...names, ...this.kept]);
+  }
+
+  /**
+   * Holds the events of the transitions and animations running before the check's blur, by name, until `release`.
+   * The blur changes the focus style under a transition that is running, and the browser cancels it a frame later:
+   * that `transitioncancel` is the check's making, and nothing a screenshot holds is still running by then.
+   */
+  async keep(names: readonly string[]): Promise<void> {
+    this.kept = [...names];
+    await this.names(this.kept);
+  }
+
+  /** Lets go of what `keep` held, once the browser has dispatched the events queued since (as `settle` waits). */
+  async release(): Promise<void> {
+    if (this.kept.length === 0) return;
+    await this.frames();
+    this.kept = [];
+    await this.names([]);
+  }
+
+  private async names(names: readonly string[]): Promise<void> {
     await this.everywhere(`globalThis.${STATE}.names = ${JSON.stringify(names)}`, false);
+  }
+
+  private async frames(): Promise<void> {
+    await this.everywhere(
+      `new Promise((done) => { setTimeout(done, ${FRAME_CAP_MS.toString()}); ` +
+        `requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(done))); })`,
+      true,
+    );
   }
 
   /**
@@ -185,15 +222,9 @@ export class FocusGuard {
    * the wait ends and the events are let through.
    */
   async settle(): Promise<void> {
-    if (this.named) {
-      await this.everywhere(
-        `new Promise((done) => { setTimeout(done, ${FRAME_CAP_MS.toString()}); ` +
-          `requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(done))); })`,
-        true,
-      );
-    }
+    if (this.named) await this.frames();
     this.named = false;
-    await this.everywhere(`globalThis.${STATE}.names = []`, false);
+    await this.names(this.kept);
   }
 
   private async everywhere(expression: string, awaitPromise: boolean): Promise<void> {

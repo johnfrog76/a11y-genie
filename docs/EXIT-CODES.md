@@ -41,7 +41,10 @@ earlier scan*), and exits on what is new:
 
 Its first line counts the findings, such as `2 fixed, 0 new, 3 still open (worst: serious, color-contrast on
 settings)`, and when it exits 0 with findings still open it says `None of them is new, so the exit is 0: the ones
-still open were in the baseline.` Plain `scan` compares with the site's last scan only for its first line
+still open were in the baseline.`, or, when one of them was found only in states the baseline did not scan,
+`None of them is new, so the exit is 0: the ones still open were in the baseline, or were found only in states it
+did not scan.` Its *Found* line counts only what this run found: a baseline finding on a page or state not scanned
+this time is said apart, as `1 more still open, not checked this time.` Plain `scan` compares with the site's last scan only for its first line
 (`4 new, 2 fixed since the last scan`, or `Not comparable with the last scan: different pages, states or tags.`):
 its exit reads only the scan just run.
 
@@ -56,7 +59,7 @@ and takes no argument.
 
 Not built yet, with a place waiting in `src/exit-codes.ts`:
 
-- **Exit 4**, a refusal after something was already written. Only a later command (`cards --toolkit`) can reach it.
+- **Exit 4**, a refusal after something was already written. Only a later command can reach it: the planned `cards` command, which hands findings to a team's work tracker.
 
 `--version` wins anywhere on the line: `a11y-genie rules --version` and `a11y-genie scan <url> --version` print the
 version and exit 0, before the command reads its other arguments. (It is not only a top-level flag, so a
@@ -64,7 +67,8 @@ person who adds it to any command line gets the answer, not a refusal.)
 
 ## Refusals the command can reach
 
-Every refusal is exit 2 and happens before anything is written: the scans folder and `--out` are left as they were.
+Every refusal is exit 2 and leaves the scans folder and `--out` as they were. All but one come before anything is
+written; the one that comes at the write, `cannot write the scan under <folder>` (below), leaves nothing either.
 `check` takes every flag `scan` does, with the same refusals, and `--baseline`; its own refusals come before a
 browser opens, too.
 
@@ -84,13 +88,13 @@ browser opens, too.
 | A CSS selector that starts with an engine prefix (`xpath=`, `text=`, `id=`) or holds `>>` | `--states step 1 "click css 'xpath=//a'", column 12: a selector cannot start with "xpath=", which Playwright reads as another kind of selector.` | `write one CSS selector, such as css '#menu', or name the element by role and name.` |
 | A config that does not read or validate | `<file>, line 3: unknown key "title" in a page; the keys it takes are key, path, states.` (also a missing key, a wrong kind of value, a repeated key, a page key or state name given twice, a path that is not on the site, a YAML feature the file does not take); every one names the file and the line | `see docs/CONFIG.md for the config file: ...` |
 | A `--config` that is missing, a folder, or over 1 MB | `--config cannot be read: <path> (ENOENT)` | `give the path to a YAML file you may read.` |
-| A `--timeout` that is not a number of seconds above 0 and up to 3600 | `--timeout takes a number of seconds above 0 and up to 3600, not "soon".` | `for example --timeout 30. The default is 60.` |
+| A `--timeout` that is not a number of seconds above 0 and up to 3600 | `--timeout takes a number of seconds above 0 and up to 3600, not "soon".` (a number under half a millisecond, such as `0.0004`, adds `: that is under one millisecond.` after the quoted value) | `for example --timeout 30. The default is 60.` |
 | A `--max-tabs` that is not a whole number from 1 to 1000 | `--max-tabs takes a whole number of Tab presses from 1 to 1000, not "lots".` | `for example --max-tabs 500. The default is 200.` |
 | A `--storage-state` that is missing or is not a Playwright storage state | `--storage-state cannot be read: <path> (ENOENT)`, or `... is not a Playwright storage state: <path>` | `give the path to a Playwright storage state file.` |
 | `narrate` with no `--flow` | `narrate needs --flow: the steps to drive.` | `run: a11y-genie narrate <url> --flow "Tab; Tab; Enter"` |
 | `narrate` with no address | `narrate needs a page address to narrate.` | `run: a11y-genie narrate <url> --flow "<steps>"` |
 | A `--flow` that does not parse, is empty, or sets media (`colorScheme`, `viewport`, `reducedMotion`) | `--flow step 2 "clik", column 6: "clik" is not a step.`; every message is in `docs/STEPS.md` | what a step is, or how to fix this one |
-| A `--flow` of more than 200 steps, or a config workflow of more than 200 | `--flow has 201 steps, and narrate takes at most 200.` | `narrate one task at a time: split the flow in two.` (a config: `split it into workflows of their own.`) |
+| A `--flow` of more than 200 steps, or a config workflow of more than 200 | `--flow has 201 steps, and narrate takes at most 200.` | `narrate one task at a time: split the flow in two.` (a config: `a11y-genie.yaml, line 12: the workflow "checkout" has 201 steps, and a flow may have at most 200.` with the hint `split it into workflows of their own.`; the line is where the workflow's `steps` start) |
 | `--states`, `--config` or `--tags` after `narrate` | the words of Node's argument parser, such as `Unknown option '--states'. ...` | the same hint |
 | `check --baseline` given a `narrate` record | `--baseline is a narration, which has no axe-core results to compare with.` | `give the scan.json of a scan: a11y-genie scan <url>, then a11y-genie check --baseline <scan> <url>` |
 | A target that is not `http:` or `https:` | `only http: and https: addresses can be scanned, and this one is file:` (or `javascript:`, `data:`) | `give a full address that starts with http:// or https://. To scan a built site, serve it first, for example: npx serve dist` |
@@ -99,7 +103,7 @@ browser opens, too.
 | An empty part of `--tags` (`--tags wcag2a,` or `--tags ""`) | `--tags needs one or more axe-core tags, separated by commas, and one is empty.` | `use axe-core tags separated by commas, such as wcag2a,wcag2aa,best-practice.` |
 | `--offline` with a target that is not loopback (`127.0.0.0/8`, `::1`, `localhost`, `*.localhost`) | `--offline allows only a page on this machine, and http://example.com is not one.` | `serve the page on localhost, 127.0.0.1 or [::1], or run without --offline.` |
 | A target that is not an address | `not a web address: "example"` | the same hint |
-| A target that does not answer | `http://127.0.0.1:5173 did not answer: the connection was refused.`, `... the host name was not found.`, `... no answer within 30 seconds.`, or `... the browser reported ERR_<NAME>.` | `check the address, and that the server is running.` |
+| A target that does not answer | `http://127.0.0.1:5173 did not answer: the connection was refused.`, `... the host name was not found.`, `... no answer within 30 seconds.` (or the page time limit, `--timeout`, when that is shorter: the number is always the limit that bound), or `... the browser reported ERR_<NAME>.` | `check the address, and that the server is running.` |
 | No Chrome, with `--no-download` | `Chrome was not found on this machine, and --no-download stops A11y Genie from downloading Playwright's Chromium.` | `Install Chrome, or run with --browser-channel msedge if that one is installed, or download Playwright's Chromium yourself: npx playwright-core@1.65.1 install --no-shell chromium` |
 | No Chrome, with `--offline` (and no `--no-download`) | `Chrome was not found on this machine, and --offline stops A11y Genie from downloading Playwright's Chromium.` | the same hint as `--no-download` |
 | `--browser-channel chromium --offline`, with no Chromium in Playwright's cache | `Playwright's Chromium is not installed on this machine, and --offline stops A11y Genie from downloading it.` | the same hint as `--no-download` |
@@ -108,13 +112,14 @@ browser opens, too.
 | A `--browser-channel msedge` that is not installed (never replaced) | `Microsoft Edge was not found on this machine.` | `Install Microsoft Edge, or run with --browser-channel chrome, or chromium to use Playwright's Chromium (downloaded once).` |
 | The Chromium download did not finish | `the download of Playwright's Chromium did not finish: the installer exited with code <n>.` (or `... was stopped by <signal>`) | `check the network and run again, or download it yourself: npx playwright-core@1.65.1 install --no-shell chromium` |
 | A temp folder that cannot be made (`TMPDIR` missing, read-only or full), for `scan`, `check` and `narrate` | `cannot make a temp folder in /nonexistent (ENOENT)` | `point TMPDIR at a folder that exists and that you may write to.` (`TEMP` on Windows) |
+| An `--out` that is empty (`--out ""`) | `--out is empty.` | `give a folder, or leave --out off to use the per-user scans folder.` |
 | An `--out` that is a file | `--out is not a folder: <path>` | `give a folder, or a new name inside a folder that exists.` |
 | An `--out` whose parent is missing, or a file | `--out cannot be made, because the folder above it does not exist: <path>` (or `the path above it is not a folder`) | `make the folder above it first, or choose another --out.` |
 | An `--out` with no permission | `--out cannot be written to: <path>` (or `... because the folder above it cannot be written to`) | `choose a folder you may write to.` |
 | A `--commit`, or a `GITHUB_SHA` with no `--commit`, that is not a sha, tag or branch name | `--commit is not a commit: "a b".` (or `GITHUB_SHA is not a commit: ...`) | `give a commit sha, or a tag or branch name: letters, digits, '.', '_', '/' and '-', up to 100.` |
 | `check` with no `--baseline` | `check needs --baseline: the scan to compare with.` | `scan first, then give its scan.json or its folder: a11y-genie check --baseline <scan> <url>` |
 | `check` with no address and no `--config`, or more than one | `check needs a page address to scan.`, `check takes one page, and got more: two` | as for `scan` |
-| A `--baseline` that is missing, unreadable, or a folder with no `scan.json` | `--baseline cannot be read: <path> (ENOENT)` | `give a scan.json that a11y-genie scan wrote, or the scan folder it is in, such as <scans>/localhost-5173/2026-11-19T20-14-03Z.` |
+| A `--baseline` that is missing, unreadable, or a folder with no `scan.json` | `--baseline cannot be read: <path> (ENOENT)` | `give a scan.json that a11y-genie scan wrote, or the scan folder it is in, such as <scans>/http_localhost-5173/2026-11-19T20-14-03Z.` |
 | A `--baseline` that is not a file (a device, a pipe) | `--baseline is not a file: <path>` | the same hint |
 | A `--baseline` over 50 MB, the limit on `scan.json` | `--baseline is over the 52428800 byte limit on scan.json: <path>` | the same hint |
 | A `--baseline` that is not JSON (or not UTF-8), or has no `schema` | `--baseline is not a scan.json: <path> is not JSON.` (or `... has no schema version.`) | the same hint |
@@ -133,7 +138,11 @@ The version in the hints is the installed playwright-core's.
 
 `--out` may name a folder that exists, or a new folder whose parent exists. A scan folder that turns out not to be
 writable when the write is tried (a race, or the default scans folder) is the same refusal, `cannot write the
-scan under <folder>: <code>`.
+scan under <folder>: <code>`. So is a write that fails part way, such as a full disk (`ENOSPC`): a scan is written
+whole or not at all, in the scans folder and in `--out` alike. Its files go into an unfinished folder beside the
+scan's place, which is renamed into place in one step once every file is written. On a failure the unfinished
+folder is removed, and so are the site's folder and `--out` when this write made them; folders that were there
+before are left as they were, earlier scans in them included.
 
 ## How a page that does not answer is decided
 
@@ -159,7 +168,7 @@ page nobody saw never exits 0. The reasons, in the scan's own words:
 | more than 10 redirects | `it redirected more than 10 times, so the scan stopped following it` |
 | the page answers with a file to download | `it answered with a file to download, and downloads are refused` |
 | the page moves itself to a scheme that is not `http:` or `https:`, such as `about:blank` | `it went to an about: address, which is not http: or https:` |
-| a page after the first, or a state, does not answer (connection refused, host not found, no answer in time) | `it did not answer: the connection was refused`, `... the host name was not found`, `... no answer within 30 seconds`, or `... the browser reported ERR_<NAME>` |
+| a page after the first, or a state, does not answer (connection refused, host not found, no answer in time) | `it did not answer: the connection was refused`, `... the host name was not found`, `... no answer within 30 seconds` (or `--timeout`, when that is shorter), or `... the browser reported ERR_<NAME>` |
 | a step of a state fails | `step 2 (click button 'Menu') failed: <why>`; the reasons are in `docs/STEPS.md` |
 | the steps of a state have not finished by its limit | `its steps did not finish within 60 seconds` |
 | the page has not finished loading 60 seconds after the first request | `it did not finish loading within 60 seconds` |
@@ -179,7 +188,11 @@ and state, and the exit is 1.
 
 Ctrl-C closes the browser, which deletes its temporary profile folder, and exits 130. A plain `kill`
 (`SIGTERM`) and a closed terminal (`SIGHUP`) do the same and exit 143 and 129. A second signal while the browser
-is closing exits at once. On Windows `SIGTERM` is not delivered, and `SIGHUP` arrives when the console window is
+is closing exits at once, and a browser that has not closed after five seconds is left to the system: the run exits
+with the signal's code anyway, and its temporary folder goes with it. Ctrl-C prints no `Error:` line of its own: closing the browser
+makes whatever the run was waiting on in it fail, and that failure is not reported (no "something unexpected",
+no exit 3). During the download of Playwright's Chromium, Ctrl-C stops the installer and waits for it, at most
+three seconds, then kills it, so it is never left writing into the temporary folder the run removes. On Windows `SIGTERM` is not delivered, and `SIGHUP` arrives when the console window is
 closed. Nothing is left in the
 scans folder: a scan's folder is made and written, whole, only after the page has been scanned, and in one
 unbroken step, so Ctrl-C comes before it or after it.
