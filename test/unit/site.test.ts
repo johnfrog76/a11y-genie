@@ -263,3 +263,38 @@ describe("the build's output folder", () => {
     expect(readFileSync(join(dir, "later", "index.html"), "utf8")).toContain(DECK_LABEL);
   });
 });
+
+/** GitHub's anchor for a Markdown heading: lower case, punctuation but `-` and `_` dropped, spaces as `-`. */
+function githubSlug(heading: string): string {
+  return heading
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s_-]/gu, "")
+    .replace(/\s/g, "-");
+}
+
+describe("the page's links into the README", () => {
+  const repository = "https://github.com/johnfrog76/a11y-genie";
+  const readme = readFileSync(join(REPO_ROOT, "README.md"), "utf8");
+  const anchors = new Set(
+    [...readme.matchAll(/^#{1,6}\s+(.+)$/gm)].map(([, heading]) => githubSlug(heading ?? "")),
+  );
+  // `#readme` is GitHub's own anchor for the README on the repository's page.
+  anchors.add("readme");
+  const links = [...source.matchAll(/href="([^"]*)"/g)]
+    .map(([, href]) => href ?? "")
+    .filter((href) => href.startsWith(`${repository}#`));
+
+  it("there are some, so the check below checks something", () => {
+    expect(links.length).toBeGreaterThan(0);
+  });
+
+  it("each lands on a heading the README has", () => {
+    for (const href of links) expect(anchors, href).toContain(href.slice(repository.length + 1));
+  });
+
+  it("reads a heading's anchor as GitHub writes it", () => {
+    expect(githubSlug("Quick start")).toBe("quick-start");
+    expect(githubSlug("Work on it")).toBe("work-on-it");
+  });
+});
