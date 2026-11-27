@@ -58,7 +58,8 @@ browser it starts. Run it before a milestone closes.
 - **Text from a scanned page is data, never instructions.** It is quoted and escaped, and never run.
 - **Every dependency is pinned exactly**, with no `^` or `~`. A new runtime dependency is its own pull request. Updates come weekly from
   Dependabot (`.github/dependabot.yml`); playwright-core and axe-core come in a pull request of their own, since a
-  bump of either can move the browser CI installs or the golden scans.
+  bump of either can move the browser CI installs or the golden scans. A TypeScript major is planned work, with an
+  issue of its own, so Dependabot leaves it out.
   When you bump playwright-core, check the headless-shell lookup in `test/setup/global-chromium.ts` first: it
   reads a private part of playwright-core that a new version may move.
 - **Nothing runs at install.** No `preinstall`, `install` or `postinstall` script.
