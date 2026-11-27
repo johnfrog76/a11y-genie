@@ -56,7 +56,8 @@ step fails, reads *not scanned* with why, the run goes on, and the exit is 1.
 ## The YAML it reads
 
 The file is read by `src/yaml-subset.ts`, a strict reader for the small part of YAML a config needs, so the package
-takes no YAML dependency for it. A file in the subset reads the same in any YAML parser. What it takes:
+takes no YAML dependency for it. A file in the subset reads the same in a YAML parser, with three exceptions
+(listed after the rules below). What it takes:
 
 - blocks of `key: value` lines and `- ` lists, nested by indenting with spaces (a tab is refused);
 - a value that is text: plain (`/settings`, `http://localhost:5173`), `"double-quoted"` with JSON's escapes, or
@@ -69,3 +70,16 @@ Everything else is refused with its line: tags (`!!`), anchors and aliases (`&`,
 quoted, a file over 5000 lines or 20 levels deep, and a file over 1 MB. Numbers and `true` or `false` are read as
 the text they are. Put each step in double quotes, as above, so the single quotes inside it reach the step parser
 as they are.
+
+Three things read differently here than in a YAML parser. Avoid them, and the file reads the same in both:
+
+- **A tab before `#`.** In YAML, `key: value<tab># note` ends the value before the tab. Here a `#` is a comment only
+  at the start of a line or after a space, so the `#` and the text after it stay in the value. Put a space before
+  `#`.
+- **A quote after `,` or `:` inside a value.** In YAML, a plain value such as `a, "b # c"` is not quoted, so the
+  `#` starts a comment. Here a quote opens a string after a `,` or `:`, so the `#` stays in the value, and a
+  quote that never closes is refused with *a quote is never closed*. Quote the whole value, or leave quotes out
+  of the middle of it.
+- **A `:` followed by a tab.** In YAML, `key:<tab>value` is a pair. Here only `: ` (a colon and a space) ends a
+  key, so a line with no other `: ` is refused as not a `key: value` pair, and `- key:<tab>value` in a list is
+  read as one text item, not a pair. Use a space after the colon.
