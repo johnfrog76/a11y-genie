@@ -14,7 +14,7 @@ import { testBrowserIsInstalled, guardContext } from "../helpers/browser-guard.j
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 import { validate } from "../helpers/json-schema.js";
 
-// `--offline`, `--same-origin`, `--tags` and `--fail-on` (spec 4.2) against the real Chrome, from 127.0.0.1.
+// `--offline`, `--same-origin`, `--tags` and `--fail-on` (docs/ARCHITECTURE.md, *The rule flags*) against the real Chrome, from 127.0.0.1.
 // Two loopback fixture servers: one is the page's own, the other stands in for a host out on the network
 // (`--offline` reads it as off the machine through the test-only declared origins; `--same-origin` needs no
 // declaring, since another port is another origin). The other server records every request it receives, so a

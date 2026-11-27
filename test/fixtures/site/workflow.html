@@ -1,11 +1,11 @@
 <!doctype html>
 <!--
-  Fixture: a small form for narrated workflows (spec 6.6, C10). Its controls are read from the accessibility
+  Fixture: a small form for narrated workflows (docs/ARCHITECTURE.md, *Narration*). Its controls are read from the accessibility
   tree one by one (test/browser/a11y-tree.test.ts): a required field, a button with no name, a submit button,
   a labelled field with a value, an invalid field, a radio group, a checkbox, a pressed toggle, a menu button
   that opens, a control marked disabled, a link, and a heading.
   The flow "Tab; Tab; Tab; Enter" goes Email, the button with no name, Save, and Enter puts "Saved" in the
-  status region (test/browser/narrate.test.ts, M9). The form is novalidate: without it, Chrome stops the
+  status region (test/browser/narrate.test.ts). The form is novalidate: without it, Chrome stops the
   submit at the empty required Email, and moves focus there instead. Keep it: this page shows narration, not
   form validation, and `required` is still spoken.
   Must fire: button-name (the button with no name), and genie/unnamed-step in a flow that stops on it

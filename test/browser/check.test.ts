@@ -9,7 +9,7 @@ import { testBrowserIsInstalled, guardContext } from "../helpers/browser-guard.j
 import { startFixtureServer, type FixtureServer } from "../helpers/fixture-server.js";
 import { neverClaimViolations } from "../helpers/never-claim.js";
 
-// Scan, fix, rescan (spec 4.6), in the machine's real Chrome, over one page served in three versions:
+// Scan, fix, rescan (docs/ARCHITECTURE.md, *Scan, fix, rescan*), in the machine's real Chrome, over one page served in three versions:
 // check/v1 has three bugs, check/v2 fixes two of them, check/v3 is v2 with a new one. Each is scanned as the
 // page "page", so its findings keep their ids, as they would on a dev server whose page was edited. Skipped,
 // and says so, where Chrome is not installed.
