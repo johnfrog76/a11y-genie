@@ -1,0 +1,48 @@
+# Stages a release on npm when a maintainer pushes a version tag, such as v0.1.0. Nothing else starts it.
+#
+# It publishes with npm's trusted publishing (OpenID Connect): no npm token is stored anywhere, and npm adds
+# provenance on its own for a public package built from a public repository. It stages the version, never
+# publishes it straight away: `npm stage publish` puts it in npm's staging area, and it goes live only when a
+# maintainer approves it on npm with two-factor authentication. docs/RELEASING.md has the whole release.
+name: Publish
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  stage:
+    if: ${{ github.event.repository.private == false }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      # The token npm's trusted publishing exchanges for a short-lived publish credential.
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+      # Trusted publishing needs npm 11.5.1 or later, and `npm stage publish` 11.15.0 or later.
+      - run: npm install --global npm@11.19.1
+      # The tag must name the version package.json holds, so a tag never stages a version it does not say.
+      - run: test "$GITHUB_REF_NAME" = "v$(node -p 'require("./package.json").version')"
+      - run: npm ci
+      - run: npx playwright-core@1.65.1 install --with-deps chromium
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm pack --dry-run
+      - run: npm stage publish
