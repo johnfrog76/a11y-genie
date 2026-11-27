@@ -1,5 +1,5 @@
 /**
- * `a11y-genie narrate <url> --flow "<steps>"` (spec 4.1, 6.6): drives the flow by the keyboard in the hardened
+ * `a11y-genie narrate <url> --flow "<steps>"` (docs/STEPS.md and docs/ARCHITECTURE.md, *Narration*): drives the flow by the keyboard in the hardened
  * browser context, reads each step back from the accessibility tree (src/narrate.ts), prints the transcript,
  * and writes the scan folder with `narration/flow.txt` in it. It shares the flags and the files of `scan`
  * (src/scan-command.ts), without the ones that make no sense for a flow: `--states`, `--config` and `--tags`.

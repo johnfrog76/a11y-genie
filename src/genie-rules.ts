@@ -1,5 +1,5 @@
 /**
- * The registry of the product's own rules, the `genie/*` ones (spec 6). A check registers its rule here when
+ * The registry of the product's own rules, the `genie/*` ones (docs/CHECKS.md, *A11y Genie's own rules*). A check registers its rule here when
  * its module loads, and `a11y-genie rules` lists what is registered, so a new check adds itself to the list by
  * registering and nothing else keeps a second copy. A rule that is not built yet is not registered, and so
  * is not listed.

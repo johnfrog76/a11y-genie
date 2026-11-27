@@ -1,7 +1,7 @@
 /**
- * The finding: one rule on one page, with every element it hit (D6), and the *needs review* item, its
+ * The finding: one rule on one page, with every element it hit, and the *needs review* item, its
  * twin for what a check could not decide. These are the types `scan.json` is built from; the field names
- * are the spec's (4.5). docs/JSON.md documents them.
+ * are documented in docs/JSON.md.
  */
 
 import type { Walk } from "./walk.js";
@@ -41,7 +41,7 @@ export type AxeTarget = (string | string[])[];
 
 /**
  * The colours axe-core measured for a contrast failure, copied from its `color-contrast` check data
- * (spec 6.1.2). Only on a violation: where axe-core could not measure, there is no pair and the element
+ * (docs/CHECKS.md, *axe-core's rules*). Only on a violation: where axe-core could not measure, there is no pair and the element
  * reads *needs review* with axe-core's reason. `required` is the number read out of axe-core's
  * `"4.5:1"` string.
  */
@@ -80,7 +80,7 @@ export interface Finding {
   rule: Rule;
   kind: FindingKind;
   impact: Impact;
-  /** The page's key (D6: a page is a URL). */
+  /** The page's key (a page is a URL). */
   page: string;
   elements: FindingElement[];
 }

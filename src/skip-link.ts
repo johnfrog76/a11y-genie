@@ -1,5 +1,5 @@
 /**
- * `genie/skip-link` (spec 6.4): a page whose first controls give a keyboard user no way past the navigation.
+ * `genie/skip-link` (docs/CHECKS.md, *`genie/skip-link`*): a page whose first controls give a keyboard user no way past the navigation.
  *
  * axe-core has no rule for it. The check reads the first three stops of the keyboard walk (src/walk.ts), which
  * starts at the top of the page. A skip link is a same-page link (`href="#id"`) whose target exists and is the
@@ -96,7 +96,7 @@ export const SKIP_LINK_STOPS = TABS_READ;
 /**
  * Whether the element focus is on now is a skip link, read in the reader's isolated world, so a page that
  * overrides `activeElement`, `getAttribute` or `querySelector` changes nothing it sees. The keyboard walk asks it at each of its first three
- * stops (`SKIP_LINK_STOPS`), so the check needs no Tab presses of its own (spec 6.5: the same walk feeds 6.4).
+ * stops (`SKIP_LINK_STOPS`), so the check needs no Tab presses of its own (docs/ARCHITECTURE.md, *The keyboard walk*).
  */
 export async function focusedIsSkipLink(reader: FocusReader): Promise<boolean> {
   return (await reader.callOnFocused(FOCUSED_IS_SKIP_LINK)) === true;

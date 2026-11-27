@@ -15,7 +15,7 @@ function nonEmpty(value: string | undefined): string | undefined {
 }
 
 /**
- * The per-user scans folder (spec 4.4), outside any scanned project: `~/.local/share/a11y-genie` on Linux
+ * The per-user scans folder, outside any scanned project: `~/.local/share/a11y-genie` on Linux
  * (under `XDG_DATA_HOME` when set), `~/Library/Application Support/a11y-genie` on macOS, and
  * `%LOCALAPPDATA%\a11y-genie` on Windows.
  */

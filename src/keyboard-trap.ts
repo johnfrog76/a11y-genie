@@ -1,5 +1,5 @@
 /**
- * `genie/keyboard-trap` and `genie/focus-not-returned` (spec 6.5), read from the keyboard walk (src/walk.ts).
+ * `genie/keyboard-trap` and `genie/focus-not-returned` (docs/CHECKS.md, *`genie/keyboard-trap`*), read from the keyboard walk (src/walk.ts).
  *
  * axe-core has no rule for either. The walk has already pressed Tab from the top of the page. Focus may be held
  * where the walk went round without leaving the page:
