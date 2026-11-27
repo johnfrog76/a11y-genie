@@ -1,0 +1,37 @@
+<!doctype html>
+<!--
+  Fixture: a page whose header is a web component, with its six links in an open shadow root before the main
+  content, and no skip link. The tabbable count goes through open shadow roots (src/skip-link.ts), so the page
+  is checked; before that it counted none and was not.
+  Must fire:     genie/skip-link as advice (minor), once for the page
+  Must not fire: any axe-core rule
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>A header in a shadow root, no skip link</title>
+  </head>
+  <body style="background: #ffffff; color: #000000">
+    <header>
+      <site-nav></site-nav>
+    </header>
+    <main id="main">
+      <h1>A header in a shadow root, no skip link</h1>
+      <p>The first thing a keyboard reaches is the navigation, inside a web component.</p>
+    </main>
+    <script>
+      customElements.define(
+        "site-nav",
+        class extends HTMLElement {
+          constructor() {
+            super();
+            this.attachShadow({ mode: "open" }).innerHTML =
+              '<nav aria-label="Site"><a href="/one">One</a> <a href="/two">Two</a> <a href="/three">Three</a> ' +
+              '<a href="/four">Four</a> <a href="/five">Five</a> <a href="/six">Six</a></nav>';
+          }
+        },
+      );
+    </script>
+  </body>
+</html>
